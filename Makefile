@@ -1,6 +1,9 @@
 ifeq ($(KERNELRELEASE),)
+KDIR ?= /lib/modules/`uname -r`/build
 default:
-	$(MAKE) -C /lib/modules/`uname -r`/build M=$$PWD
+	$(MAKE) -C $(KDIR) M=$$PWD
+clean:
+	$(MAKE) -C $(KDIR) M=$$PWD clean
 else
 EXTRA_CFLAGS += -Werror -Wenum-compare
 
