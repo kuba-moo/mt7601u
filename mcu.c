@@ -456,7 +456,6 @@ static int mt7601u_upload_firmware(struct mt7601u_dev *dev,
 	}
 
 	trace_printk("Firmware running!\n");
-	set_bit(MT7601U_MCU_RUNNING, &dev->flags);
 
 error:
 	kfree(ivb);
@@ -567,6 +566,8 @@ int mt7601u_mcu_init(struct mt7601u_dev *dev)
 	ret = mt7601u_load_firmware(dev);
 	if (ret)
 		return ret;
+
+	set_bit(MT7601U_MCU_RUNNING, &dev->flags);
 
 	return 0;
 }
