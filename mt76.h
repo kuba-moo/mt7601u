@@ -42,7 +42,7 @@
 
 #define MT_MAX_CHAINS		2
 
-#define MT_CALIBRATE_INTERVAL	HZ
+#define MT_CALIBRATE_INTERVAL	(4 * HZ)
 
 #include "regs.h"
 #include "util.h"

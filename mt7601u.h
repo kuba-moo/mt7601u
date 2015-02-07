@@ -267,7 +267,6 @@ struct mt7601u_dev {
 
 	bool pll_lock_protect;
 
-	u8 cal_round;
 	u8 agc_save;
 
 	/* TODO: use nl80211 enums for this */

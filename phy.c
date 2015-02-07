@@ -1004,12 +1004,7 @@ static void mt7601u_phy_calibrate(struct work_struct *work)
 	struct mt76_dev *dev = container_of(work, struct mt76_dev,
 					    cal_work.work);
 
-	dev->cal_round++;
-
 	mt7601u_agc_tune(dev);
-	if (dev->cal_round % 4)
-		return;
-
 	mt7601u_tssi_cal(dev);
 	/* If TSSI calibration was run it already updated temprature. */
 	if (!mt76_tssi_enabled(dev))
