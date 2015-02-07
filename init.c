@@ -772,6 +772,7 @@ struct mt7601u_dev *mt7601u_alloc_device(struct device *pdev)
 	spin_lock_init(&dev->tx_lock);
 	spin_lock_init(&dev->rx_lock);
 	spin_lock_init(&dev->lock);
+	spin_lock_init(&dev->last_beacon.lock);
 
 	return dev;
 }
