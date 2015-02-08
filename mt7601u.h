@@ -124,6 +124,11 @@ struct mt7601u_rx_queue {
 	unsigned int pending;
 };
 
+struct reg_channel_bounds {
+	u8 start;
+	u8 num;
+};
+
 #define N_TX_ENTRIES	64
 
 struct mt7601u_tx_queue {
@@ -199,6 +204,8 @@ struct mt7601u_dev {
 		bool adjusting;
 		struct delayed_work work;
 	} freq_cal;
+
+	struct reg_channel_bounds reg;
 
 	/***** Mine *****/
 	unsigned long flags;

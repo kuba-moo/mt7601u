@@ -261,6 +261,42 @@ out:
 }
 
 static void
+mt7601u_set_country_reg(struct mt76_dev *dev)
+{
+	/* Note: - region 31 is not valid for mt7601u (see rtmp_init.c)
+	 *	 - comments in rtmp_def.h are incorrect (see rt_channel.c)
+	 */
+	static const struct reg_channel_bounds chan_bounds[] = {
+		/* EEPROM country regions 0 - 7 */
+		{  1, 11 },	{  1, 13 },	{ 10,  2 },	{ 10,  4 },
+		{ 14,  1 },	{  1, 14 },	{  3,  7 },	{  5,  9 },
+		/* EEPROM country regions 32 - 33 */
+		{  1, 11 },	{  1, 14 }
+	};
+	u8 val = mt76_eeprom_get(dev, MT_EE_COUNTRY_REGION) >> 8;
+	int idx = -1;
+
+	trace_printk("EEPROM country region is %02hhx\n", val);
+	if (val < 8)
+		idx = val;
+	if (val > 31 && val < 33)
+		idx = val - 32 + 8;
+
+	if (idx != -1)
+		printk("EEPROM country region is %02hhx (channels %hhd-%hhd)\n",
+		       val, chan_bounds[idx].start,
+		       chan_bounds[idx].start + chan_bounds[idx].num - 1);
+	else
+		idx = 5; /* channels 1 - 14 */
+
+	dev->reg = chan_bounds[idx];
+
+	/* TODO: country region 33 is special - phy should be set to B-mode
+	 *	 before entering channel 14 (see sta/connect.c)
+	 */
+}
+
+static void
 mt7601u_set_ant_word(struct mt76_dev *dev)
 {
 	dev->ant = mt76_eeprom_get(dev, MT_EE_NIC_CONF_0);
@@ -444,9 +480,7 @@ int mt76_eeprom_init(struct mt76_dev *dev)
 
 	mt7601u_set_channel_power(dev);
 
-	trace_printk("Country region is %04x\n",
-		    mt76_eeprom_get(dev, MT_EE_COUNTRY_REGION));
-
+	mt7601u_set_country_reg(dev);
 	mt7601u_set_ant_word(dev);
 	mt7601u_set_cfg2_word(dev);
 	mt7601u_set_rf_freq_off(dev);
