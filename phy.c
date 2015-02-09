@@ -106,12 +106,12 @@ static inline int s6_to_int(u32 reg)
 
 static inline u32 int_to_s6(int val)
 {
-	if (val < -BIT(5))
-		return (-BIT(5)) & 0x3f;
-	if (val > GENMASK(4, 0))
-		return GENMASK(4, 0);
+	if (val < -0x20)
+		return 0x20;
+	if (val > 0x1f)
+		return 0x1f;
 
-	return val;
+	return val & 0x3f;
 }
 
 void set_power_rate(struct power_per_rate *rate, s8 delta, u8 value)
