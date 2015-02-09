@@ -867,7 +867,7 @@ mt7601u_tssi_params_get(struct mt7601u_dev *dev)
 		if (mt7601u_bbp_rr(dev, 4) & 0x20)
 			p.trgt_power += mt7601u_bbp_rr(dev, 178) ? 18022 : 9830;
 		else
-			p.trgt_power += mt7601u_bbp_rr(dev, 178) ? 24576 : 819;
+			p.trgt_power += mt7601u_bbp_rr(dev, 178) ? 819 : 24576;
 	}
 
 	p.trgt_power += static_power[mt7601u_bbp_rr(dev, 1) & 0x03];
