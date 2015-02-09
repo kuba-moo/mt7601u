@@ -1475,12 +1475,10 @@ void mt7601u_init_tssi_table(struct mt7601u_dev *dev)
 	d->tx0_delta_offset =
 		mt76_eeprom_get(dev, MT_EE_TX0_TSSI_OFFSET) * 1024;
 
-	init_offset = -(dev->tssi0_db * d->slope + d->offset_mid) / 4096 + 10;
-	init_offset = max_t(int, init_offset, -0x20);
-	init_offset = min_t(int, init_offset, 0x1f);
+	init_offset = -((dev->tssi0_db * d->slope + d->offset_mid) / 4096) + 10;
 
 	mt76_rmw(dev, MT_TX_ALC_CFG_1, MT_TX_ALC_CFG_1_TEMP_COMP,
-		 init_offset & MT_TX_ALC_CFG_1_TEMP_COMP);
+		 int_to_s6(init_offset) & MT_TX_ALC_CFG_1_TEMP_COMP);
 
 	trace_printk("TSSI: slope:%02hhx offset=%02hhx %02hhx %02hhx delta_off:%08x\n",
 		     d->slope, d->offset_low, d->offset_mid, d->offset_high,
