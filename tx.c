@@ -94,9 +94,8 @@ void mt7601u_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 	struct mt7601u_dev *dev = hw->priv;
 	struct ieee80211_vif *vif = info->control.vif;
 	struct ieee80211_sta *sta = control->sta;
-	struct mt76_vif *mvif = (struct mt76_vif *) vif->drv_priv;
 	struct mt76_sta *msta = NULL;
-	struct mt76_wcid *wcid = &mvif->group_wcid;
+	struct mt76_wcid *wcid = dev->mon_wcid;
 	struct mt76_txwi *txwi;
 	int pkt_len = skb->len;
 	int hw_q = skb2q(skb);
@@ -112,6 +111,9 @@ void mt7601u_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 	if (sta) {
 		msta = (struct mt76_sta *) sta->drv_priv;
 		wcid = &msta->wcid;
+	} else if (vif) {
+		struct mt76_vif *mvif = (struct mt76_vif *)vif->drv_priv;
+		wcid = &mvif->group_wcid;
 	}
 
 	if (!wcid->tx_rate_set)
@@ -149,13 +151,7 @@ void mt7601u_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 					  MT76_SET(MT_TXWI_FLAGS_MPDU_DENSITY,
 						   sta->ht_cap.ampdu_density));
 	}
-
-	if (wcid) {
-		txwi->wcid = wcid->idx;
-	} else { /* TODO: is this possible?? */
-		WARN(!wcid, "Error: wcid not set to anything\n");
-		txwi->wcid = 0xff;
-	}
+	txwi->wcid = wcid->idx;
 
 	pkt_len |= MT76_SET(MT_TXWI_LEN_PKTID, pkt_id);
 	txwi->len_ctl = cpu_to_le16(pkt_len);

@@ -61,7 +61,7 @@ static int mt7601u_add_interface(struct ieee80211_hw *hw,
 	 *	- shift vif idx
 	 */
 	mvif->idx = idx; /* TODO: wcid idx should be reserved in the map */
-	mvif->group_wcid.idx = 126 - idx; /* TODO: what here? */
+	mvif->group_wcid.idx = GROUP_WCID(idx);
 	mvif->group_wcid.hw_key_idx = -1;
 
 	printk("%s idx:%d\n", __func__, idx);

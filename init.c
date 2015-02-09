@@ -924,6 +924,14 @@ int mt7601u_register_device(struct mt7601u_dev *dev)
 	 */
 	dev->wcid_mask[0] |= 1;
 
+	/* init fake wcid for monitor interfaces */
+	dev->mon_wcid = devm_kmalloc(dev->dev, sizeof(*dev->mon_wcid),
+				     GFP_KERNEL);
+	if (!dev->mon_wcid)
+		return -ENOMEM;
+	dev->mon_wcid->idx = 0xff;
+	dev->mon_wcid->hw_key_idx = -1;
+
 	SET_IEEE80211_DEV(hw, dev->dev);
 
 	hw->queues = 4;

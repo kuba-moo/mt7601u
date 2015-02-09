@@ -148,6 +148,7 @@ struct mt7601u_tx_queue {
 };
 
 #define N_WCIDS		128
+#define GROUP_WCID(idx)	(N_WCIDS - 2 - idx)
 
 struct mt7601u_dev {
 	struct ieee80211_hw *hw;
@@ -167,6 +168,7 @@ struct mt7601u_dev {
 	struct delayed_work mac_work;
 	struct delayed_work stat_work;
 
+	struct mt76_wcid *mon_wcid;
 	struct mt76_wcid __rcu *wcid[N_WCIDS];
 
 	spinlock_t lock;
