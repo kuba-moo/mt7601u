@@ -89,27 +89,11 @@ struct power_per_rate {
 };
 
 struct mac_stats {
-	u64 rx_crc_err;
-	u64 rx_phy_err;
-	u64 rx_false_cca;
-	u64 rx_plcp_err;
-	u64 rx_fifo_overflow;
-	u64 rx_duplicate;
-
-	u64 tx_fail_cnt;
-	u64 tx_bcn_cnt;
-	u64 tx_success;
-	u64 tx_retransmit;
-	u64 tx_zero_len;
-	u64 tx_underflow;
-
-	u64 non_aggr_tx;
-	u64 aggr_tx;
-
-	u64 aggr_size[32];
-
-	u64 tx_zero_len_del;
-	u64 rx_zero_len_del;
+	u64 rx_stat[6];
+	u64 tx_stat[6];
+	u64 aggr_stat[2];
+	u64 aggr_n[32];
+	u64 zero_len_del[2];
 };
 
 #define N_RX_ENTRIES	64
@@ -333,6 +317,8 @@ int mt7601u_vendor_single_wr(struct mt7601u_dev *dev, const u8 req,
 			     const u16 offset, const u32 val);
 int mt7601u_write_reg_pairs(struct mt7601u_dev *dev, u32 base,
 			    const struct mt76_reg_pair *data, int len);
+struct sk_buff *mt7601u_read_reg_pairs(struct mt7601u_dev *dev, u32 base,
+				       const u32 *addr, u32 n);
 int mt7601u_burst_write_regs(struct mt7601u_dev *dev, u32 offset,
 			     const u32 *data, int n);
 void mt7601u_addr_wr(struct mt7601u_dev *dev, const u32 offset, const u8 *addr);

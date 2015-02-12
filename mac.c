@@ -13,6 +13,7 @@
  */
 
 #include "mt7601u.h"
+#include "mcu.h"
 #include "trace.h"
 #include <linux/etherdevice.h>
 
@@ -352,41 +353,67 @@ static void mt7601u_check_mac_err(struct mt7601u_dev *dev)
 	mt76_clear(dev, MT_MAC_SYS_CTRL, MT_MAC_SYS_CTRL_RESET_CSR);
 }
 
+static inline u32 skb_pull_le32(struct sk_buff *skb)
+{
+	u32 ret = get_unaligned_le32(skb->data);
+	skb_pull(skb, 4);
+	return ret;
+}
+
 void mt7601u_mac_work(struct work_struct *work)
 {
 	struct mt76_dev *dev = container_of(work, struct mt76_dev,
 					    mac_work.work);
-	u32 val;
-	int i;
+	struct {
+		u32 addr_base;
+		u32 span;
+		u64 *stat_base;
+	} spans[] = {
+		{ MT_RX_STA_CNT0,	3,	dev->stats.rx_stat },
+		{ MT_TX_STA_CNT0,	3,	dev->stats.tx_stat },
+		{ MT_TX_AGG_STAT,	1,	dev->stats.aggr_stat },
+		{ MT_MPDU_DENSITY_CNT,	1,	dev->stats.zero_len_del },
+		{ MT_TX_AGG_CNT_BASE0,	8,	&dev->stats.aggr_n[0] },
+		{ MT_TX_AGG_CNT_BASE1,	8,	&dev->stats.aggr_n[16] },
+	};
+	struct sk_buff *skb;
+	u32 n = 0, *addrs;
+	int i, j, k;
+
+	for (i = 0; i < ARRAY_SIZE(spans); i++)
+		n += spans[i].span;
+
+	addrs = kmalloc_array(n, sizeof(*addrs), GFP_KERNEL);
+	for (k = 0, i = 0; i < ARRAY_SIZE(spans); i++)
+		for (j = 0; j < spans[i].span; j++)
+			addrs[k++] = spans[i].addr_base + j * 4;
+	WARN_ON(k != n);
+
+	skb = mt7601u_read_reg_pairs(dev, MT_MCU_MEMMAP_OFFSET, addrs, n);
+	kfree(addrs);
+	if (IS_ERR(skb)) {
+		printk("Error: failed to read stat regs: %ld\n", PTR_ERR(skb));
+		return;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(spans); i++)
+		for (j = 0; j < spans[i].span; j++) {
+			u32 addr = skb_pull_le32(skb) ^ MT_MCU_MEMMAP_OFFSET;
+			u32 val = skb_pull_le32(skb);
+
+			if (spans[i].addr_base + j * 4 != addr)
+				printk("Error: addr mismatch %08x %08x\n",
+				       spans[i].addr_base + j * 4, addr);
+
+			spans[i].stat_base[j * 2] += val & 0xffff;
+			spans[i].stat_base[j * 2 + 1] += val >> 16;
+		}
+
+	consume_skb(skb);
 
 	mt7601u_check_mac_err(dev);
 
-	/* TODO: use MCU burst read */
-#define read_stats(addr, s1, s2) ({					\
-			val = mt76_rr(dev, addr);			\
-			dev->stats.s1 += val & 0xffff;			\
-			dev->stats.s2 += val >> 16;			\
-		})
-	read_stats(MT_RX_STA_CNT0, rx_crc_err, rx_phy_err);
-	read_stats(MT_RX_STA_CNT1, rx_false_cca, rx_plcp_err);
-	read_stats(MT_RX_STA_CNT2, rx_fifo_overflow, rx_duplicate);
-
-	read_stats(MT_TX_STA_CNT0, tx_fail_cnt, tx_bcn_cnt);
-	read_stats(MT_TX_STA_CNT1, tx_success, tx_retransmit);
-	read_stats(MT_TX_STA_CNT2, tx_zero_len, tx_underflow);
-
-	read_stats(MT_TX_AGG_CNT0, non_aggr_tx, aggr_tx);
-
-	for (i = 0; i < 16; i++) {
-		val = mt76_rr(dev, MT_TX_AGG_CNT(i));
-		dev->stats.aggr_size[i * 2] += val & 0xffff;
-		dev->stats.aggr_size[i * 2 + 1] += val >> 16;
-	}
-
-	read_stats(MT_MPDU_DENSITY_CNT, tx_zero_len_del, rx_zero_len_del);
-#undef read_stats
-
-	ieee80211_queue_delayed_work(dev->hw, &dev->mac_work, 5 * HZ);
+	ieee80211_queue_delayed_work(dev->hw, &dev->mac_work, 10 * HZ);
 }
 
 void mt7601u_mac_wcid_setup(struct mt76_dev *dev, u8 idx, u8 vif_idx, u8 *mac)

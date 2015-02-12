@@ -526,7 +526,7 @@
    with rate set to rate at which frame was acked.
 */
 
-#define MT_TX_AGG_CNT0			0x171c
+#define MT_TX_AGG_STAT			0x171c
 
 #define MT_TX_AGG_CNT_BASE0		0x1720
 
