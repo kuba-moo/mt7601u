@@ -446,12 +446,10 @@ int mt7601u_phy_set_channel(struct mt76_dev *dev,
 	cancel_delayed_work_sync(&dev->freq_cal.work);
 
 	mutex_lock(&dev->hw_atomic_mutex);
-
 	ret = __mt7601u_phy_set_channel(dev, chandef);
+	mutex_unlock(&dev->hw_atomic_mutex);
 	if (ret)
 		return ret;
-
-	mutex_unlock(&dev->hw_atomic_mutex);
 
 	if (test_bit(MT7601U_SCANNING, &dev->flags))
 		return 0;
