@@ -380,10 +380,12 @@ int mt7601u_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 static int
 mt76_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		  enum ieee80211_ampdu_mlme_action action,
-		  struct ieee80211_sta *sta,u16 tid, u16 *ssn, u8 buf_size)
+		  struct ieee80211_sta *sta, u16 tid, u16 *ssn, u8 buf_size)
 {
 	struct mt76_dev *dev = hw->priv;
 	struct mt76_sta *msta = (struct mt76_sta *) sta->drv_priv;
+
+	WARN_ON(msta->wcid.idx < 0 || msta->wcid.idx > GROUP_WCID(0));
 
 	switch (action) {
 	case IEEE80211_AMPDU_RX_START:
