@@ -108,8 +108,9 @@ static int mt7601u_mcu_wait_resp(struct mt7601u_dev *dev, u8 seq,
 	u32 rxfce;
 	int ret;
 
+	/* TODO: find out why random_read times out here sometimes */
 	if (!wait_for_completion_timeout(&dev->mcu.resp_cmpl,
-					 msecs_to_jiffies(300))) {
+					 msecs_to_jiffies(500))) {
 		printk("Error: %s t/o\n", __func__);
 		return -ETIMEDOUT;
 	}
