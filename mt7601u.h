@@ -174,6 +174,7 @@ struct mt7601u_dev {
 	spinlock_t rx_lock;
 	struct tasklet_struct rx_tasklet;
 	struct mt7601u_rx_queue rx_q;
+	atomic_t avg_ampdu_len;
 
 	/* Beacon monitoring stuff */
 	u8 bssid[ETH_ALEN];

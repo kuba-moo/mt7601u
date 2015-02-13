@@ -72,6 +72,9 @@ mt76_ampdu_stat_read(struct seq_file *file, void *data)
 		seq_puts(file, "\n");
 	}
 
+	seq_printf(file, "recent average AMPDU len: %d\n",
+		   atomic_read(&dev->avg_ampdu_len));
+
 	return 0;
 }
 

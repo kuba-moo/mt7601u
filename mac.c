@@ -377,7 +377,7 @@ void mt7601u_mac_work(struct work_struct *work)
 		{ MT_TX_AGG_CNT_BASE1,	8,	&dev->stats.aggr_n[16] },
 	};
 	struct sk_buff *skb;
-	u32 n = 0, *addrs;
+	u32 sum, n = 0, *addrs;
 	int i, j, k;
 
 	for (i = 0; i < ARRAY_SIZE(spans); i++)
@@ -396,6 +396,9 @@ void mt7601u_mac_work(struct work_struct *work)
 		return;
 	}
 
+	k = 0;
+	n = 0;
+	sum = 0;
 	for (i = 0; i < ARRAY_SIZE(spans); i++)
 		for (j = 0; j < spans[i].span; j++) {
 			u32 addr = skb_pull_le32(skb) ^ MT_MCU_MEMMAP_OFFSET;
@@ -407,7 +410,19 @@ void mt7601u_mac_work(struct work_struct *work)
 
 			spans[i].stat_base[j * 2] += val & 0xffff;
 			spans[i].stat_base[j * 2 + 1] += val >> 16;
+
+			/* Calculate average AMPDU length */
+			if (spans[i].addr_base != MT_TX_AGG_CNT_BASE0 &&
+			    spans[i].addr_base != MT_TX_AGG_CNT_BASE1)
+				continue;
+
+			n += (val >> 16) + (val & 0xffff);
+			sum += (val & 0xffff) * (1 + k * 2) +
+				(val >> 16) * (2 + k * 2);
+			k++;
 		}
+
+	atomic_set(&dev->avg_ampdu_len, n ? DIV_ROUND_CLOSEST(sum, n) : 1);
 
 	consume_skb(skb);
 
