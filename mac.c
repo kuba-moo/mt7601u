@@ -74,7 +74,7 @@ mt76_mac_process_tx_rate(struct ieee80211_tx_rate *txrate, u16 rate,
 		txrate->flags |= IEEE80211_TX_RC_SHORT_GI;
 }
 
-void
+static void
 mt76_mac_fill_tx_status(struct mt76_dev *dev, struct ieee80211_tx_info *info,
 			struct mt76_tx_status *st)
 {

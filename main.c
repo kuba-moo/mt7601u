@@ -328,9 +328,10 @@ mt7601u_sw_scan_complete(struct ieee80211_hw *hw,
 	clear_bit(MT7601U_SCANNING, &dev->flags);
 }
 
-int mt7601u_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
-			   struct ieee80211_vif *vif, struct ieee80211_sta *sta,
-			   struct ieee80211_key_conf *key)
+static int
+mt7601u_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
+		struct ieee80211_vif *vif, struct ieee80211_sta *sta,
+		struct ieee80211_key_conf *key)
 {
 	struct mt76_dev *dev = hw->priv;
 	struct mt76_vif *mvif = (struct mt76_vif *) vif->drv_priv;
@@ -365,7 +366,7 @@ int mt7601u_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	return mt76_mac_wcid_set_key(dev, msta->wcid.idx, key);
 }
 
-int mt7601u_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
+static int mt7601u_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 {
 	struct mt76_dev *dev = hw->priv;
 

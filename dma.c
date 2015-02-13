@@ -343,8 +343,10 @@ int usb_kick_out(struct mt7601u_dev *dev, struct sk_buff *skb, u8 ep)
 
 	spin_lock_irqsave(&dev->tx_lock, flags);
 
-	if (WARN_ON(q->entries <= q->used))
-		return -ENOSPC;
+	if (WARN_ON(q->entries <= q->used)) {
+		ret = -ENOSPC;
+		goto out;
+	}
 
 	e = q->end;
 
