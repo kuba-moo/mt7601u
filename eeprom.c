@@ -221,7 +221,7 @@ mt7601u_set_channel_power(struct mt76_dev *dev)
 	max_pwr = MT76_GET(MT_TX_ALC_CFG_0_LIMIT_0, val);
 
 	/* TODO: only read trgt power when TSSI is enabled. */
-	val = mt76_eeprom_get(dev, MT_EE_G_TARGET_POWER);
+	val = mt76_eeprom_get(dev, MT_EE_TX_TSSI_TARGET_POWER);
 	trgt_pwr = val & 0xff;
 	trace_printk("trgt power (eo:0x0d): %02hhx\n", trgt_pwr);
 
@@ -236,7 +236,7 @@ mt7601u_set_channel_power(struct mt76_dev *dev)
 	}
 
 	for (i = 0; i < 7; i++) {
-		val = mt76_eeprom_get(dev, MT_EE_G_TX_PWR_OFFSET + i * 2);
+		val = mt76_eeprom_get(dev, MT_EE_TX_POWER_OFFSET + i * 2);
 
 		p1 = mt76_rate_power_val(val);
 		p2 = mt76_rate_power_val(val >> 8);
@@ -330,7 +330,7 @@ mt7601u_set_rf_freq_off(struct mt76_dev *dev)
 {
 	u16 val;
 
-	dev->rf_freq_off = mt76_eeprom_get(dev, MT_EE_XTAL_TRIM_1) & 0xff;
+	dev->rf_freq_off = mt76_eeprom_get(dev, MT_EE_FREQ_OFFSET) & 0xff;
 	if ((dev->rf_freq_off & 0xff) == 0xff)
 		dev->rf_freq_off = 0;
 
@@ -350,7 +350,7 @@ mt7601u_set_rf_freq_off(struct mt76_dev *dev)
 static void
 mt7601u_set_rssi_offset(struct mt76_dev *dev)
 {
-	u16 val = mt76_eeprom_get(dev, MT_EE_RSSI_OFFSET_2G_0);
+	u16 val = mt76_eeprom_get(dev, MT_EE_RSSI_OFFSET);
 	int i;
 
 	for (i = 0; i < 2; i++) {
@@ -434,10 +434,9 @@ mt7601u_config_tx_power_per_rate(struct mt76_dev *dev)
 	trace_printk("g_delta: %hhx\n", bw40_delta);
 
 	for (i = 0; i < 5; i++) {
-		val = mt76_eeprom_get(dev, MT_EE_TX_POWER_BYRATE_20MHZ_2_4G
-				      + i * 4);
-		val |= mt76_eeprom_get(dev, MT_EE_TX_POWER_BYRATE_20MHZ_2_4G
-				       + i * 4 + 2) << 16;
+		val = mt76_eeprom_get(dev, MT_EE_TX_POWER_BYRATE + i * 4);
+		val |= mt76_eeprom_get(dev, MT_EE_TX_POWER_BYRATE + i * 4 + 2)
+			<< 16;
 
 		mt7601u_save_power_rate(dev, bw40_delta, val, i);
 
@@ -495,7 +494,7 @@ int mt76_eeprom_init(struct mt76_dev *dev)
 	if (dev->cfg2 & MT_EE_NIC_CONF_1_HW_RF_CTRL)
 		printk("Error: this driver does not support HW RF ctrl\n");
 
-	mt76_eeprom_get(dev, MT_EE_G_TARGET_POWER); /* temp comp */
+	mt76_eeprom_get(dev, MT_EE_TX_TSSI_TARGET_POWER); /* temp comp */
 
 #ifdef TODO
 	mt76_eeprom_parse_hw_cap(dev);

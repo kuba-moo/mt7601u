@@ -724,7 +724,8 @@ static int mt7601u_bbp_temp(struct mt7601u_dev *dev,
 
 static int mt7601u_temp_comp(struct mt7601u_dev *dev, bool on)
 {
-	const s8 ref_temp = mt76_eeprom_get(dev, MT_EE_G_TARGET_POWER) >> 8;
+	const s8 ref_temp = mt76_eeprom_get(dev, MT_EE_TX_TSSI_TARGET_POWER)
+		>> 8;
 	int ret, temp, hi_temp = 400, lo_temp = -200;
 
 	temp = (dev->b49_temp - ref_temp) * MT7601_E2_TEMPERATURE_SLOPE;
@@ -1113,7 +1114,7 @@ void mt7601u_phy_freq_cal_onoff(struct mt76_dev *dev,
 
 static int mt7601u_init_cal(struct mt7601u_dev *dev)
 {
-	s8 ref_temp = mt76_eeprom_get(dev, MT_EE_G_TARGET_POWER) >> 8;
+	s8 ref_temp = mt76_eeprom_get(dev, MT_EE_TX_TSSI_TARGET_POWER) >> 8;
 	u32 mac_ctrl;
 	int ret;
 
@@ -1454,6 +1455,7 @@ mt7601u_init_pa_mode_table(struct mt7601u_dev *dev)
 		dev->pa_mode.ht[i] = decode_tb[(reg >> (i * 2)) & 0x3];
 }
 
+/* TODO: why is this not in eeprom.c? */
 void mt7601u_init_tssi_table(struct mt7601u_dev *dev)
 {
 	u16 val;
@@ -1463,15 +1465,15 @@ void mt7601u_init_tssi_table(struct mt7601u_dev *dev)
 	if (!mt76_tssi_enabled(dev))
 		return;
 
-	val = mt76_eeprom_get(dev, MT_EE_TX0_TSSI_SLOPE);
+	val = mt76_eeprom_get(dev, MT_EE_TX_TSSI_SLOPE);
 	d->slope = val & 0xff;
 	d->offset_low = val >> 8;
-	val = mt76_eeprom_get(dev, MT_EE_TX0_TSSI_OFFSET_GROUP1);
+	val = mt76_eeprom_get(dev, MT_EE_TX_TSSI_OFFSET_GROUP);
 	d->offset_mid = val & 0xff;
 	d->offset_high = val >> 8;
 
 	d->tx0_delta_offset =
-		mt76_eeprom_get(dev, MT_EE_TX0_TSSI_OFFSET) * 1024;
+		mt76_eeprom_get(dev, MT_EE_TX_TSSI_OFFSET) * 1024;
 
 	init_offset = -((dev->tssi0_db * d->slope + d->offset_mid) / 4096) + 10;
 
