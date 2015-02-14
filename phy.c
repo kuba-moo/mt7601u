@@ -1004,7 +1004,7 @@ static void mt7601u_phy_calibrate(struct work_struct *work)
 
 	mt7601u_agc_tune(dev);
 	mt7601u_tssi_cal(dev);
-	/* If TSSI calibration was run it already updated temprature. */
+	/* If TSSI calibration was run it already updated temperature. */
 	if (!mt76_tssi_enabled(dev))
 		dev->b49_temp = mt7601u_read_temp(dev);
 	mt7601u_temp_comp(dev, true); /* TODO: find right value for @on */

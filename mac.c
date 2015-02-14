@@ -188,7 +188,7 @@ void mt7601u_mac_stat(struct work_struct *work)
 	void *msta;
 	int cleaned = 0;
 
-	/* Note: carefull with accessing things here - there is no explicit
+	/* Note: careful with accessing things here - there is no explicit
 	 *	 locking!
 	 */
 	while (1) {
@@ -366,7 +366,7 @@ void mt7601u_mac_work(struct work_struct *work)
 	u32 sum, n;
 	int i, j, k;
 
-	/* Note: using MCU_RANDOM_READ is acutally slower then reading all the
+	/* Note: using MCU_RANDOM_READ is actually slower then reading all the
 	 *	 registers by hand.  MCU takes ca. 20ms to complete read of 24
 	 *	 registers while reading them one by one will take roughly
 	 *	 24*200us =~ 5ms.

@@ -394,7 +394,7 @@ static int mt7601u_write_chip_mac_initvals(struct mt7601u_dev *dev)
 	return 0;
 }
 
-/* TODO: this is embarrasingly dumb code. */
+/* TODO: this is embarrassingly dumb code. */
 static int mt7601u_init_wcid_mem(struct mt7601u_dev *dev)
 {
 	u32 *vals;

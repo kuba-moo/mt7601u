@@ -254,7 +254,7 @@ int mt7601u_write_reg_pairs(struct mt7601u_dev *dev, u32 base,
 	return mt7601u_write_reg_pairs(dev, base, data + cnt, n - cnt);
 }
 
-/* TODO: if noone ever uses this to things other than zeroing -
+/* TODO: if no one ever uses this to things other than zeroing -
  *       pass the repeated values directly here. And perhaps rename
  *       to *_init_* afterwards. */
 int mt7601u_burst_write_regs(struct mt7601u_dev *dev, u32 offset,
@@ -416,7 +416,7 @@ static int mt7601u_upload_firmware(struct mt7601u_dev *dev,
 	u32 ilm_len, dlm_len;
 	int i, ret;
 
-	/* TODO: all the explicit dma is probably superfulous */
+	/* TODO: all the explicit dma is probably superfluous */
 	urb = usb_alloc_urb(0, GFP_KERNEL);
 	buf = usb_alloc_coherent(usb_dev, MCU_URB_SIZE, GFP_KERNEL, &dma);
 	ivb = kmalloc(MCU_IVB_SIZE, GFP_KERNEL);
