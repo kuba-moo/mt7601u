@@ -101,48 +101,40 @@ static void trace_mcu_msg_send_cs(struct sk_buff *skb, bool need_resp)
 	trace_mcu_msg_send(skb, csum, need_resp);
 }
 
-static int mt7601u_mcu_wait_resp(struct mt7601u_dev *dev, u8 seq,
-				 u8 *resp, unsigned exp_len)
+static int mt7601u_mcu_wait_resp(struct mt7601u_dev *dev, u8 seq)
 {
-	unsigned act_len;
 	u32 rxfce;
-	int ret;
+	int ret, i = 5;
 
-	/* TODO: find out why random_read times out here sometimes */
-	if (!wait_for_completion_timeout(&dev->mcu.resp_cmpl,
-					 msecs_to_jiffies(500))) {
-		printk("Error: %s t/o\n", __func__);
-		return -ETIMEDOUT;
-	}
+	while (i--) {
+		if (!wait_for_completion_timeout(&dev->mcu.resp_cmpl,
+						 msecs_to_jiffies(300))) {
+			printk("Error: %s t/o\n", __func__);
+			return -ETIMEDOUT;
+		}
 
-	/* Make copies of important data before reusing the urb */
-	rxfce = get_unaligned_le32(dev->mcu.resp.buf);
-	act_len = dev->mcu.resp.urb->actual_length;
-	if (resp && act_len == exp_len)
-		memcpy(resp, dev->mcu.resp.buf, act_len);
+		/* Make copies of important data before reusing the urb */
+		rxfce = get_unaligned_le32(dev->mcu.resp.buf);
 
-	ret = mt7601u_mcu_resp_submit(dev);
-	if (ret)
-		return ret;
+		ret = mt7601u_mcu_resp_submit(dev);
+		if (ret)
+			return ret;
 
-	if (resp && act_len != exp_len) {
-		printk("Error: response has wrong length: %d %d\n",
-		       act_len, exp_len);
-		return -EINVAL;
-	}
+		if (MT76_GET(MT_RX_FCE_INFO_CMD_SEQ, rxfce) == seq &&
+		    MT76_GET(MT_RX_FCE_INFO_EVT_TYPE, rxfce) == CMD_DONE)
+			return 0;
 
-	if (MT76_GET(MT_RX_FCE_INFO_CMD_SEQ, rxfce) != seq ||
-	    MT76_GET(MT_RX_FCE_INFO_EVT_TYPE, rxfce) != CMD_DONE)
 		printk("Error: MCU response evt:%hhx seq:%hhx-%hhx!\n",
 		       MT76_GET(MT_RX_FCE_INFO_EVT_TYPE, rxfce),
 		       seq, MT76_GET(MT_RX_FCE_INFO_CMD_SEQ, rxfce));
+	}
 
-	return 0;
+	return -ETIMEDOUT;
 }
 
 static int
 mt7601u_mcu_msg_send(struct mt7601u_dev *dev, struct sk_buff *skb,
-		     enum mcu_cmd cmd, bool wait_resp, bool need_resp)
+		     enum mcu_cmd cmd, bool wait_resp)
 {
 	struct usb_device *usb_dev = to_usb_device(dev->dev->parent);
 	unsigned cmd_pipe = usb_sndbulkpipe(usb_dev, dev->out_eps[0]);
@@ -160,7 +152,7 @@ mt7601u_mcu_msg_send(struct mt7601u_dev *dev, struct sk_buff *skb,
 	if (dev->mcu.resp_cmpl.done)
 		printk("Error: MCU response pre-completed!\n");
 
-	trace_mcu_msg_send_cs(skb, need_resp);
+	trace_mcu_msg_send_cs(skb, wait_resp);
 	trace_submit_urb_sync(cmd_pipe, skb->len);
 	ret = usb_bulk_msg(usb_dev, cmd_pipe, skb->data, skb->len, &sent, 500);
 	if (ret) {
@@ -170,31 +162,14 @@ mt7601u_mcu_msg_send(struct mt7601u_dev *dev, struct sk_buff *skb,
 	if (sent != skb->len)
 		printk("Error: %s sent != skb->len\n", __func__);
 
-	if (need_resp)
-		ret = mt7601u_mcu_wait_resp(dev, seq, skb->data, skb->len);
-	else if (wait_resp)
-		ret = mt7601u_mcu_wait_resp(dev, seq, NULL, 0);
+	if (wait_resp)
+		ret = mt7601u_mcu_wait_resp(dev, seq);
 out:
 	mutex_unlock(&dev->mcu.mutex);
 
-	if (!need_resp || ret)
-		consume_skb(skb);
+	consume_skb(skb);
 
 	return ret;
-}
-
-static int
-mt7601u_mcu_msg_send_wait(struct mt7601u_dev *dev, struct sk_buff *skb,
-			  enum mcu_cmd cmd)
-{
-	return mt7601u_mcu_msg_send(dev, skb, cmd, true, false);
-}
-
-static int
-mt7601u_mcu_msg_send_resp(struct mt7601u_dev *dev, struct sk_buff *skb,
-			  enum mcu_cmd cmd)
-{
-	return mt7601u_mcu_msg_send(dev, skb, cmd, true, true);
 }
 
 static int mt76_mcu_function_select(struct mt7601u_dev *dev,
@@ -210,7 +185,7 @@ static int mt76_mcu_function_select(struct mt7601u_dev *dev,
 	};
 
 	skb = mt7601u_mcu_msg_alloc(dev, &msg, sizeof(msg));
-	return mt7601u_mcu_msg_send(dev, skb, CMD_FUN_SET_OP, func == 5, false);
+	return mt7601u_mcu_msg_send(dev, skb, CMD_FUN_SET_OP, func == 5);
 }
 
 int mt7601u_mcu_tssi_read_kick(struct mt7601u_dev *dev, int use_hvga)
@@ -242,43 +217,13 @@ int mt76_mcu_calibration(struct mt7601u_dev *dev,
 	};
 
 	skb = mt7601u_mcu_msg_alloc(dev, &msg, sizeof(msg));
-	return mt7601u_mcu_msg_send_wait(dev, skb, CMD_CALIBRATION_OP);
+	return mt7601u_mcu_msg_send(dev, skb, CMD_CALIBRATION_OP, true);
 }
 
 static void skb_put_le32(struct sk_buff *skb, u32 val)
 {
 	__le32 data = cpu_to_le32(val);
 	memcpy(skb_put(skb, 4), &data, sizeof(data));
-}
-
-struct sk_buff *mt7601u_read_reg_pairs(struct mt7601u_dev *dev, u32 base,
-				       const u32 *addr, u32 n)
-{
-	const u32 max_vals_per_cmd = INBAND_PACKET_MAX_LEN/8;
-	struct sk_buff *skb;
-	int ret, i;
-
-	if (WARN_ON(n > max_vals_per_cmd))
-		return ERR_PTR(-EINVAL);
-
-	skb = alloc_skb(n * 8 + MT_DMA_HDR_LEN + 4, GFP_KERNEL);
-	if (!skb)
-		return NULL;
-
-	skb_reserve(skb, MT_DMA_HDR_LEN);
-
-	for (i = 0; i < n; i++) {
-		skb_put_le32(skb, base + addr[i]);
-		skb_put_le32(skb, 0);
-	}
-
-	ret = mt7601u_mcu_msg_send_resp(dev, skb, CMD_RANDOM_READ);
-	if (ret)
-		return ERR_PTR(ret);
-
-	skb_pull(skb, MT_DMA_HDR_LEN);
-
-	return skb;
 }
 
 int mt7601u_write_reg_pairs(struct mt7601u_dev *dev, u32 base,
@@ -302,7 +247,7 @@ int mt7601u_write_reg_pairs(struct mt7601u_dev *dev, u32 base,
 		skb_put_le32(skb, data[i].value);
 	}
 
-	ret = mt7601u_mcu_msg_send(dev, skb, CMD_RANDOM_WRITE, cnt == n, false);
+	ret = mt7601u_mcu_msg_send(dev, skb, CMD_RANDOM_WRITE, cnt == n);
 	if (ret)
 		return ret;
 
@@ -332,7 +277,7 @@ int mt7601u_burst_write_regs(struct mt7601u_dev *dev, u32 offset,
 	for (i = 0; i < cnt; i++)
 		skb_put_le32(skb, data[i]);
 
-	ret = mt7601u_mcu_msg_send(dev, skb, CMD_BURST_WRITE, cnt == n, false);
+	ret = mt7601u_mcu_msg_send(dev, skb, CMD_BURST_WRITE, cnt == n);
 	if (ret)
 		return ret;
 

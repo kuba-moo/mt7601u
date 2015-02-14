@@ -318,8 +318,6 @@ int mt7601u_vendor_single_wr(struct mt7601u_dev *dev, const u8 req,
 			     const u16 offset, const u32 val);
 int mt7601u_write_reg_pairs(struct mt7601u_dev *dev, u32 base,
 			    const struct mt76_reg_pair *data, int len);
-struct sk_buff *mt7601u_read_reg_pairs(struct mt7601u_dev *dev, u32 base,
-				       const u32 *addr, u32 n);
 int mt7601u_burst_write_regs(struct mt7601u_dev *dev, u32 offset,
 			     const u32 *data, int n);
 void mt7601u_addr_wr(struct mt7601u_dev *dev, const u32 offset, const u8 *addr);
