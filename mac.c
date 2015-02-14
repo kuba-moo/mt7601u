@@ -188,16 +188,10 @@ void mt7601u_mac_stat(struct work_struct *work)
 	void *msta;
 	int cleaned = 0;
 
-	/* TODO: this may be slow. It takes ca. 200us to read a register
-	 *	 we can use MCU_RANDOM_READ but later *_ext will have to be
-	 *	 matched back to stat_fifo (there is a possibility of a race).
-	 *	 To do that perhaps it's possible to put rate into pkt_id and
-	 *	 for stats match pkt_id ~= succ_rate + retry.
-	 */
 	/* Note: carefull with accessing things here - there is no explicit
 	 *	 locking!
 	 */
-	while(1) {
+	while (1) {
 		stat1 = mt7601u_rr(dev, MT_TX_STAT_FIFO);
 		if (!(stat1 & MT_TX_STAT_FIFO_VALID))
 			break;
@@ -353,13 +347,6 @@ static void mt7601u_check_mac_err(struct mt7601u_dev *dev)
 	mt76_clear(dev, MT_MAC_SYS_CTRL, MT_MAC_SYS_CTRL_RESET_CSR);
 }
 
-static inline u32 skb_pull_le32(struct sk_buff *skb)
-{
-	u32 ret = get_unaligned_le32(skb->data);
-	skb_pull(skb, 4);
-	return ret;
-}
-
 void mt7601u_mac_work(struct work_struct *work)
 {
 	struct mt76_dev *dev = container_of(work, struct mt76_dev,
@@ -376,37 +363,21 @@ void mt7601u_mac_work(struct work_struct *work)
 		{ MT_TX_AGG_CNT_BASE0,	8,	&dev->stats.aggr_n[0] },
 		{ MT_TX_AGG_CNT_BASE1,	8,	&dev->stats.aggr_n[16] },
 	};
-	struct sk_buff *skb;
-	u32 sum, n = 0, *addrs;
+	u32 sum, n;
 	int i, j, k;
 
-	for (i = 0; i < ARRAY_SIZE(spans); i++)
-		n += spans[i].span;
-
-	addrs = kmalloc_array(n, sizeof(*addrs), GFP_KERNEL);
-	for (k = 0, i = 0; i < ARRAY_SIZE(spans); i++)
-		for (j = 0; j < spans[i].span; j++)
-			addrs[k++] = spans[i].addr_base + j * 4;
-	WARN_ON(k != n);
-
-	skb = mt7601u_read_reg_pairs(dev, MT_MCU_MEMMAP_OFFSET, addrs, n);
-	kfree(addrs);
-	if (IS_ERR(skb)) {
-		printk("Error: failed to read stat regs: %ld\n", PTR_ERR(skb));
-		return;
-	}
+	/* Note: using MCU_RANDOM_READ is acutally slower then reading all the
+	 *	 registers by hand.  MCU takes ca. 20ms to complete read of 24
+	 *	 registers while reading them one by one will take roughly
+	 *	 24*200us =~ 5ms.
+	 */
 
 	k = 0;
 	n = 0;
 	sum = 0;
 	for (i = 0; i < ARRAY_SIZE(spans); i++)
 		for (j = 0; j < spans[i].span; j++) {
-			u32 addr = skb_pull_le32(skb) ^ MT_MCU_MEMMAP_OFFSET;
-			u32 val = skb_pull_le32(skb);
-
-			if (spans[i].addr_base + j * 4 != addr)
-				printk("Error: addr mismatch %08x %08x\n",
-				       spans[i].addr_base + j * 4, addr);
+			u32 val = mt7601u_rr(dev, spans[i].addr_base + j * 4);
 
 			spans[i].stat_base[j * 2] += val & 0xffff;
 			spans[i].stat_base[j * 2 + 1] += val >> 16;
@@ -423,8 +394,6 @@ void mt7601u_mac_work(struct work_struct *work)
 		}
 
 	atomic_set(&dev->avg_ampdu_len, n ? DIV_ROUND_CLOSEST(sum, n) : 1);
-
-	consume_skb(skb);
 
 	mt7601u_check_mac_err(dev);
 
