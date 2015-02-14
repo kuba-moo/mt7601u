@@ -98,7 +98,7 @@ mt76_mac_fill_tx_status(struct mt76_dev *dev, struct ieee80211_tx_info *info,
 	if (last_rate > 0)
 		rate[last_rate - 1].count = st->retry + 1 - last_rate;
 
-	info->status.ampdu_len = 1;
+	info->status.ampdu_len = atomic_read(&dev->avg_ampdu_len);
 	info->status.ampdu_ack_len = st->success;
 
 	if (st->pktid & MT_TXWI_PKTID_PROBE)
