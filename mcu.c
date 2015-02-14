@@ -470,7 +470,6 @@ static int mt7601u_load_firmware(struct mt7601u_dev *dev)
 	const struct firmware *fw;
 	const struct mt76_fw_header *hdr;
 	int len, ret;
-	__le32 *cur;
 	u32 val;
 
 	mt7601u_wr(dev, MT_USB_DMA_CFG, (MT_USB_DMA_CFG_RX_BULK_EN |
@@ -506,7 +505,6 @@ static int mt7601u_load_firmware(struct mt7601u_dev *dev)
 	printk("Build: %x\n", val);
 	printk("Build Time: %16s\n", get_string(hdr->build_time, 16));
 
-	cur = (__le32 *) (fw->data + sizeof(*hdr));
 	len = le32_to_cpu(hdr->ilm_len);
 
 	mt7601u_wr(dev, 0x94c, 0);

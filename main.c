@@ -386,7 +386,7 @@ mt76_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct mt76_dev *dev = hw->priv;
 	struct mt76_sta *msta = (struct mt76_sta *) sta->drv_priv;
 
-	WARN_ON(msta->wcid.idx < 0 || msta->wcid.idx > GROUP_WCID(0));
+	WARN_ON(msta->wcid.idx > GROUP_WCID(0));
 
 	switch (action) {
 	case IEEE80211_AMPDU_RX_START:

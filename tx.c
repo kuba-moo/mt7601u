@@ -157,7 +157,7 @@ void mt7601u_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 	txwi->len_ctl = cpu_to_le16(pkt_len);
 
 	dma_flags = MT_TXD_PKT_INFO_80211;
-	if (wcid->hw_key_idx < 0)
+	if (wcid->hw_key_idx == 0xff)
 		dma_flags |= MT_TXD_PKT_INFO_WIV;
 	mt7601u_dma_skb_wrap_pkt(skb, ep2dmaq(ep), dma_flags);
 
