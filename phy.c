@@ -1014,6 +1014,7 @@ static void mt7601u_phy_freq_cal(struct work_struct *work)
 					    freq_cal.work.work);
 	s8 last_offset;
 	u8 phy_mode, activate_threshold, deactivate_threshold;
+	unsigned long delay;
 
 	spin_lock_bh(&dev->last_beacon.lock);
 	last_offset = dev->last_beacon.freq_off;
@@ -1024,9 +1025,8 @@ static void mt7601u_phy_freq_cal(struct work_struct *work)
 
 	/* No beacons received - reschedule soon */
 	if (last_offset == MT7601U_FREQ_OFFSET_INVALID) {
-		ieee80211_queue_delayed_work(dev->hw, &dev->freq_cal.work,
-					     MT_FREQ_CAL_ADJ_INTERVAL);
-		return;
+		delay = MT_FREQ_CAL_ADJ_INTERVAL;
+		goto requeue;
 	}
 
 	switch (phy_mode) {
@@ -1054,21 +1054,20 @@ static void mt7601u_phy_freq_cal(struct work_struct *work)
 		dev->freq_cal.adjusting = false;
 
 	if (!dev->freq_cal.adjusting) {
-		ieee80211_queue_delayed_work(dev->hw, &dev->freq_cal.work,
-					     MT_FREQ_CAL_CHECK_INTERVAL);
-		return;
+		delay = MT_FREQ_CAL_CHECK_INTERVAL;
+		goto requeue;
 	}
 
 	if (last_offset > deactivate_threshold) {
 		if (dev->freq_cal.freq > 0)
 			dev->freq_cal.freq--;
 		else
-			printk("Error: frequency adjustment too large\n");
+			dev->freq_cal.adjusting = false;
 	} else if (last_offset < -deactivate_threshold) {
 		if (dev->freq_cal.freq < 0xbf)
 			dev->freq_cal.freq++;
 		else
-			printk("Error: frequency adjustment too large\n");
+			dev->freq_cal.adjusting = false;
 	}
 
 	trace_freq_cal_adjust(dev->freq_cal.freq);
@@ -1079,8 +1078,10 @@ static void mt7601u_phy_freq_cal(struct work_struct *work)
 	dev->last_beacon.freq_off = MT7601U_FREQ_OFFSET_INVALID;
 	spin_unlock_bh(&dev->last_beacon.lock);
 
-	ieee80211_queue_delayed_work(dev->hw, &dev->freq_cal.work,
-				     MT_FREQ_CAL_ADJ_INTERVAL);
+	delay = dev->freq_cal.adjusting ? MT_FREQ_CAL_ADJ_INTERVAL :
+					  MT_FREQ_CAL_CHECK_INTERVAL;
+requeue:
+	ieee80211_queue_delayed_work(dev->hw, &dev->freq_cal.work, delay);
 }
 
 void mt7601u_phy_freq_cal_onoff(struct mt76_dev *dev,
