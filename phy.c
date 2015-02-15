@@ -1008,26 +1008,16 @@ static void mt7601u_phy_calibrate(struct work_struct *work)
 				     MT_CALIBRATE_INTERVAL);
 }
 
-static void mt7601u_phy_freq_cal(struct work_struct *work)
+static unsigned long
+__mt7601u_phy_freq_cal(struct mt7601u_dev *dev, s8 last_offset, u8 phy_mode)
 {
-	struct mt76_dev *dev = container_of(work, struct mt76_dev,
-					    freq_cal.work.work);
-	s8 last_offset;
-	u8 phy_mode, activate_threshold, deactivate_threshold;
-	unsigned long delay;
-
-	spin_lock_bh(&dev->last_beacon.lock);
-	last_offset = dev->last_beacon.freq_off;
-	phy_mode = dev->last_beacon.phy_mode;
-	spin_unlock_bh(&dev->last_beacon.lock);
+	u8 activate_threshold, deactivate_threshold;
 
 	trace_freq_cal_offset(phy_mode, last_offset);
 
 	/* No beacons received - reschedule soon */
-	if (last_offset == MT7601U_FREQ_OFFSET_INVALID) {
-		delay = MT_FREQ_CAL_ADJ_INTERVAL;
-		goto requeue;
-	}
+	if (last_offset == MT7601U_FREQ_OFFSET_INVALID)
+		return MT_FREQ_CAL_ADJ_INTERVAL;
 
 	switch (phy_mode) {
 	case MT_PHY_TYPE_CCK:
@@ -1044,8 +1034,8 @@ static void mt7601u_phy_freq_cal(struct work_struct *work)
 		deactivate_threshold = 20;
 		break;
 	default:
-		WARN_ON(1); /* Cannot happen - don't reschedule */
-		return;
+		WARN_ON(1);
+		return MT_FREQ_CAL_CHECK_INTERVAL;
 	}
 
 	if (abs(last_offset) >= activate_threshold)
@@ -1053,10 +1043,8 @@ static void mt7601u_phy_freq_cal(struct work_struct *work)
 	else if (abs(last_offset) <= deactivate_threshold)
 		dev->freq_cal.adjusting = false;
 
-	if (!dev->freq_cal.adjusting) {
-		delay = MT_FREQ_CAL_CHECK_INTERVAL;
-		goto requeue;
-	}
+	if (!dev->freq_cal.adjusting)
+		return MT_FREQ_CAL_CHECK_INTERVAL;
 
 	if (last_offset > deactivate_threshold) {
 		if (dev->freq_cal.freq > 0)
@@ -1074,14 +1062,29 @@ static void mt7601u_phy_freq_cal(struct work_struct *work)
 	mt7601u_rf_wr(dev, 0, 12, dev->freq_cal.freq);
 	mt7601u_vco_cal(dev);
 
+	return dev->freq_cal.adjusting ? MT_FREQ_CAL_ADJ_INTERVAL :
+					 MT_FREQ_CAL_CHECK_INTERVAL;
+}
+
+static void mt7601u_phy_freq_cal(struct work_struct *work)
+{
+	struct mt7601u_dev *dev = container_of(work, struct mt7601u_dev,
+					       freq_cal.work.work);
+	s8 last_offset;
+	u8 phy_mode;
+	unsigned long delay;
+
+	spin_lock_bh(&dev->last_beacon.lock);
+	last_offset = dev->last_beacon.freq_off;
+	phy_mode = dev->last_beacon.phy_mode;
+	spin_unlock_bh(&dev->last_beacon.lock);
+
+	delay = __mt7601u_phy_freq_cal(dev, last_offset, phy_mode);
+	ieee80211_queue_delayed_work(dev->hw, &dev->freq_cal.work, delay);
+
 	spin_lock_bh(&dev->last_beacon.lock);
 	dev->last_beacon.freq_off = MT7601U_FREQ_OFFSET_INVALID;
 	spin_unlock_bh(&dev->last_beacon.lock);
-
-	delay = dev->freq_cal.adjusting ? MT_FREQ_CAL_ADJ_INTERVAL :
-					  MT_FREQ_CAL_CHECK_INTERVAL;
-requeue:
-	ieee80211_queue_delayed_work(dev->hw, &dev->freq_cal.work, delay);
 }
 
 void mt7601u_phy_freq_cal_onoff(struct mt76_dev *dev,
