@@ -80,6 +80,8 @@ enum mt7601u_flags {
 	MT7601U_WLAN_RUNNING = 0,
 	MT7601U_MCU_RUNNING = 1,
 	MT7601U_SCANNING = 2,
+	MT7601U_STATS_READING,
+	MT7601U_STATS_MORE,
 };
 
 struct mac_stats {
@@ -158,7 +160,6 @@ struct mt7601u_dev {
 	/* TX */
 	spinlock_t tx_lock;
 	struct mt7601u_tx_queue tx_q[MT7601U_N_PIPES_OUT];
-	bool tx_stat_quiting;
 
 	/* RX */
 	spinlock_t rx_lock;

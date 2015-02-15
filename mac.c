@@ -182,8 +182,8 @@ void mt76_mac_wcid_set_rate(struct mt76_dev *dev, struct mt76_wcid *wcid,
 
 void mt7601u_mac_stat(struct work_struct *work)
 {
-	struct mt76_dev *dev = container_of(work, struct mt76_dev,
-					    stat_work.work);
+	struct mt7601u_dev *dev = container_of(work, struct mt7601u_dev,
+					       stat_work.work);
 	u32 stat1, stat2;
 	struct mt76_tx_status stat;
 	struct ieee80211_tx_info info = {};
@@ -191,6 +191,7 @@ void mt7601u_mac_stat(struct work_struct *work)
 	struct mt76_wcid *wcid = NULL;
 	void *msta;
 	int cleaned = 0;
+	unsigned long flags;
 
 	/* Note: careful with accessing things here - there is no explicit
 	 *	 locking!
@@ -231,10 +232,13 @@ void mt7601u_mac_stat(struct work_struct *work)
 
 	trace_tx_status_cleaned(cleaned);
 
-	if (cleaned || !dev->tx_stat_quiting)
+	spin_lock_irqsave(&dev->tx_lock, flags);
+	if (cleaned || __test_and_clear_bit(MT7601U_STATS_MORE, &dev->flags))
 		queue_delayed_work(dev->stat_wq, &dev->stat_work,
-				   msecs_to_jiffies(20));
-	dev->tx_stat_quiting = !cleaned;
+				   msecs_to_jiffies(15));
+	else
+		__clear_bit(MT7601U_STATS_READING, &dev->flags);
+	spin_unlock_irqrestore(&dev->tx_lock, flags);
 }
 
 void mt7601u_mac_set_protection(struct mt7601u_dev *dev, bool legacy_prot,

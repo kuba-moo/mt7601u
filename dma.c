@@ -317,8 +317,6 @@ static void mt7601u_complete_tx(struct urb *urb)
 	skb = q->e[q->start].skb;
 
 	trace_tx_dma_done(skb);
-	dev->tx_stat_quiting = false;
-	queue_delayed_work(dev->stat_wq, &dev->stat_work, msecs_to_jiffies(10));
 
 	dma_unmap_single(dev->dev, q->e[q->start].dma, skb->len, DMA_TO_DEVICE);
 	mt7601u_tx_status(dev, skb);
@@ -328,6 +326,11 @@ static void mt7601u_complete_tx(struct urb *urb)
 
 	q->start = (q->start + 1) % q->entries;
 	q->used--;
+
+	__set_bit(MT7601U_STATS_MORE, &dev->flags);
+	if (!__test_and_set_bit(MT7601U_STATS_READING, &dev->flags))
+		queue_delayed_work(dev->stat_wq, &dev->stat_work,
+				   msecs_to_jiffies(10));
 out:
 	spin_unlock_irqrestore(&dev->tx_lock, flags);
 }
