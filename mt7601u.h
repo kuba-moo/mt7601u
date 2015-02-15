@@ -195,8 +195,9 @@ struct mt7601u_dev {
 
 	struct mt7601u_eeprom_params *ee;
 
-	s8 tssi0;
-	s8 tssi0_hvga;
+	s8 tssi_init;
+	s8 tssi_init_hvga;
+	s16 tssi_init_hvga_offset_db;
 
 	int prev_pwr_diff;
 

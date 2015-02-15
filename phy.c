@@ -580,13 +580,13 @@ static s16 lin2dBd(u16 linear)
 	return dBd;
 }
 
-static void mt7601u_set_initial_tssi(struct mt7601u_dev *dev,
-				     s16 tssi0_db, s16 tssi0_hvga_db)
+static void
+mt7601u_set_initial_tssi(struct mt7601u_dev *dev, s16 tssi_db, s16 tssi_hvga_db)
 {
 	struct tssi_data *d = &dev->ee->tssi_data;
 	int init_offset;
 
-	init_offset = -((tssi0_db * d->slope + d->offset[1]) / 4096) + 10;
+	init_offset = -((tssi_db * d->slope + d->offset[1]) / 4096) + 10;
 
 	mt76_rmw(dev, MT_TX_ALC_CFG_1, MT_TX_ALC_CFG_1_TEMP_COMP,
 		 int_to_s6(init_offset) & MT_TX_ALC_CFG_1_TEMP_COMP);
@@ -597,7 +597,7 @@ static void mt7601u_tssi_dc_gain_cal(struct mt7601u_dev *dev)
 	u8 rf_vga, rf_mixer, bbp_r47;
 	int i, j;
 	s8 res[4];
-	s16 tssi0_db, tssi0_hvga_db;
+	s16 tssi_init_db, tssi_init_hvga_db;
 
 	mt7601u_wr(dev, MT_RF_SETTING_0, 0x00000030);
 	mt7601u_wr(dev, MT_RF_BYPASS_0, 0x000c0030);
@@ -645,13 +645,15 @@ static void mt7601u_tssi_dc_gain_cal(struct mt7601u_dev *dev)
 		res[i] = mt7601u_bbp_rr(dev, 49);
 	}
 
-	dev->tssi0 = res[0];
-	dev->tssi0_hvga = res[2];
-	tssi0_db = lin2dBd((short)res[1] - res[0]);
-	tssi0_hvga_db = lin2dBd(((short)res[3] - res[2]) * 4);
+	tssi_init_db = lin2dBd((short)res[1] - res[0]);
+	tssi_init_hvga_db = lin2dBd(((short)res[3] - res[2]) * 4);
+	dev->tssi_init = res[0];
+	dev->tssi_init_hvga = res[2];
+	dev->tssi_init_hvga_offset_db = tssi_init_hvga_db - tssi_init_db;
 
-	trace_printk("TSSI0:%hhx db:%hx hvga:%hhx hvga_db:%hx\n",
-		     dev->tssi0, tssi0_db, dev->tssi0_hvga, tssi0_hvga_db);
+	trace_printk("TSSI_init:%hhx db:%hx hvga:%hhx hvga_db:%hx off_db:%hx\n",
+		     dev->tssi_init, tssi_init_db, dev->tssi_init_hvga,
+		     tssi_init_hvga_db, dev->tssi_init_hvga_offset_db);
 
 	mt7601u_bbp_wr(dev, 22, 0);
 	mt7601u_bbp_wr(dev, 244, 0);
@@ -667,7 +669,7 @@ static void mt7601u_tssi_dc_gain_cal(struct mt7601u_dev *dev)
 	mt7601u_rf_wr(dev, 4, 39, rf_mixer);
 	mt7601u_bbp_wr(dev, 47, bbp_r47);
 
-	mt7601u_set_initial_tssi(dev, tssi0_db, tssi0_hvga_db);
+	mt7601u_set_initial_tssi(dev, tssi_init_db, tssi_init_hvga_db);
 }
 
 static int mt7601u_bbp_temp(struct mt7601u_dev *dev,
@@ -880,6 +882,7 @@ static int mt7601u_tssi_cal(struct mt7601u_dev *dev)
 	struct mt7601u_tssi_params params;
 	int curr_pwr, diff_pwr;
 	char tssi_offset;
+	s8 tssi_init;
 	s16 tssi_m_dc, tssi_db;
 	bool hvga;
 	u32 val;
@@ -896,7 +899,8 @@ static int mt7601u_tssi_cal(struct mt7601u_dev *dev)
 
 	params = mt7601u_tssi_params_get(dev);
 
-	tssi_m_dc = params.tssi0 - (hvga ? dev->tssi0_hvga : dev->tssi0);
+	tssi_init = (hvga ? dev->tssi_init_hvga : dev->tssi_init);
+	tssi_m_dc = params.tssi0 - tssi_init;
 	tssi_db = lin2dBd(tssi_m_dc);
 	trace_printk("tssi dc:%04hx db:%04hx hvga:%d\n",
 		     tssi_m_dc, tssi_db, hvga);
@@ -909,7 +913,7 @@ static int mt7601u_tssi_cal(struct mt7601u_dev *dev)
 		tssi_offset = dev->ee->tssi_data.offset[2];
 
 	if (hvga)
-		tssi_db -= dev->tssi0_hvga_db;
+		tssi_db -= dev->tssi_init_hvga_offset_db;
 
 	curr_pwr = tssi_db * dev->ee->tssi_data.slope + (tssi_offset << 9);
 	diff_pwr = params.trgt_power - curr_pwr;
@@ -919,8 +923,7 @@ static int mt7601u_tssi_cal(struct mt7601u_dev *dev)
 		printk("Error: TSSI upper saturation\n");
 		diff_pwr = 0;
 	}
-	if (params.tssi0 - (hvga ? dev->tssi0_hvga : dev->tssi0) < 1 &&
-	    diff_pwr < 0) {
+	if (params.tssi0 - tssi_init < 1 && diff_pwr < 0) {
 		printk("Error: TSSI lower saturation\n");
 		diff_pwr = 0;
 	}
