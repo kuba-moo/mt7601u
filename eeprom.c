@@ -279,7 +279,7 @@ mt7601u_extra_power_over_mac(struct mt76_dev *dev)
 }
 
 static void
-set_power_rate(struct power_per_rate *rate, s8 delta, u8 value)
+mt7601u_set_power_rate(struct power_per_rate *rate, s8 delta, u8 value)
 {
 	rate->raw = s6_validate(value);
 	rate->bw20 = s6_to_int(value);
@@ -298,24 +298,24 @@ mt7601u_save_power_rate(struct mt76_dev *dev, s8 delta, u32 val, int i)
 
 	switch (i) {
 	case 0:
-		set_power_rate(&t->cck[0], delta, (val >> 0) & 0xff);
-		set_power_rate(&t->cck[1], delta, (val >> 8) & 0xff);
+		mt7601u_set_power_rate(&t->cck[0], delta, (val >> 0) & 0xff);
+		mt7601u_set_power_rate(&t->cck[1], delta, (val >> 8) & 0xff);
 		/* Save cck bw20 for fixups of channel 14 */
 		dev->ee->real_cck_bw20[0] = t->cck[0].bw20;
 		dev->ee->real_cck_bw20[1] = t->cck[1].bw20;
 
-		set_power_rate(&t->ofdm[0], delta, (val >> 16) & 0xff);
-		set_power_rate(&t->ofdm[1], delta, (val >> 24) & 0xff);
+		mt7601u_set_power_rate(&t->ofdm[0], delta, (val >> 16) & 0xff);
+		mt7601u_set_power_rate(&t->ofdm[1], delta, (val >> 24) & 0xff);
 		break;
 	case 1:
-		set_power_rate(&t->ofdm[2], delta, (val >> 0) & 0xff);
-		set_power_rate(&t->ofdm[3], delta, (val >> 8) & 0xff);
-		set_power_rate(&t->ht[0], delta, (val >> 16) & 0xff);
-		set_power_rate(&t->ht[1], delta, (val >> 24) & 0xff);
+		mt7601u_set_power_rate(&t->ofdm[2], delta, (val >> 0) & 0xff);
+		mt7601u_set_power_rate(&t->ofdm[3], delta, (val >> 8) & 0xff);
+		mt7601u_set_power_rate(&t->ht[0], delta, (val >> 16) & 0xff);
+		mt7601u_set_power_rate(&t->ht[1], delta, (val >> 24) & 0xff);
 		break;
 	case 2:
-		set_power_rate(&t->ht[2], delta, (val >> 0) & 0xff);
-		set_power_rate(&t->ht[3], delta, (val >> 8) & 0xff);
+		mt7601u_set_power_rate(&t->ht[2], delta, (val >> 0) & 0xff);
+		mt7601u_set_power_rate(&t->ht[3], delta, (val >> 8) & 0xff);
 		break;
 	}
 }
