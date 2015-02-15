@@ -18,6 +18,8 @@
 #include <linux/tracepoint.h>
 #include "mt7601u.h"
 
+#include "mac.h" /* for txwi */ /* TODO: remove me */
+
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM mt7601u
 

@@ -23,7 +23,12 @@
 #include <net/mac80211.h>
 #include <linux/debugfs.h>
 
+#include "regs.h"
+#include "util.h"
+
 #define MT7601U_FIRMWARE	"mt7601u.bin"
+
+#define MT_CALIBRATE_INTERVAL		(4 * HZ)
 
 #define MT_FREQ_CAL_INIT_DELAY		(30 * HZ)
 #define MT_FREQ_CAL_CHECK_INTERVAL	(10 * HZ)
@@ -240,18 +245,67 @@ struct mt7601u_tssi_params {
 	int trgt_power;
 };
 
+struct mt76_wcid {
+	u8 idx;
+	u8 hw_key_idx;
+
+	__le16 tx_rate;
+	bool tx_rate_set;
+	u8 tx_rate_nss;
+};
+
+struct mt76_vif {
+	u8 idx;
+
+	struct mt76_wcid group_wcid;
+};
+
+struct mt76_sta {
+	struct mt76_wcid wcid;
+	u16 agg_ssn[IEEE80211_NUM_TIDS];
+};
+
+struct mt76_reg_pair {
+	u32 reg;
+	u32 value;
+};
+
 #define mt76_dev	mt7601u_dev
 #define mt76_rr		mt7601u_rr
 #define mt76_wr		mt7601u_wr
 #define mt76_rmw	mt7601u_rmw
 
-#include "mt76.h"
+struct mt7601u_rxwi;
 
 extern const struct ieee80211_ops mt7601u_ops;
 
-/* Core */
+void mt7601u_init_debugfs(struct mt76_dev *dev);
+
+u32 mt7601u_rr(struct mt7601u_dev *dev, u32 offset);
+void mt7601u_wr(struct mt7601u_dev *dev, u32 offset, u32 val);
+u32 mt7601u_rmw(struct mt7601u_dev *dev, u32 offset, u32 mask, u32 val);
 u32 mt7601u_rmc(struct mt7601u_dev *dev, u32 offset, u32 mask, u32 val);
+void mt7601u_wr_copy(struct mt76_dev *dev, u32 offset,
+		     const void *data, int len);
+
 int mt7601u_wait_asic_ready(struct mt7601u_dev *dev);
+bool mt76_poll(struct mt76_dev *dev, u32 offset, u32 mask, u32 val,
+	       int timeout);
+bool mt76_poll_msec(struct mt76_dev *dev, u32 offset, u32 mask, u32 val,
+		    int timeout);
+
+#define mt76_rmw_field(_dev, _reg, _field, _val)	\
+	mt76_rmw(_dev, _reg, _field, MT76_SET(_field, _val))
+
+static inline u32 mt76_set(struct mt76_dev *dev, u32 offset, u32 val)
+{
+	return mt76_rmw(dev, offset, 0, val);
+}
+
+static inline u32 mt76_clear(struct mt76_dev *dev, u32 offset, u32 val)
+{
+	return mt76_rmw(dev, offset, val, 0);
+}
 
 /* USB */
 int mt7601u_vendor_request(struct mt7601u_dev *mt7601u, const u8 req,
@@ -324,6 +378,10 @@ void mt7601u_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 int mt7601u_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		    u16 queue, const struct ieee80211_tx_queue_params *params);
 void mt7601u_tx_status(struct mt7601u_dev *dev, struct sk_buff *skb);
+
+/* util */
+void mt76_remove_hdr_pad(struct sk_buff *skb);
+int mt76_insert_hdr_pad(struct sk_buff *skb);
 
 static inline u32 mt7601u_bbp_set_ctrlch(struct mt7601u_dev *dev, bool below)
 {

@@ -390,7 +390,7 @@ static int __mt7601u_phy_set_channel(struct mt76_dev *dev,
 
 	/* TODO: perhaps set ctrl channel (below/above)? */
 
-	if (test_bit(MT76_SCANNING, &dev->flags))
+	if (test_bit(MT7601U_SCANNING, &dev->flags))
 		mt7601u_agc_reset(dev);
 
 	dev->chandef = *chandef;

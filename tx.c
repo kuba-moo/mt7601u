@@ -17,6 +17,16 @@
 #include "mcu.h"
 #include "trace.h"
 
+enum mt76_txq_id { /* TODO: is this mapping correct? */
+	MT_TXQ_VO = IEEE80211_AC_VO,
+	MT_TXQ_VI = IEEE80211_AC_VI,
+	MT_TXQ_BE = IEEE80211_AC_BE,
+	MT_TXQ_BK = IEEE80211_AC_BK,
+	MT_TXQ_PSD,
+	MT_TXQ_MCU,
+	__MT_TXQ_MAX
+};
+
 void mt7601u_tx_status(struct mt7601u_dev *dev, struct sk_buff *skb)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);

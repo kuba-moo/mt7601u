@@ -572,7 +572,7 @@ int mt76_mac_wcid_set_key(struct mt76_dev *dev, u8 idx,
 
 	printk("setting key for idx:%02hhx\n", idx);
 
-	mt76_wr_copy(dev, MT_WCID_KEY(idx), key_data, sizeof(key_data));
+	mt7601u_wr_copy(dev, MT_WCID_KEY(idx), key_data, sizeof(key_data));
 
 	memset(iv_data, 0, sizeof(iv_data));
 	if (key) {
@@ -585,7 +585,7 @@ int mt76_mac_wcid_set_key(struct mt76_dev *dev, u8 idx,
 			iv_data[3] |= 0x20;
 		}
 	}
-	mt76_wr_copy(dev, MT_WCID_IV(idx), iv_data, sizeof(iv_data));
+	mt7601u_wr_copy(dev, MT_WCID_IV(idx), iv_data, sizeof(iv_data));
 
 	/* CHANGED: move attr updates after all key info is set */
 	/* CHANGED: don't use rmw for value changes to save urbs */
@@ -615,8 +615,8 @@ int mt76_mac_shared_key_setup(struct mt76_dev *dev, u8 vif_idx, u8 key_idx,
 	printk("setting key for vif_idx:%02hhx key_idx:%02hhx\n",
 	       vif_idx, key_idx);
 
-	mt76_wr_copy(dev, MT_SKEY(vif_idx, key_idx),
-		     key_data, sizeof(key_data));
+	mt7601u_wr_copy(dev, MT_SKEY(vif_idx, key_idx),
+			key_data, sizeof(key_data));
 
 	val = mt76_rr(dev, MT_SKEY_MODE(vif_idx));
 	val &= ~(MT_SKEY_MODE_MASK << MT_SKEY_MODE_SHIFT(vif_idx, key_idx));

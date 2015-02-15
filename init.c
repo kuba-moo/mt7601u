@@ -970,7 +970,7 @@ int mt7601u_register_device(struct mt7601u_dev *dev)
 	if (ret)
 		return ret;
 
-	mt76_init_debugfs(dev);
+	mt7601u_init_debugfs(dev);
 
 	return 0;
 }

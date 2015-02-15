@@ -136,7 +136,8 @@ u32 mt7601u_rmc(struct mt7601u_dev *dev, u32 offset, u32 mask, u32 val)
 	return val;
 }
 
-void mt76_wr_copy(struct mt76_dev *dev, u32 offset, const void *data, int len)
+void mt7601u_wr_copy(struct mt76_dev *dev, u32 offset,
+		     const void *data, int len)
 {
 	WARN_ON(len & 3);
 	mt7601u_burst_write_regs(dev, offset, data, len / 4);

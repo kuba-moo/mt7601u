@@ -150,7 +150,7 @@ static const struct file_operations fops_eeprom_param = {
 	.release = single_release,
 };
 
-void mt76_init_debugfs(struct mt76_dev *dev)
+void mt7601u_init_debugfs(struct mt76_dev *dev)
 {
 	struct dentry *dir;
 

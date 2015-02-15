@@ -13,6 +13,7 @@
  */
 
 #include "mt7601u.h"
+#include "mac.h"
 #include "mcu.h"
 #include <linux/etherdevice.h>
 #include <linux/version.h>
