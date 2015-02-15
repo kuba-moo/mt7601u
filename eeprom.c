@@ -63,8 +63,8 @@ mt7601u_efuse_read(struct mt76_dev *dev, u16 addr, u8 *data,
 	}
 
 	for (i = 0; i < 4; i++) {
-	    val = mt76_rr(dev, MT_EFUSE_DATA(i));
-	    put_unaligned_le32(val, data + 4 * i);
+		val = mt76_rr(dev, MT_EFUSE_DATA(i));
+		put_unaligned_le32(val, data + 4 * i);
 	}
 
 	return 0;
