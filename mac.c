@@ -232,8 +232,8 @@ void mt7601u_mac_stat(struct work_struct *work)
 	trace_tx_status_cleaned(cleaned);
 
 	if (cleaned || !dev->tx_stat_quiting)
-		ieee80211_queue_delayed_work(dev->hw, &dev->stat_work,
-					     msecs_to_jiffies(20));
+		queue_delayed_work(dev->stat_wq, &dev->stat_work,
+				   msecs_to_jiffies(20));
 	dev->tx_stat_quiting = !cleaned;
 }
 

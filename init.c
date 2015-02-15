@@ -586,7 +586,7 @@ void mt7601u_mac_stop(struct mt7601u_dev *dev)
 	if (!mt76_poll(dev, MT_USB_DMA_CFG, MT_USB_DMA_CFG_RX_BUSY, 0, 1000))
 		printk("Error: RX DMA did not stop!\n");
 
-	cancel_delayed_work_sync(&dev->stat_work);
+	flush_workqueue(dev->stat_wq);
 }
 
 static void mt7601u_stop_hardware(struct mt7601u_dev *dev)
@@ -771,6 +771,12 @@ struct mt7601u_dev *mt7601u_alloc_device(struct device *pdev)
 	spin_lock_init(&dev->rx_lock);
 	spin_lock_init(&dev->lock);
 	spin_lock_init(&dev->last_beacon.lock);
+
+	dev->stat_wq = alloc_workqueue("mt7601u", WQ_UNBOUND, 0);
+	if (!dev->stat_wq) {
+		ieee80211_free_hw(hw);
+		return NULL;
+	}
 
 	return dev;
 }

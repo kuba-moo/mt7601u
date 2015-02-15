@@ -141,6 +141,8 @@ struct mt7601u_dev {
 
 	struct delayed_work cal_work;
 	struct delayed_work mac_work;
+
+	struct workqueue_struct *stat_wq;
 	struct delayed_work stat_work;
 
 	struct mt76_wcid *mon_wcid;

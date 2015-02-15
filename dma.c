@@ -318,8 +318,7 @@ static void mt7601u_complete_tx(struct urb *urb)
 
 	trace_tx_dma_done(skb);
 	dev->tx_stat_quiting = false;
-	ieee80211_queue_delayed_work(dev->hw, &dev->stat_work,
-				     msecs_to_jiffies(10));
+	queue_delayed_work(dev->stat_wq, &dev->stat_work, msecs_to_jiffies(10));
 
 	dma_unmap_single(dev->dev, q->e[q->start].dma, skb->len, DMA_TO_DEVICE);
 	mt7601u_tx_status(dev, skb);
