@@ -36,11 +36,23 @@ field_validate(u8 val)
 }
 
 static int
-mt7601u_eeprom_get_macaddr(struct mt76_dev *dev, const u8 *eeprom)
+mt7601u_set_macaddr(struct mt76_dev *dev, const u8 *eeprom)
 {
 	const void *src = eeprom + MT_EE_MAC_ADDR;
 
 	memcpy(dev->macaddr, src, ETH_ALEN);
+
+	if (!is_valid_ether_addr(dev->macaddr)) {
+		eth_random_addr(dev->macaddr);
+		dev_info(dev->dev,
+			 "Invalid MAC address, using random address %pM\n",
+			 dev->macaddr);
+	}
+
+	mt76_wr(dev, MT_MAC_ADDR_DW0, get_unaligned_le32(dev->macaddr));
+	mt76_wr(dev, MT_MAC_ADDR_DW1, get_unaligned_le16(dev->macaddr + 4) |
+		MT76_SET(MT_MAC_ADDR_DW1_U2ME_MASK, 0xff));
+
 	return 0;
 }
 
@@ -402,20 +414,6 @@ mt7601u_eeprom_init(struct mt76_dev *dev)
 			goto out;
 	}
 
-	mt7601u_eeprom_get_macaddr(dev, eeprom);
-
-	if (!is_valid_ether_addr(dev->macaddr)) {
-		eth_random_addr(dev->macaddr);
-		dev_info(dev->dev,
-			 "Invalid MAC address, using random address %pM\n",
-			 dev->macaddr);
-	}
-
-	/* TODO: move this out of here. */
-	mt76_wr(dev, MT_MAC_ADDR_DW0, get_unaligned_le32(dev->macaddr));
-	mt76_wr(dev, MT_MAC_ADDR_DW1, get_unaligned_le16(dev->macaddr + 4) |
-		MT76_SET(MT_MAC_ADDR_DW1_U2ME_MASK, 0xff));
-
 	if (eeprom[MT_EE_VERSION_EE] > MT7601U_EE_MAX_VER)
 		dev_warn(dev->dev,
 			 "Warning: unsupported EEPROM version %02hhx\n",
@@ -423,6 +421,7 @@ mt7601u_eeprom_init(struct mt76_dev *dev)
 	dev_info(dev->dev, "EEPROM ver:%02hhx fae:%02hhx\n",
 		 eeprom[MT_EE_VERSION_EE], eeprom[MT_EE_VERSION_FAE]);
 
+	mt7601u_set_macaddr(dev, eeprom);
 	mt7601u_set_chip_cap(dev, eeprom);
 	mt7601u_set_channel_power(dev, eeprom);
 	mt7601u_set_country_reg(dev, eeprom);
