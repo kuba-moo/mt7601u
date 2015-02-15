@@ -71,11 +71,6 @@ struct mt7601u_mcu {
 	struct completion resp_cmpl;
 };
 
-struct mt76_hw_cap {
-	bool has_2ghz;
-	bool has_5ghz;
-};
-
 enum mt7601u_flags {
 	MT7601U_WLAN_RUNNING = 0,
 	MT7601U_MCU_RUNNING = 1,
@@ -150,8 +145,6 @@ struct mt7601u_dev {
 
 	u32 rev;
 	u32 rxfilter;
-
-	struct mt76_hw_cap cap;
 
 	u32 debugfs_reg;
 

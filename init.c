@@ -892,9 +892,6 @@ mt76_init_sband(struct mt76_dev *dev, struct ieee80211_supported_band *sband,
 static int
 mt76_init_sband_2g(struct mt76_dev *dev)
 {
-	if (!dev->cap.has_2ghz)
-		return 0;
-
 	dev->sband_2g = devm_kzalloc(dev->dev, sizeof(*dev->sband_2g),
 				     GFP_KERNEL);
 	dev->hw->wiphy->bands[IEEE80211_BAND_2GHZ] = dev->sband_2g;
@@ -913,8 +910,6 @@ int mt7601u_register_device(struct mt7601u_dev *dev)
 	struct ieee80211_hw *hw = dev->hw;
 	struct wiphy *wiphy = hw->wiphy;
 	int ret;
-
-	dev->cap.has_2ghz = true;
 
 	/* TODO: this should disappear after WCID clean up */
 	/* Reserve WCID 0 for mcast - thanks to this APs WCID will go to

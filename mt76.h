@@ -136,67 +136,6 @@ struct mt76_wcid {
 	u8 tx_rate_nss;
 };
 
-struct _mt76_dev {
-	struct ieee80211_hw *hw;
-	struct device *dev;
-	u8 macaddr[ETH_ALEN];
-	struct mac_address macaddr_list[8];
-
-	void __iomem *regs;
-
-	struct mutex mutex;
-
-	const u16 *beacon_offsets;
-	unsigned long wcid_mask[256 / BITS_PER_LONG];
-
-	struct cfg80211_chan_def chandef;
-	struct ieee80211_supported_band sband_2g;
-	struct ieee80211_supported_band sband_5g;
-	int txpower_conf;
-	int txpower_cur;
-
-	u8 txdone_seq;
-	DECLARE_KFIFO_PTR(txstatus_fifo, struct mt76_tx_status);
-
-	struct list_head txwi_cache;
-	struct mt76_mcu mcu;
-	struct mt76_queue q_rx;
-	struct mt76_queue q_tx[__MT_TXQ_MAX];
-
-	struct net_device napi_dev;
-	struct napi_struct napi;
-
-	struct tasklet_struct tx_tasklet;
-	struct tasklet_struct rx_tasklet;
-	struct tasklet_struct pre_tbtt_tasklet;
-	struct delayed_work cal_work;
-	struct delayed_work mac_work;
-
-	u32 aggr_stats[32];
-
-	struct mt76_wcid __rcu *wcid[254 - 8];
-
-	spinlock_t lock;
-	spinlock_t irq_lock;
-	u32 irqmask;
-	unsigned long state;
-
-	struct sk_buff *beacons[8];
-	u8 beacon_mask;
-	u8 beacon_data_mask;
-
-	u32 rev;
-	u32 rxfilter;
-
-	u16 chainmask;
-
-	struct mt76_calibration cal;
-	struct debugfs_blob_wrapper eeprom;
-	struct mt76_hw_cap cap;
-
-	u32 debugfs_reg;
-};
-
 struct mt76_vif {
 	u8 idx;
 
