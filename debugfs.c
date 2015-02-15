@@ -100,7 +100,13 @@ mt7601u_eeprom_param_read(struct seq_file *file, void *data)
 	struct tssi_data *td = &dev->ee->tssi_data;
 	int i;
 
-	seq_printf(file, "RF freq off: %hhx\n", dev->ee->rf_freq_off);
+	seq_printf(file, "RF freq offset: %hhx\n", dev->ee->rf_freq_off);
+	seq_printf(file, "RSSI offset: %hhx %hhx\n",
+		   dev->ee->rssi_offset[0], dev->ee->rssi_offset[1]);
+	seq_printf(file, "Reference temp: %hhx\n", dev->ee->ref_temp);
+	seq_printf(file, "LNA gain: %hhx\n", dev->ee->lna_gain);
+	seq_printf(file, "Reg channels: %hhu-%hhu\n", dev->ee->reg.start,
+		   dev->ee->reg.start + dev->ee->reg.num - 1);
 
 	seq_printf(file, "Per rate power:\n");
 	for (i = 0; i < 2; i++)
