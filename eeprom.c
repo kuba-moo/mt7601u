@@ -63,8 +63,6 @@ mt7601u_efuse_read(struct mt76_dev *dev, u16 addr, u8 *data,
 	u32 val;
 	int i;
 
-	WARN_ON(addr & 0xf); /* TODO: remove me */
-
 	val = mt76_rr(dev, MT_EFUSE_CTRL);
 	val &= ~(MT_EFUSE_CTRL_AIN |
 		 MT_EFUSE_CTRL_MODE);
@@ -101,11 +99,6 @@ mt7601u_efuse_physical_size_check(struct mt76_dev *dev)
 	int ret, i;
 	u32 start = 0, end = 0, cnt_free;
 
-	WARN_ON(MT_EE_USAGE_MAP_START & 0xf); /* TODO: remove me */
-	WARN_ON(MT_EFUSE_USAGE_MAP_SIZE != 29); /* TODO: remove me */
-	WARN_ON(map_reads != 2); /* TODO: remove me */
-	WARN_ON(MT_EFUSE_USAGE_MAP_SIZE >= sizeof(data)); /* TODO: remove me */
-
 	for (i = 0; i < map_reads; i++) {
 		ret = mt7601u_efuse_read(dev, MT_EE_USAGE_MAP_START + i * 16,
 					 data + i * 16, MT_EE_PHYSICAL_READ);
@@ -121,11 +114,8 @@ mt7601u_efuse_physical_size_check(struct mt76_dev *dev)
 		}
 	cnt_free = end - start + 1;
 
-	trace_printk("I recon phy efuse free s:%04x e:%04x l:%04x\n",
-		     start, end, cnt_free);
-
 	if (MT_EFUSE_USAGE_MAP_SIZE - cnt_free < 5) {
-		printk("Error: your device needs default EEPROM file and this driver doesn't support it!\n");
+		dev_err(dev->dev, "Error: your device needs default EEPROM file and this driver doesn't support it!\n");
 		return -EINVAL;
 	}
 
@@ -177,8 +167,6 @@ mt7601u_set_channel_power(struct mt76_dev *dev, u8 *eeprom)
 	if (mt7601u_has_tssi(dev, eeprom)) {
 		u8 trgt_pwr = eeprom[MT_EE_TX_TSSI_TARGET_POWER];
 
-		trace_printk("trgt power (eo:0x0d): %02hhx\n", trgt_pwr);
-
 		if (trgt_pwr > max_pwr || !trgt_pwr) {
 			dev_warn(dev->dev,
 				 "Error: EEPROM trgt power invalid %hhx!\n",
@@ -187,7 +175,7 @@ mt7601u_set_channel_power(struct mt76_dev *dev, u8 *eeprom)
 		}
 
 		memset(dev->ee->chan_pwr, trgt_pwr, sizeof(dev->ee->chan_pwr));
-		goto out;
+		return;
 	}
 
 	for (i = 0; i < 14; i++) {
@@ -197,13 +185,6 @@ mt7601u_set_channel_power(struct mt76_dev *dev, u8 *eeprom)
 			power = MT7601U_DEFAULT_TX_POWER;
 
 		dev->ee->chan_pwr[i] = power;
-	}
-
-out:	/* TODO: remove me */
-	for (i = 0; i < 7; i++) {
-		trace_printk("tx_power  ch%u:%02hhx ch%u:%02hhx\n",
-			     i * 2 + 1, dev->ee->chan_pwr[i * 2],
-			     i * 2 + 2, dev->ee->chan_pwr[i * 2 + 1]);
 	}
 }
 
@@ -223,16 +204,16 @@ mt7601u_set_country_reg(struct mt76_dev *dev, u8 *eeprom)
 	u8 val = eeprom[MT_EE_COUNTRY_REGION];
 	int idx = -1;
 
-	trace_printk("EEPROM country region is %02hhx\n", val);
 	if (val < 8)
 		idx = val;
 	if (val > 31 && val < 33)
 		idx = val - 32 + 8;
 
 	if (idx != -1)
-		printk("EEPROM country region is %02hhx (channels %hhd-%hhd)\n",
-		       val, chan_bounds[idx].start,
-		       chan_bounds[idx].start + chan_bounds[idx].num - 1);
+		dev_info(dev->dev,
+			 "EEPROM country region %02hhx (channels %hhd-%hhd)\n",
+			 val, chan_bounds[idx].start,
+			 chan_bounds[idx].start + chan_bounds[idx].num - 1);
 	else
 		idx = 5; /* channels 1 - 14 */
 
@@ -255,8 +236,6 @@ mt7601u_set_rf_freq_off(struct mt76_dev *dev, u8 *eeprom)
 		dev->ee->rf_freq_off -= comp & 0x7f;
 	else
 		dev->ee->rf_freq_off += comp;
-
-	trace_printk("RF freq off: %hhx\n", dev->ee->rf_freq_off);
 }
 
 static void
@@ -297,10 +276,6 @@ mt7601u_set_power_rate(struct power_per_rate *rate, s8 delta, u8 value)
 	rate->bw20 = s6_to_int(value);
 	/* Note: vendor driver does cap the value to s6 right away */
 	rate->bw40 = rate->bw20 + delta;
-
-	/* TODO: move this to debugfs? */
-	trace_printk("raw:%02hhx bw20:%02hhx bw40:%02hhx\n",
-		     rate->raw, rate->bw20, rate->bw40);
 }
 
 static void
@@ -357,7 +332,6 @@ mt7601u_config_tx_power_per_rate(struct mt76_dev *dev, u8 *eeprom)
 	int i;
 
 	bw40_delta = get_delta(eeprom[MT_EE_TX_POWER_DELTA_BW40]);
-	trace_printk("g_delta: %hhx\n", bw40_delta);
 
 	for (i = 0; i < 5; i++) {
 		val = get_unaligned_le32(eeprom + MT_EE_TX_POWER_BYRATE(i));
@@ -384,10 +358,6 @@ mt7601u_init_tssi_params(struct mt7601u_dev *dev, u8 *eeprom)
 	d->offset[0] = eeprom[MT_EE_TX_TSSI_OFFSET_GROUP];
 	d->offset[1] = eeprom[MT_EE_TX_TSSI_OFFSET_GROUP + 1];
 	d->offset[2] = eeprom[MT_EE_TX_TSSI_OFFSET_GROUP + 2];
-
-	trace_printk("TSSI: slope:%02hhx offset=%02hhx %02hhx %02hhx delta_off:%08x\n",
-		     d->slope, d->offset[0], d->offset[1], d->offset[2],
-		     d->tx0_delta_offset);
 }
 
 int

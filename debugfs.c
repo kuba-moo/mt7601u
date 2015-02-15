@@ -14,6 +14,7 @@
 
 #include <linux/debugfs.h>
 #include "mt7601u.h"
+#include "eeprom.h"
 
 static int
 mt76_reg_set(void *data, u64 val)
@@ -69,7 +70,7 @@ mt76_ampdu_stat_read(struct seq_file *file, void *data)
 		for (j = 0; j < 8; j++)
 			seq_printf(file, "%08llx ",
 				   dev->stats.aggr_n[i * 8 + j]);
-		seq_puts(file, "\n");
+		seq_putc(file, '\n');
 	}
 
 	seq_printf(file, "recent average AMPDU len: %d\n",
@@ -91,6 +92,58 @@ static const struct file_operations fops_ampdu_stat = {
 	.release = single_release,
 };
 
+static int
+mt7601u_eeprom_param_read(struct seq_file *file, void *data)
+{
+	struct mt76_dev *dev = file->private;
+	struct mt7601u_rate_power *rp = &dev->ee->power_rate_table;
+	struct tssi_data *td = &dev->ee->tssi_data;
+	int i;
+
+	seq_printf(file, "RF freq off: %hhx\n", dev->ee->rf_freq_off);
+
+	seq_printf(file, "Per rate power:\n");
+	for (i = 0; i < 2; i++)
+		seq_printf(file, "\t raw:%02hhx bw20:%02hhx bw40:%02hhx\n",
+			   rp->cck[i].raw, rp->cck[i].bw20, rp->cck[i].bw40);
+	for (i = 0; i < 4; i++)
+		seq_printf(file, "\t raw:%02hhx bw20:%02hhx bw40:%02hhx\n",
+			   rp->ofdm[i].raw, rp->ofdm[i].bw20, rp->ofdm[i].bw40);
+	for (i = 0; i < 4; i++)
+		seq_printf(file, "\t raw:%02hhx bw20:%02hhx bw40:%02hhx\n",
+			   rp->ht[i].raw, rp->ht[i].bw20, rp->ht[i].bw40);
+
+	seq_printf(file, "Per channel power:\n");
+	for (i = 0; i < 7; i++)
+		seq_printf(file, "\t tx_power  ch%u:%02hhx ch%u:%02hhx\n",
+			   i * 2 + 1, dev->ee->chan_pwr[i * 2],
+			   i * 2 + 2, dev->ee->chan_pwr[i * 2 + 1]);
+
+	if (!dev->ee->tssi_enabled)
+		return 0;
+
+	seq_printf(file, "TSSI:\n");
+	seq_printf(file, "\t slope:%02hhx\n", td->slope);
+	seq_printf(file, "\t offset=%02hhx %02hhx %02hhx\n",
+		   td->offset[0], td->offset[1], td->offset[2]);
+	seq_printf(file, "\t delta_off:%08x\n", td->tx0_delta_offset);
+
+	return 0;
+}
+
+static int
+mt7601u_eeprom_param_open(struct inode *inode, struct file *f)
+{
+	return single_open(f, mt7601u_eeprom_param_read, inode->i_private);
+}
+
+static const struct file_operations fops_eeprom_param = {
+	.open = mt7601u_eeprom_param_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
 void mt76_init_debugfs(struct mt76_dev *dev)
 {
 	struct dentry *dir;
@@ -104,4 +157,6 @@ void mt76_init_debugfs(struct mt76_dev *dev)
 	debugfs_create_u32("regidx", S_IRUSR | S_IWUSR, dir, &dev->debugfs_reg);
 	debugfs_create_file("regval", S_IRUSR | S_IWUSR, dir, dev, &fops_regval);
 	debugfs_create_file("ampdu_stat", S_IRUSR, dir, dev, &fops_ampdu_stat);
+	debugfs_create_file("eeprom_param", S_IRUSR, dir, dev,
+			    &fops_eeprom_param);
 }
