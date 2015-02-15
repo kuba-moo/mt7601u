@@ -36,27 +36,6 @@ field_validate(u8 val)
 }
 
 static int
-mt7601u_set_macaddr(struct mt76_dev *dev, const u8 *eeprom)
-{
-	const void *src = eeprom + MT_EE_MAC_ADDR;
-
-	memcpy(dev->macaddr, src, ETH_ALEN);
-
-	if (!is_valid_ether_addr(dev->macaddr)) {
-		eth_random_addr(dev->macaddr);
-		dev_info(dev->dev,
-			 "Invalid MAC address, using random address %pM\n",
-			 dev->macaddr);
-	}
-
-	mt76_wr(dev, MT_MAC_ADDR_DW0, get_unaligned_le32(dev->macaddr));
-	mt76_wr(dev, MT_MAC_ADDR_DW1, get_unaligned_le16(dev->macaddr + 4) |
-		MT76_SET(MT_MAC_ADDR_DW1_U2ME_MASK, 0xff));
-
-	return 0;
-}
-
-static int
 mt7601u_efuse_read(struct mt76_dev *dev, u16 addr, u8 *data,
 		   enum mt7601u_eeprom_access_modes mode)
 {
@@ -153,6 +132,27 @@ mt7601u_set_chip_cap(struct mt76_dev *dev, u8 *eeprom)
 	    MT76_GET(MT_EE_NIC_CONF_0_TX_PATH, nic_conf0) > 1)
 		dev_err(dev->dev,
 			"Error: device has more than 1 RX/TX stream!\n");
+}
+
+static int
+mt7601u_set_macaddr(struct mt76_dev *dev, const u8 *eeprom)
+{
+	const void *src = eeprom + MT_EE_MAC_ADDR;
+
+	memcpy(dev->macaddr, src, ETH_ALEN);
+
+	if (!is_valid_ether_addr(dev->macaddr)) {
+		eth_random_addr(dev->macaddr);
+		dev_info(dev->dev,
+			 "Invalid MAC address, using random address %pM\n",
+			 dev->macaddr);
+	}
+
+	mt76_wr(dev, MT_MAC_ADDR_DW0, get_unaligned_le32(dev->macaddr));
+	mt76_wr(dev, MT_MAC_ADDR_DW1, get_unaligned_le16(dev->macaddr + 4) |
+		MT76_SET(MT_MAC_ADDR_DW1_U2ME_MASK, 0xff));
+
+	return 0;
 }
 
 static void
