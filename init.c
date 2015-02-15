@@ -14,6 +14,7 @@
  */
 
 #include "mt7601u.h"
+#include "eeprom.h"
 #include "trace.h"
 #include "mcu.h"
 
@@ -712,7 +713,7 @@ int mt7601u_init_hardware(struct mt7601u_dev *dev)
 
 	mt7601u_wr(dev, MT_TXOP_CTRL_CFG, 0x583f);
 
-	ret = mt76_eeprom_init(dev);
+	ret = mt7601u_eeprom_init(dev);
 	if (ret)
 		goto err_rx;
 
@@ -724,11 +725,8 @@ int mt7601u_init_hardware(struct mt7601u_dev *dev)
 	if (ret)
 		goto err_rx;
 
-	mt7601u_set_rx_path(dev, MT76_GET(MT_ANT_RX_PATH, dev->ant) - 1);
-	mt7601u_set_tx_dac(dev,
-			   MT76_GET(MT_ANT_TX_PATH, dev->ant) == 1 ? 0 : 2);
-
-	mt7601u_init_tssi_table(dev);
+	mt7601u_set_rx_path(dev, 0);
+	mt7601u_set_tx_dac(dev, 0);
 
 	mt7601u_mac_set_ctrlch(dev, false);
 	mt7601u_bbp_set_ctrlch(dev, false); /* Note: *not* in vendor driver */
@@ -901,12 +899,12 @@ mt76_init_sband_2g(struct mt76_dev *dev)
 				     GFP_KERNEL);
 	dev->hw->wiphy->bands[IEEE80211_BAND_2GHZ] = dev->sband_2g;
 
-	WARN_ON(dev->reg.start - 1 + dev->reg.num >
+	WARN_ON(dev->ee->reg.start - 1 + dev->ee->reg.num >
 		ARRAY_SIZE(mt76_channels_2ghz));
 
 	return mt76_init_sband(dev, dev->sband_2g,
-			       &mt76_channels_2ghz[dev->reg.start - 1],
-			       dev->reg.num,
+			       &mt76_channels_2ghz[dev->ee->reg.start - 1],
+			       dev->ee->reg.num,
 			       mt76_rates, ARRAY_SIZE(mt76_rates));
 }
 

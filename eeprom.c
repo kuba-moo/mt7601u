@@ -20,68 +20,30 @@
 #include "mt7601u.h"
 #include "eeprom.h"
 
-static int
-mt76_eeprom_get_macaddr(struct mt76_dev *dev)
+static bool
+field_valid(u8 val)
 {
-	void *src = dev->eeprom.data + MT_EE_MAC_ADDR;
+	return val != 0xff;
+}
+
+static s8
+field_validate(u8 val)
+{
+	if (!field_valid(val))
+		return 0;
+
+	return val;
+}
+
+static int
+mt7601u_eeprom_get_macaddr(struct mt76_dev *dev, const u8 *eeprom)
+{
+	const void *src = eeprom + MT_EE_MAC_ADDR;
 
 	memcpy(dev->macaddr, src, ETH_ALEN);
 	return 0;
 }
 
-static int mt76_get_of_eeprom(struct mt76_dev *dev, int len)
-{
-	int ret = -ENOENT;
-#ifdef CONFIG_OF
-	struct device_node *np = dev->dev->of_node;
-	struct mtd_info *mtd;
-	const __be32 *list;
-	const char *part;
-	phandle phandle;
-	int offset = 0;
-	int size;
-	size_t retlen;
-
-	if (!np)
-		return -ENOENT;
-
-	list = of_get_property(np, "mediatek,mtd-eeprom", &size);
-	if (!list)
-		return -ENOENT;
-
-	phandle = be32_to_cpup(list++);
-	if (!phandle)
-		return -ENOENT;
-
-	np = of_find_node_by_phandle(phandle);
-	if (!np)
-		return -EINVAL;
-
-	part = of_get_property(np, "label", NULL);
-	if (!part)
-		part = np->name;
-
-	mtd = get_mtd_device_nm(part);
-	if (IS_ERR(mtd))
-		return PTR_ERR(mtd);
-
-	if (size <= sizeof(*list))
-		return -EINVAL;
-
-	offset = be32_to_cpup(list);
-	ret = mtd_read(mtd, offset, len, &retlen, dev->eeprom.data);
-	put_mtd_device(mtd);
-	if (ret)
-		return ret;
-
-	if (retlen < len)
-		return -EINVAL;
-#endif
-	return ret;
-}
-
-/*< Diff: select mode; don't do the useless sleep.
- *        read all 4 registers */
 static int
 mt7601u_efuse_read(struct mt76_dev *dev, u16 addr, u8 *data,
 		   enum mt7601u_eeprom_access_modes mode)
@@ -89,12 +51,14 @@ mt7601u_efuse_read(struct mt76_dev *dev, u16 addr, u8 *data,
 	u32 val;
 	int i;
 
+	WARN_ON(addr & 0xf); /* TODO: remove me */
+
 	val = mt76_rr(dev, MT_EFUSE_CTRL);
 	val &= ~(MT_EFUSE_CTRL_AIN |
 		 MT_EFUSE_CTRL_MODE);
 	val |= MT76_SET(MT_EFUSE_CTRL_AIN, addr & ~0xf) |
-		MT76_SET(MT_EFUSE_CTRL_MODE, mode) |
-		MT_EFUSE_CTRL_KICK;
+	       MT76_SET(MT_EFUSE_CTRL_MODE, mode) |
+	       MT_EFUSE_CTRL_KICK;
 	mt76_wr(dev, MT_EFUSE_CTRL, val);
 
 	if (!mt76_poll(dev, MT_EFUSE_CTRL, MT_EFUSE_CTRL_KICK, 0, 1000))
@@ -102,6 +66,9 @@ mt7601u_efuse_read(struct mt76_dev *dev, u16 addr, u8 *data,
 
 	val = mt76_rr(dev, MT_EFUSE_CTRL);
 	if ((val & MT_EFUSE_CTRL_AOUT) == MT_EFUSE_CTRL_AOUT) {
+		/* Parts of eeprom not in the usage map (0x80-0xc0,0xf0)
+		 * will not return valid data but it's ok.
+		 */
 		memset(data, 0xff, 16);
 		return 0;
 	}
@@ -115,42 +82,37 @@ mt7601u_efuse_read(struct mt76_dev *dev, u16 addr, u8 *data,
 }
 
 static int
-mt76_efuse_read(struct mt76_dev *dev, u16 addr, u8 *data)
-{
-	return mt7601u_efuse_read(dev, addr, data, MT_EE_READ);
-}
-
-/* TODO: this relies heavily on the MT7601U MT_EFUSE_USAGE_MAP_* */
-static int
 mt7601u_efuse_physical_size_check(struct mt76_dev *dev)
 {
-	u8 data[32];
+	const int map_reads = DIV_ROUND_UP(MT_EFUSE_USAGE_MAP_SIZE, 16);
+	u8 data[map_reads * 16];
 	int ret, i;
-	u32 start = 0, end = 0;
+	u32 start = 0, end = 0, cnt_free;
 
-	WARN_ON(MT_EFUSE_USAGE_MAP_SIZE >= sizeof(data));
-	WARN_ON(MT_EFUSE_USAGE_MAP_START & 0xf);
+	WARN_ON(MT_EE_USAGE_MAP_START & 0xf); /* TODO: remove me */
+	WARN_ON(MT_EFUSE_USAGE_MAP_SIZE != 29); /* TODO: remove me */
+	WARN_ON(map_reads != 2); /* TODO: remove me */
+	WARN_ON(MT_EFUSE_USAGE_MAP_SIZE >= sizeof(data)); /* TODO: remove me */
 
-	for (i = 0; i + 16 <= sizeof(data); i += 16) {
-		ret = mt7601u_efuse_read(dev, MT_EFUSE_USAGE_MAP_START + i,
-					 data + i, MT_EE_PHYSICAL_READ);
+	for (i = 0; i < map_reads; i++) {
+		ret = mt7601u_efuse_read(dev, MT_EE_USAGE_MAP_START + i * 16,
+					 data + i * 16, MT_EE_PHYSICAL_READ);
 		if (ret)
 			return ret;
 	}
 
 	for (i = 0; i < MT_EFUSE_USAGE_MAP_SIZE; i++)
 		if (!data[i]) {
-			start = MT_EFUSE_USAGE_MAP_START + i;
-			break;
+			if (!start)
+				start = MT_EE_USAGE_MAP_START + i;
+			end = MT_EE_USAGE_MAP_START + i;
 		}
-	for (i = 0; i < MT_EFUSE_USAGE_MAP_SIZE; i++)
-		if (!data[i])
-			end = MT_EFUSE_USAGE_MAP_START + i;
+	cnt_free = end - start + 1;
 
 	trace_printk("I recon phy efuse free s:%04x e:%04x l:%04x\n",
-		     start, end, end - start + 1);
+		     start, end, cnt_free);
 
-	if (end - start + 1 + 5 > MT_EFUSE_USAGE_MAP_SIZE) {
+	if (MT_EFUSE_USAGE_MAP_SIZE - cnt_free < 5) {
 		printk("Error: your device needs default EEPROM file and this driver doesn't support it!\n");
 		return -EINVAL;
 	}
@@ -158,110 +120,83 @@ mt7601u_efuse_physical_size_check(struct mt76_dev *dev)
 	return 0;
 }
 
-static int
-mt76_get_efuse_data(struct mt76_dev *dev, int len)
-{
-	int ret, i;
-
-	ret = mt7601u_efuse_physical_size_check(dev);
-	if (ret)
-		return ret;
-
-	for (i = 0; i + 16 <= len; i += 16) {
-		ret = mt76_efuse_read(dev, i, dev->eeprom.data + i);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
-
-static int
-mt76_eeprom_load(struct mt76_dev *dev)
-{
-	int len = MT7662_EEPROM_SIZE; /* TODO: this should be ok, but still.. */
-
-	dev->eeprom.size = len;
-	dev->eeprom.data = devm_kzalloc(dev->dev, len, GFP_KERNEL);
-	if (!dev->eeprom.data)
-		return -ENOMEM;
-
-	if (!mt76_get_of_eeprom(dev, len))
-		return 0;
-
-	if (!mt76_get_efuse_data(dev, len))
-		return 0;
-
-	return -ENOENT;
-}
-
 static bool
-field_valid(u8 val)
+mt7601u_has_tssi(struct mt76_dev *dev, u8 *eeprom)
 {
-	return val != 0 && val != 0xff;
-}
+	u16 nic_conf1 = get_unaligned_le16(eeprom + MT_EE_NIC_CONF_1);
 
-static s8
-mt76_rate_power_val(u8 val)
-{
-	if (!field_valid(val))
-		return 0;
-
-	return val;
+	return ~nic_conf1 && (nic_conf1 & MT_EE_NIC_CONF_1_TX_ALC_EN);
 }
 
 static void
-mt7601u_set_channel_power(struct mt76_dev *dev)
+mt7601u_set_chip_cap(struct mt76_dev *dev, u8 *eeprom)
+{
+	u16 nic_conf0 = get_unaligned_le16(eeprom + MT_EE_NIC_CONF_0);
+	u16 nic_conf1 = get_unaligned_le16(eeprom + MT_EE_NIC_CONF_1);
+
+	if (!field_valid(nic_conf1 & 0xff))
+		nic_conf1 &= 0xff00;
+
+	dev->ee->tssi_enabled = mt7601u_has_tssi(dev, eeprom) &&
+				!(nic_conf1 & MT_EE_NIC_CONF_1_TEMP_TX_ALC);
+
+	if (nic_conf1 & MT_EE_NIC_CONF_1_HW_RF_CTRL)
+		dev_err(dev->dev,
+			"Error: this driver does not support HW RF ctrl\n");
+
+	if (!field_valid(nic_conf0 >> 8))
+		return;
+
+	if (MT76_GET(MT_EE_NIC_CONF_0_RX_PATH, nic_conf0) > 1 ||
+	    MT76_GET(MT_EE_NIC_CONF_0_TX_PATH, nic_conf0) > 1)
+		dev_err(dev->dev,
+			"Error: device has more than 1 RX/TX stream!\n");
+}
+
+static void
+mt7601u_set_channel_power(struct mt76_dev *dev, u8 *eeprom)
 {
 	u32 i, val;
-	u8 max_pwr, trgt_pwr;
-	s8 p1, p2;
+	u8 max_pwr;
 
 	val = mt7601u_rr(dev, MT_TX_ALC_CFG_0);
 	max_pwr = MT76_GET(MT_TX_ALC_CFG_0_LIMIT_0, val);
 
-	/* TODO: only read trgt power when TSSI is enabled. */
-	val = mt76_eeprom_get(dev, MT_EE_TX_TSSI_TARGET_POWER);
-	trgt_pwr = val & 0xff;
-	trace_printk("trgt power (eo:0x0d): %02hhx\n", trgt_pwr);
+	if (mt7601u_has_tssi(dev, eeprom)) {
+		u8 trgt_pwr = eeprom[MT_EE_TX_TSSI_TARGET_POWER];
 
-	if (!trgt_pwr || trgt_pwr > max_pwr) {
-		printk("Error: EEPROM trgt power invalid %hhx!\n", trgt_pwr);
-		trgt_pwr = 0x20;
-	}
+		trace_printk("trgt power (eo:0x0d): %02hhx\n", trgt_pwr);
 
-	if (mt76_has_tssi(dev)) {
-		memset(dev->chan_pwr, trgt_pwr, sizeof(dev->chan_pwr));
+		if (trgt_pwr > max_pwr || !trgt_pwr) {
+			dev_warn(dev->dev,
+				 "Error: EEPROM trgt power invalid %hhx!\n",
+				 trgt_pwr);
+			trgt_pwr = 0x20;
+		}
+
+		memset(dev->ee->chan_pwr, trgt_pwr, sizeof(dev->ee->chan_pwr));
 		goto out;
 	}
 
-	for (i = 0; i < 7; i++) {
-		val = mt76_eeprom_get(dev, MT_EE_TX_POWER_OFFSET + i * 2);
+	for (i = 0; i < 14; i++) {
+		s8 power = field_validate(eeprom[MT_EE_TX_POWER_OFFSET + i]);
 
-		p1 = mt76_rate_power_val(val);
-		p2 = mt76_rate_power_val(val >> 8);
+		if (power > max_pwr || power < 0)
+			power = MT7601U_DEFAULT_TX_POWER;
 
- 		if (p1 > max_pwr || p1 < 0)
-			p1 = MT7601U_DEFAULT_TX_POWER;
-		/* Note: vendor driver does && for the second value... */
-		if (p2 > max_pwr || p2 < 0)
-			p2 = MT7601U_DEFAULT_TX_POWER;
-
-		dev->chan_pwr[i * 2] = p1;
-		dev->chan_pwr[i * 2 + 1] = p2;
+		dev->ee->chan_pwr[i] = power;
 	}
 
-	/* TODO: move this to debugfs? */
-out:
+out:	/* TODO: remove me */
 	for (i = 0; i < 7; i++) {
 		trace_printk("tx_power  ch%u:%02hhx ch%u:%02hhx\n",
-			     i * 2 + 1, dev->chan_pwr[i * 2],
-			     i * 2 + 2, dev->chan_pwr[i * 2 + 1]);
+			     i * 2 + 1, dev->ee->chan_pwr[i * 2],
+			     i * 2 + 2, dev->ee->chan_pwr[i * 2 + 1]);
 	}
 }
 
 static void
-mt7601u_set_country_reg(struct mt76_dev *dev)
+mt7601u_set_country_reg(struct mt76_dev *dev, u8 *eeprom)
 {
 	/* Note: - region 31 is not valid for mt7601u (see rtmp_init.c)
 	 *	 - comments in rtmp_def.h are incorrect (see rt_channel.c)
@@ -273,7 +208,7 @@ mt7601u_set_country_reg(struct mt76_dev *dev)
 		/* EEPROM country regions 32 - 33 */
 		{  1, 11 },	{  1, 14 }
 	};
-	u8 val = mt76_eeprom_get(dev, MT_EE_COUNTRY_REGION) >> 8;
+	u8 val = eeprom[MT_EE_COUNTRY_REGION];
 	int idx = -1;
 
 	trace_printk("EEPROM country region is %02hhx\n", val);
@@ -289,7 +224,7 @@ mt7601u_set_country_reg(struct mt76_dev *dev)
 	else
 		idx = 5; /* channels 1 - 14 */
 
-	dev->reg = chan_bounds[idx];
+	dev->ee->reg = chan_bounds[idx];
 
 	/* TODO: country region 33 is special - phy should be set to B-mode
 	 *	 before entering channel 14 (see sta/connect.c)
@@ -297,69 +232,35 @@ mt7601u_set_country_reg(struct mt76_dev *dev)
 }
 
 static void
-mt7601u_set_ant_word(struct mt76_dev *dev)
+mt7601u_set_rf_freq_off(struct mt76_dev *dev, u8 *eeprom)
 {
-	dev->ant = mt76_eeprom_get(dev, MT_EE_NIC_CONF_0);
+	u8 comp;
 
-	if ((dev->ant & 0xff00) == 0xff00)
-		dev->ant = MT76_SET(MT_ANT_RX_PATH, 1) |
-			MT76_SET(MT_ANT_TX_PATH, 1) |
-			MT76_SET(MT_ANT_RF_IC_TYPE, 0xf);
+	dev->ee->rf_freq_off = field_validate(eeprom[MT_EE_FREQ_OFFSET]);
+	comp = field_validate(eeprom[MT_EE_FREQ_OFFSET_COMPENSATION]);
 
-	/* TODO: drop this once I'm sure there are no multi-stream devs */
-	dev->rx_stream = MT76_GET(MT_ANT_RX_PATH, dev->ant);
-	dev->tx_stream = MT76_GET(MT_ANT_TX_PATH, dev->ant);
-
-	if (dev->rx_stream > 1 || dev->tx_stream > 1)
-		printk("Error: your device has more RX/TX streams than is supported by this driver!\n");
-}
-
-static void
-mt7601u_set_cfg2_word(struct mt76_dev *dev)
-{
-	dev->cfg2 = mt76_eeprom_get(dev, MT_EE_NIC_CONF_1);
-
-	if (!field_valid(dev->cfg2))
-		dev->cfg2 &= 0xff00;
-	if (!field_valid(dev->cfg2 >> 8))
-		dev->cfg2 &= 0x00ff;
-}
-
-static void
-mt7601u_set_rf_freq_off(struct mt76_dev *dev)
-{
-	u16 val;
-
-	dev->rf_freq_off = mt76_eeprom_get(dev, MT_EE_FREQ_OFFSET) & 0xff;
-	if ((dev->rf_freq_off & 0xff) == 0xff)
-		dev->rf_freq_off = 0;
-
-	val = mt76_eeprom_get(dev, MT_EE_FREQ_OFFSET_COMPENSATION) >> 8;
-	if (val == 0xff)
-		return;
-
-	/* Note: does EEPROM really hold non-U2 values? */
-	if (val & BIT(7))
-		dev->rf_freq_off -= val & 0x7f;
+	if (comp & BIT(7))
+		dev->ee->rf_freq_off -= comp & 0x7f;
 	else
-		dev->rf_freq_off += val;
+		dev->ee->rf_freq_off += comp;
 
-	trace_printk("RF freq off: %hhx\n", dev->rf_freq_off);
+	trace_printk("RF freq off: %hhx\n", dev->ee->rf_freq_off);
 }
 
 static void
-mt7601u_set_rssi_offset(struct mt76_dev *dev)
+mt7601u_set_rssi_offset(struct mt76_dev *dev, u8 *eeprom)
 {
-	u16 val = mt76_eeprom_get(dev, MT_EE_RSSI_OFFSET);
 	int i;
+	s8 *rssi_offset = dev->ee->rssi_offset;
 
 	for (i = 0; i < 2; i++) {
-		dev->rssi_offset[i] = (val >> i * 8) & 0xff;
+		rssi_offset[i] = eeprom[MT_EE_RSSI_OFFSET + i];
 
-		if (dev->rssi_offset[i] < -10 || dev->rssi_offset[i] > 10) {
-			printk("Warning: RSSI from EEPROM is invalid %02hhx\n",
-			       dev->rssi_offset[i]);
-			dev->rssi_offset[i] = 0;
+		if (rssi_offset[i] < -10 || rssi_offset[i] > 10) {
+			dev_warn(dev->dev,
+				 "Warning: EEPROM RSSI is invalid %02hhx\n",
+				 rssi_offset[i]);
+			rssi_offset[i] = 0;
 		}
 	}
 }
@@ -378,17 +279,30 @@ mt7601u_extra_power_over_mac(struct mt76_dev *dev)
 }
 
 static void
+set_power_rate(struct power_per_rate *rate, s8 delta, u8 value)
+{
+	rate->raw = s6_validate(value);
+	rate->bw20 = s6_to_int(value);
+	/* Note: vendor driver does cap the value to s6 right away */
+	rate->bw40 = rate->bw20 + delta;
+
+	/* TODO: move this to debugfs? */
+	trace_printk("raw:%02hhx bw20:%02hhx bw40:%02hhx\n",
+		     rate->raw, rate->bw20, rate->bw40);
+}
+
+static void
 mt7601u_save_power_rate(struct mt76_dev *dev, s8 delta, u32 val, int i)
 {
-	struct power_rate_table *t = &dev->power_rate_table;
+	struct mt7601u_rate_power *t = &dev->ee->power_rate_table;
 
 	switch (i) {
 	case 0:
 		set_power_rate(&t->cck[0], delta, (val >> 0) & 0xff);
 		set_power_rate(&t->cck[1], delta, (val >> 8) & 0xff);
 		/* Save cck bw20 for fixups of channel 14 */
-		dev->real_cck_bw20[0] = t->cck[0].bw20;
-		dev->real_cck_bw20[1] = t->cck[1].bw20;
+		dev->ee->real_cck_bw20[0] = t->cck[0].bw20;
+		dev->ee->real_cck_bw20[1] = t->cck[1].bw20;
 
 		set_power_rate(&t->ofdm[0], delta, (val >> 16) & 0xff);
 		set_power_rate(&t->ofdm[1], delta, (val >> 24) & 0xff);
@@ -406,7 +320,8 @@ mt7601u_save_power_rate(struct mt76_dev *dev, s8 delta, u32 val, int i)
 	}
 }
 
-static s8 get_delta(u8 val)
+static s8
+get_delta(u8 val)
 {
 	s8 ret;
 
@@ -423,20 +338,17 @@ static s8 get_delta(u8 val)
 }
 
 static void
-mt7601u_config_tx_power_per_rate(struct mt76_dev *dev)
+mt7601u_config_tx_power_per_rate(struct mt76_dev *dev, u8 *eeprom)
 {
 	u32 val;
-	int i;
 	s8 bw40_delta;
+	int i;
 
-	val = mt76_eeprom_get(dev, MT_EE_TX_POWER_DELTA_BW40);
-	bw40_delta = get_delta(val);
+	bw40_delta = get_delta(eeprom[MT_EE_TX_POWER_DELTA_BW40]);
 	trace_printk("g_delta: %hhx\n", bw40_delta);
 
 	for (i = 0; i < 5; i++) {
-		val = mt76_eeprom_get(dev, MT_EE_TX_POWER_BYRATE + i * 4);
-		val |= mt76_eeprom_get(dev, MT_EE_TX_POWER_BYRATE + i * 4 + 2)
-			<< 16;
+		val = get_unaligned_le32(eeprom + MT_EE_TX_POWER_BYRATE(i));
 
 		mt7601u_save_power_rate(dev, bw40_delta, val, i);
 
@@ -447,22 +359,56 @@ mt7601u_config_tx_power_per_rate(struct mt76_dev *dev)
 	mt7601u_extra_power_over_mac(dev);
 }
 
-int mt76_eeprom_init(struct mt76_dev *dev)
+static void
+mt7601u_init_tssi_params(struct mt7601u_dev *dev, u8 *eeprom)
 {
-	int ret;
-	u8 eeprom_ver;
+	struct tssi_data *d = &dev->ee->tssi_data;
 
-	ret = mt76_eeprom_load(dev);
+	if (!dev->ee->tssi_enabled)
+		return;
+
+	d->slope = eeprom[MT_EE_TX_TSSI_SLOPE];
+	d->tx0_delta_offset = eeprom[MT_EE_TX_TSSI_OFFSET] * 1024;
+	d->offset[0] = eeprom[MT_EE_TX_TSSI_OFFSET_GROUP];
+	d->offset[1] = eeprom[MT_EE_TX_TSSI_OFFSET_GROUP + 1];
+	d->offset[2] = eeprom[MT_EE_TX_TSSI_OFFSET_GROUP + 2];
+
+	trace_printk("TSSI: slope:%02hhx offset=%02hhx %02hhx %02hhx delta_off:%08x\n",
+		     d->slope, d->offset[0], d->offset[1], d->offset[2],
+		     d->tx0_delta_offset);
+}
+
+int
+mt7601u_eeprom_init(struct mt76_dev *dev)
+{
+	u8 *eeprom;
+	int i, ret;
+
+	ret = mt7601u_efuse_physical_size_check(dev);
 	if (ret)
 		return ret;
 
-	mt76_eeprom_get_macaddr(dev);
+	dev->ee = devm_kzalloc(dev->dev, sizeof(*dev->ee), GFP_KERNEL);
+	if (!dev->ee)
+		return -ENOMEM;
+
+	eeprom = kmalloc(MT7601U_EEPROM_SIZE, GFP_KERNEL);
+	if (!eeprom)
+		return -ENOMEM;
+
+	for (i = 0; i + 16 <= MT7601U_EEPROM_SIZE; i += 16) {
+		ret = mt7601u_efuse_read(dev, i, eeprom + i, MT_EE_READ);
+		if (ret)
+			goto out;
+	}
+
+	mt7601u_eeprom_get_macaddr(dev, eeprom);
 
 	if (!is_valid_ether_addr(dev->macaddr)) {
 		eth_random_addr(dev->macaddr);
-		dev_printk(KERN_INFO, dev->dev,
-			   "Invalid MAC address, using random address %pM\n",
-			   dev->macaddr);
+		dev_info(dev->dev,
+			 "Invalid MAC address, using random address %pM\n",
+			 dev->macaddr);
 	}
 
 	/* TODO: move this out of here. */
@@ -470,35 +416,25 @@ int mt76_eeprom_init(struct mt76_dev *dev)
 	mt76_wr(dev, MT_MAC_ADDR_DW1, get_unaligned_le16(dev->macaddr + 4) |
 		MT76_SET(MT_MAC_ADDR_DW1_U2ME_MASK, 0xff));
 
-	ret = mt76_eeprom_get(dev, MT_EE_VERSION);
-	eeprom_ver = MT76_GET(MT_EE_VERSION_EE, ret);
-	trace_printk("EEPROM ver:%02hhx fae:%02hhx\n", eeprom_ver,
-		     MT76_GET(MT_EE_VERSION_FAE, ret));
-	if (eeprom_ver > MT7601U_EE_MAX_VER)
-		printk("Warning: unsupported EEPROM version %d\n", eeprom_ver);
+	if (eeprom[MT_EE_VERSION_EE] > MT7601U_EE_MAX_VER)
+		dev_warn(dev->dev,
+			 "Warning: unsupported EEPROM version %02hhx\n",
+			 eeprom[MT_EE_VERSION_EE]);
+	dev_info(dev->dev, "EEPROM ver:%02hhx fae:%02hhx\n",
+		 eeprom[MT_EE_VERSION_EE], eeprom[MT_EE_VERSION_FAE]);
 
-	mt7601u_set_channel_power(dev);
+	mt7601u_set_chip_cap(dev, eeprom);
+	mt7601u_set_channel_power(dev, eeprom);
+	mt7601u_set_country_reg(dev, eeprom);
+	mt7601u_set_rf_freq_off(dev, eeprom);
+	mt7601u_set_rssi_offset(dev, eeprom);
+	dev->ee->ref_temp = eeprom[MT_EE_REF_TEMP];
+	dev->ee->lna_gain = eeprom[MT_EE_LNA_GAIN];
 
-	mt7601u_set_country_reg(dev);
-	mt7601u_set_ant_word(dev);
-	mt7601u_set_cfg2_word(dev);
-	mt7601u_set_rf_freq_off(dev);
+	mt7601u_config_tx_power_per_rate(dev, eeprom);
 
-	mt76_eeprom_get(dev, MT_EE_COUNTRY_REGION); /* TODO: drop */
-
-	mt7601u_set_rssi_offset(dev);
-	dev->lna_gain =	mt76_eeprom_get(dev, MT_EE_LNA_GAIN) & 0xff;
-
-	mt7601u_config_tx_power_per_rate(dev);
-
-	if (dev->cfg2 & MT_EE_NIC_CONF_1_HW_RF_CTRL)
-		printk("Error: this driver does not support HW RF ctrl\n");
-
-	mt76_eeprom_get(dev, MT_EE_TX_TSSI_TARGET_POWER); /* temp comp */
-
-#ifdef TODO
-	mt76_eeprom_parse_hw_cap(dev);
-	mt76_get_of_overrides(dev);
-#endif
-	return 0;
+	mt7601u_init_tssi_params(dev, eeprom);
+out:
+	kfree(eeprom);
+	return ret;
 }

@@ -23,7 +23,7 @@
 #include <net/mac80211.h>
 #include <linux/debugfs.h>
 
-#define MT7601U_FIRMWARE "mt7601u.bin"
+#define MT7601U_FIRMWARE	"mt7601u.bin"
 
 #define MT_FREQ_CAL_INIT_DELAY		(30 * HZ)
 #define MT_FREQ_CAL_CHECK_INTERVAL	(10 * HZ)
@@ -82,12 +82,6 @@ enum mt7601u_flags {
 	MT7601U_SCANNING = 2,
 };
 
-struct power_per_rate {
-	u8 raw;  /* validated s6 value */
-	s8 bw20; /* sign-extended int */
-	s8 bw40; /* sign-extended int */
-};
-
 struct mac_stats {
 	u64 rx_stat[6];
 	u64 tx_stat[6];
@@ -106,11 +100,6 @@ struct mt7601u_rx_queue {
 	unsigned int end;
 	unsigned int entries;
 	unsigned int pending;
-};
-
-struct reg_channel_bounds {
-	u8 start;
-	u8 num;
 };
 
 #define N_TX_ENTRIES	64
@@ -133,6 +122,8 @@ struct mt7601u_tx_queue {
 
 #define N_WCIDS		128
 #define GROUP_WCID(idx)	(N_WCIDS - 2 - idx)
+
+struct mt7601u_eeprom_params;
 
 struct mt7601u_dev {
 	struct ieee80211_hw *hw;
@@ -160,7 +151,6 @@ struct mt7601u_dev {
 	u32 rev;
 	u32 rxfilter;
 
-	struct debugfs_blob_wrapper eeprom;
 	struct mt76_hw_cap cap;
 
 	u32 debugfs_reg;
@@ -192,8 +182,6 @@ struct mt7601u_dev {
 		struct delayed_work work;
 	} freq_cal;
 
-	struct reg_channel_bounds reg;
-
 	/***** Mine *****/
 	unsigned long flags;
 	u32 asic_rev;
@@ -203,40 +191,14 @@ struct mt7601u_dev {
 
 	struct mac_stats stats;
 
-	u8 rx_stream;
-	u8 tx_stream;
-	u16 ant;
-#define MT_ANT_RX_PATH		GENMASK(3, 0)
-#define MT_ANT_TX_PATH		GENMASK(7, 4)
-#define MT_ANT_RF_IC_TYPE	GENMASK(11, 8)
-#define MT_ANT_BOARD_TYPE	GENMASK(13, 12)
-#define MT_ANT_RSSI_IND_MODE	BIT(15)
-	u16 cfg2;
-	u8 rf_freq_off;
-
 	s8 avg_rssi;
-	s8 rssi_offset[2];
-	s8 lna_gain;
 
-	u8 chan_pwr[14];
+	struct mt7601u_eeprom_params *ee;
 
 	s8 tssi0;
 	s8 tssi0_hvga;
-	s16 tssi0_db;
-	s16 tssi0_hvga_db;
 
 	int prev_pwr_diff;
-
-	/* TSSI stuff - only with internal TX ALC */
-	struct tssi_data {
-		int tx0_delta_offset;
-
-		u8 slope;
-
-		u8 offset_low;
-		u8 offset_mid;
-		u8 offset_high;
-	} tssi_data;
 
 	bool tssi_read_trig;
 
@@ -270,20 +232,8 @@ struct mt7601u_dev {
 	u8 bw;
 	bool chan_ext_below;
 
-	/* Power per rate - one value per two rates */
-	struct power_rate_table {
-		struct power_per_rate cck[2];
-		struct power_per_rate ofdm[4];
-		struct power_per_rate ht[4];
-	} power_rate_table;
-	s8 real_cck_bw20[2];
-
 	/* PA mode */
-	struct pa_mode {
-		s16 cck[4];
-		s16 ofdm[8];
-		s16 ht[16];
-	} pa_mode;
+	u32 rf_pa_mode[2];
 
 #define MT_TEMP_MODE_NORMAL			0
 #define MT_TEMP_MODE_HIGH			1
@@ -349,12 +299,10 @@ int mt7601u_dma_init(struct mt7601u_dev *dev);
 void mt7601u_dma_cleanup(struct mt7601u_dev *dev);
 
 /* PHY */
-void set_power_rate(struct power_per_rate *rate, s8 delta, u8 value);
 int mt7601u_phy_init(struct mt7601u_dev *dev);
 void mt7601u_set_rx_path(struct mt7601u_dev *dev, u8 path);
 void mt7601u_set_tx_dac(struct mt7601u_dev *dev, u8 path);
 int mt7601u_bbp_set_bw(struct mt7601u_dev *dev, int bw);
-void mt7601u_init_tssi_table(struct mt7601u_dev *dev);
 void mt7601u_agc_save(struct mt7601u_dev *dev);
 void mt7601u_agc_restore(struct mt7601u_dev *dev);
 int mt7601u_phy_set_channel(struct mt76_dev *dev,

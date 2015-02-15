@@ -87,45 +87,6 @@ static const struct mt76_reg_pair mt7601u_high_temp[] = {
 
 static void mt7601u_agc_reset(struct mt7601u_dev *dev);
 
-static inline u32 s6_validate(u32 reg)
-{
-	WARN_ON(reg & ~GENMASK(5, 0));
-	return reg & GENMASK(5, 0);
-}
-
-static inline int s6_to_int(u32 reg)
-{
-	int s6;
-
-	s6 = s6_validate(reg);
-	if (s6 & BIT(5))
-		s6 -= BIT(6);
-
-	return s6;
-}
-
-static inline u32 int_to_s6(int val)
-{
-	if (val < -0x20)
-		return 0x20;
-	if (val > 0x1f)
-		return 0x1f;
-
-	return val & 0x3f;
-}
-
-void set_power_rate(struct power_per_rate *rate, s8 delta, u8 value)
-{
-	rate->raw = s6_validate(value);
-	rate->bw20 = s6_to_int(value);
-	/* Note: vendor driver does cap the value to s6 right away */
-	rate->bw40 = rate->bw20 + delta;
-
-	/* TODO: move this to debugfs? */
-	trace_printk("raw:%02hhx bw20:%02hhx bw40:%02hhx\n",
-		     rate->raw, rate->bw20, rate->bw40);
-}
-
 static int
 mt7601u_rf_wr(struct mt7601u_dev *dev, u8 bank, u8 offset, u8 value)
 {
@@ -234,8 +195,8 @@ mt7601u_phy_get_rssi(struct mt76_dev *dev, struct mt7601u_rxwi *rxwi, u16 rate)
 	val = 8;
 	val -= lna[aux_lna][bw][lna_id];
 	val -= MT76_GET(MT_RXWI_GAIN_RSSI_VAL, rxwi->gain);
-	val -= dev->lna_gain;
-	val -= dev->rssi_offset[0];
+	val -= dev->ee->lna_gain;
+	val -= dev->ee->rssi_offset[0];
 
 	return val;
 }
@@ -320,7 +281,7 @@ static int __mt7601u_phy_set_channel(struct mt76_dev *dev,
 	struct ieee80211_channel *chan = chandef->chan;
 	enum nl80211_channel_type chan_type =
 		cfg80211_get_chandef_type(chandef);
-	struct power_rate_table *t = &dev->power_rate_table;
+	struct mt7601u_rate_power *t = &dev->ee->power_rate_table;
 	int chan_idx;
 	bool chan_ext_below;
 	u8 bw;
@@ -347,9 +308,9 @@ static int __mt7601u_phy_set_channel(struct mt76_dev *dev,
 		{ 17, 0 }, { 18, 0 }, { 19, 0 }, { 20, 0 },
 	};
 	struct mt76_reg_pair bbp_settings[3] = {
-		{ 62, 0x37 - dev->lna_gain },
-		{ 63, 0x37 - dev->lna_gain },
-		{ 64, 0x37 - dev->lna_gain },
+		{ 62, 0x37 - dev->ee->lna_gain },
+		{ 63, 0x37 - dev->ee->lna_gain },
+		{ 64, 0x37 - dev->ee->lna_gain },
 	};
 
 	bw = MT_BW_20;
@@ -385,7 +346,7 @@ static int __mt7601u_phy_set_channel(struct mt76_dev *dev,
 		return ret;
 
 	mt7601u_rmw(dev, MT_TX_ALC_CFG_0, 0x3f3f,
-		    dev->chan_pwr[chan_idx] & 0x3f);
+		    dev->ee->chan_pwr[chan_idx] & 0x3f);
 
 	ret = mt7601u_write_reg_pairs(dev, MT7601U_MCU_MEMMAP_BBP,
 				      bbp_settings, ARRAY_SIZE(bbp_settings));
@@ -411,15 +372,15 @@ static int __mt7601u_phy_set_channel(struct mt76_dev *dev,
 		mt7601u_bbp_rmw(dev, 4, 0x20, 0);
 		mt7601u_bbp_wr(dev, 178, 0xff);
 
-		t->cck[0].bw20 = dev->real_cck_bw20[0];
-		t->cck[1].bw20 = dev->real_cck_bw20[1];
+		t->cck[0].bw20 = dev->ee->real_cck_bw20[0];
+		t->cck[1].bw20 = dev->ee->real_cck_bw20[1];
 	} else { /* Apply CH14 OBW fixup */
 		mt7601u_bbp_wr(dev, 4, 0x60);
 		mt7601u_bbp_wr(dev, 178, 0);
 
 		/* Note: vendor code is buggy here for negative values */
-		t->cck[0].bw20 = dev->real_cck_bw20[0] - 2;
-		t->cck[1].bw20 = dev->real_cck_bw20[1] - 2;
+		t->cck[0].bw20 = dev->ee->real_cck_bw20[0] - 2;
+		t->cck[1].bw20 = dev->ee->real_cck_bw20[1] - 2;
 	}
 
 	mt7601u_wr(dev, MT_TX_PWR_CFG_0, int_to_s6(t->ofdm[1].bw20) << 24 |
@@ -619,11 +580,24 @@ static s16 lin2dBd(u16 linear)
 	return dBd;
 }
 
+static void mt7601u_set_initial_tssi(struct mt7601u_dev *dev,
+				     s16 tssi0_db, s16 tssi0_hvga_db)
+{
+	struct tssi_data *d = &dev->ee->tssi_data;
+	int init_offset;
+
+	init_offset = -((tssi0_db * d->slope + d->offset[1]) / 4096) + 10;
+
+	mt76_rmw(dev, MT_TX_ALC_CFG_1, MT_TX_ALC_CFG_1_TEMP_COMP,
+		 int_to_s6(init_offset) & MT_TX_ALC_CFG_1_TEMP_COMP);
+}
+
 static void mt7601u_tssi_dc_gain_cal(struct mt7601u_dev *dev)
 {
 	u8 rf_vga, rf_mixer, bbp_r47;
 	int i, j;
 	s8 res[4];
+	s16 tssi0_db, tssi0_hvga_db;
 
 	mt7601u_wr(dev, MT_RF_SETTING_0, 0x00000030);
 	mt7601u_wr(dev, MT_RF_BYPASS_0, 0x000c0030);
@@ -672,13 +646,12 @@ static void mt7601u_tssi_dc_gain_cal(struct mt7601u_dev *dev)
 	}
 
 	dev->tssi0 = res[0];
-	dev->tssi0_db = lin2dBd((short)res[1] - res[0]);
 	dev->tssi0_hvga = res[2];
-	dev->tssi0_hvga_db = lin2dBd(((short)res[3] - res[2]) * 4);
+	tssi0_db = lin2dBd((short)res[1] - res[0]);
+	tssi0_hvga_db = lin2dBd(((short)res[3] - res[2]) * 4);
 
 	trace_printk("TSSI0:%hhx db:%hx hvga:%hhx hvga_db:%hx\n",
-		     dev->tssi0, dev->tssi0_db,
-		     dev->tssi0_hvga, dev->tssi0_hvga_db);
+		     dev->tssi0, tssi0_db, dev->tssi0_hvga, tssi0_hvga_db);
 
 	mt7601u_bbp_wr(dev, 22, 0);
 	mt7601u_bbp_wr(dev, 244, 0);
@@ -693,6 +666,8 @@ static void mt7601u_tssi_dc_gain_cal(struct mt7601u_dev *dev)
 	mt7601u_rf_wr(dev, 5, 3, rf_vga);
 	mt7601u_rf_wr(dev, 4, 39, rf_mixer);
 	mt7601u_bbp_wr(dev, 47, bbp_r47);
+
+	mt7601u_set_initial_tssi(dev, tssi0_db, tssi0_hvga_db);
 }
 
 static int mt7601u_bbp_temp(struct mt7601u_dev *dev,
@@ -724,11 +699,10 @@ static int mt7601u_bbp_temp(struct mt7601u_dev *dev,
 
 static int mt7601u_temp_comp(struct mt7601u_dev *dev, bool on)
 {
-	const s8 ref_temp = mt76_eeprom_get(dev, MT_EE_TX_TSSI_TARGET_POWER)
-		>> 8;
 	int ret, temp, hi_temp = 400, lo_temp = -200;
 
-	temp = (dev->b49_temp - ref_temp) * MT7601_E2_TEMPERATURE_SLOPE;
+	temp = (dev->b49_temp - dev->ee->ref_temp) *
+		MT7601_E2_TEMPERATURE_SLOPE;
 	dev->curr_temp = temp;
 
 	/* DPD Calibration */
@@ -801,14 +775,34 @@ static int mt7601u_temp_comp(struct mt7601u_dev *dev, bool on)
 /* TODO: If this is used only with HVGA we can just use trgt_pwr directly. */
 static int mt7601u_current_tx_power(struct mt7601u_dev *dev)
 {
-	if (!mt76_tssi_enabled(dev))
+	if (!dev->ee->tssi_enabled)
 		printk("Warning: %s used for non-TSSI mode!\n", __func__);
-	return dev->chan_pwr[dev->chandef.chan->hw_value - 1];
+	return dev->ee->chan_pwr[dev->chandef.chan->hw_value - 1];
 }
 
 static bool mt7601u_use_hvga(struct mt7601u_dev *dev)
 {
 	return !(mt7601u_current_tx_power(dev) > 20);
+}
+
+static s16
+mt7601u_phy_rf_pa_mode_val(struct mt7601u_dev *dev, int phy_mode, int tx_rate)
+{
+	static const s16 decode_tb[] = { 0, 8847, -5734, -5734 };
+	u32 reg;
+
+	switch (phy_mode) {
+	case MT_PHY_TYPE_OFDM:
+		tx_rate += 4;
+	case MT_PHY_TYPE_CCK:
+		reg = dev->rf_pa_mode[0];
+		break;
+	default:
+		reg = dev->rf_pa_mode[1];
+		break;
+	}
+
+	return decode_tb[(reg >> (tx_rate * 2)) & 0x3];
 }
 
 static struct mt7601u_tssi_params
@@ -819,7 +813,6 @@ mt7601u_tssi_params_get(struct mt7601u_dev *dev)
 	struct mt7601u_tssi_params p;
 	u8 bbp_r47, pkt_type, tx_rate;
 	struct power_per_rate *rate_table;
-	s16 *pa_table;
 
 	bbp_r47 = mt7601u_bbp_rr(dev, 47);
 
@@ -832,21 +825,18 @@ mt7601u_tssi_params_get(struct mt7601u_dev *dev)
 	switch (pkt_type & 0x03) {
 	case MT_PHY_TYPE_CCK:
 		tx_rate = (pkt_type >> 4) & 0x03;
-		rate_table = dev->power_rate_table.cck;
-		pa_table = dev->pa_mode.cck;
+		rate_table = dev->ee->power_rate_table.cck;
 		break;
 
 	case MT_PHY_TYPE_OFDM:
 		tx_rate = ofdm_pkt2rate[(pkt_type >> 4) & 0x07];
-		rate_table = dev->power_rate_table.ofdm;
-		pa_table = dev->pa_mode.ofdm;
+		rate_table = dev->ee->power_rate_table.ofdm;
 		break;
 
 	default:
 		tx_rate = mt7601u_bbp_r47_get(dev, bbp_r47, BBP_R47_F_TX_RATE);
 		tx_rate &= 0x7f;
-		rate_table = dev->power_rate_table.ht;
-		pa_table = dev->pa_mode.ht;
+		rate_table = dev->ee->power_rate_table.ht;
 		break;
 	}
 
@@ -859,7 +849,8 @@ mt7601u_tssi_params_get(struct mt7601u_dev *dev)
 
 	trace_printk("tx_rate:%02hhx pwr:%08x\n", tx_rate, p.trgt_power);
 
-	p.trgt_power += pa_table[tx_rate];
+	p.trgt_power += mt7601u_phy_rf_pa_mode_val(dev, pkt_type & 0x03,
+						   tx_rate);
 
 	/* Channel 14, cck, bw20 */
 	if ((pkt_type & 0x03) == MT_PHY_TYPE_CCK) {
@@ -871,7 +862,7 @@ mt7601u_tssi_params_get(struct mt7601u_dev *dev)
 
 	p.trgt_power += static_power[mt7601u_bbp_rr(dev, 1) & 0x03];
 
-	p.trgt_power += dev->tssi_data.tx0_delta_offset;
+	p.trgt_power += dev->ee->tssi_data.tx0_delta_offset;
 
 	trace_printk("tssi:%02hhx t_power:%08x temp:%02hhx pkt_type:%02hhx\n",
 		     p.tssi0, p.trgt_power, dev->b49_temp, pkt_type);
@@ -893,7 +884,7 @@ static int mt7601u_tssi_cal(struct mt7601u_dev *dev)
 	bool hvga;
 	u32 val;
 
-	if (!mt76_tssi_enabled(dev))
+	if (!dev->ee->tssi_enabled)
 		return 0;
 
 	hvga = mt7601u_use_hvga(dev);
@@ -911,16 +902,16 @@ static int mt7601u_tssi_cal(struct mt7601u_dev *dev)
 		     tssi_m_dc, tssi_db, hvga);
 
 	if (dev->chandef.chan->hw_value < 5)
-		tssi_offset = dev->tssi_data.offset_low;
+		tssi_offset = dev->ee->tssi_data.offset[0];
 	else if (dev->chandef.chan->hw_value < 9)
-		tssi_offset = dev->tssi_data.offset_mid;
+		tssi_offset = dev->ee->tssi_data.offset[1];
 	else
-		tssi_offset = dev->tssi_data.offset_high;
+		tssi_offset = dev->ee->tssi_data.offset[2];
 
 	if (hvga)
 		tssi_db -= dev->tssi0_hvga_db;
 
-	curr_pwr = tssi_db * dev->tssi_data.slope + (tssi_offset << 9);
+	curr_pwr = tssi_db * dev->ee->tssi_data.slope + (tssi_offset << 9);
 	diff_pwr = params.trgt_power - curr_pwr;
 	trace_printk("Power curr:%08x diff:%08x\n", curr_pwr, diff_pwr);
 
@@ -957,7 +948,7 @@ static int mt7601u_tssi_cal(struct mt7601u_dev *dev)
 
 static u8 mt7601u_agc_default(struct mt7601u_dev *dev)
 {
-	return (dev->lna_gain - 8) * 2 + 0x34;
+	return (dev->ee->lna_gain - 8) * 2 + 0x34;
 }
 
 static void mt7601u_agc_reset(struct mt7601u_dev *dev)
@@ -1006,7 +997,7 @@ static void mt7601u_phy_calibrate(struct work_struct *work)
 	mt7601u_agc_tune(dev);
 	mt7601u_tssi_cal(dev);
 	/* If TSSI calibration was run it already updated temperature. */
-	if (!mt76_tssi_enabled(dev))
+	if (!dev->ee->tssi_enabled)
 		dev->b49_temp = mt7601u_read_temp(dev);
 	mt7601u_temp_comp(dev, true); /* TODO: find right value for @on */
 
@@ -1103,7 +1094,7 @@ void mt7601u_phy_freq_cal_onoff(struct mt76_dev *dev,
 	dev->last_beacon.freq_off = MT7601U_FREQ_OFFSET_INVALID;
 	spin_unlock_bh(&dev->last_beacon.lock);
 
-	dev->freq_cal.freq = dev->rf_freq_off;
+	dev->freq_cal.freq = dev->ee->rf_freq_off;
 	dev->freq_cal.enabled = info->assoc;
 	dev->freq_cal.adjusting = false;
 
@@ -1114,12 +1105,11 @@ void mt7601u_phy_freq_cal_onoff(struct mt76_dev *dev,
 
 static int mt7601u_init_cal(struct mt7601u_dev *dev)
 {
-	s8 ref_temp = mt76_eeprom_get(dev, MT_EE_TX_TSSI_TARGET_POWER) >> 8;
 	u32 mac_ctrl;
 	int ret;
 
 	dev->b49_temp = mt7601u_read_bootup_temp(dev);
-	dev->curr_temp = (dev->b49_temp - ref_temp) *
+	dev->curr_temp = (dev->b49_temp - dev->ee->ref_temp) *
 		MT7601_E2_TEMPERATURE_SLOPE;
 	dev->dpd_temp = dev->curr_temp;
 
@@ -1409,7 +1399,10 @@ int mt7601u_phy_init(struct mt7601u_dev *dev)
 		RF_REG_PAIR(5,	63, 0x00),
 	};
 
-	ret = mt7601u_rf_wr(dev, 0, 12, dev->rf_freq_off);
+	dev->rf_pa_mode[0] = mt7601u_rr(dev, MT_RF_PA_MODE_CFG0);
+	dev->rf_pa_mode[1] = mt7601u_rr(dev, MT_RF_PA_MODE_CFG1);
+
+	ret = mt7601u_rf_wr(dev, 0, 12, dev->ee->rf_freq_off);
 	if (ret)
 		return ret;
 	ret = mt7601u_write_reg_pairs(dev, 0, rf_central,
@@ -1434,55 +1427,4 @@ int mt7601u_phy_init(struct mt7601u_dev *dev)
 	INIT_DELAYED_WORK(&dev->freq_cal.work, mt7601u_phy_freq_cal);
 
 	return 0;
-}
-
-static void
-mt7601u_init_pa_mode_table(struct mt7601u_dev *dev)
-{
-	static const s16 decode_tb[] = { 0, 8847, -5734, -5734 };
-	u32 reg;
-	int i;
-
-	/* TODO: this can be turned to read-per-use or keeping only indices */
-	reg = mt7601u_rr(dev, MT_RF_PA_MODE_CFG0);
-	for (i = 0; i < 4; i++)
-		dev->pa_mode.cck[i] = decode_tb[(reg >> (i * 2)) & 0x3];
-	for (i = 0; i < 8; i++)
-		dev->pa_mode.ofdm[i] = decode_tb[(reg >> ((i + 4) * 2)) & 0x3];
-
-	reg = mt7601u_rr(dev, MT_RF_PA_MODE_CFG1);
-	for (i = 0; i < 16; i++)
-		dev->pa_mode.ht[i] = decode_tb[(reg >> (i * 2)) & 0x3];
-}
-
-/* TODO: why is this not in eeprom.c? */
-void mt7601u_init_tssi_table(struct mt7601u_dev *dev)
-{
-	u16 val;
-	int init_offset;
-	struct tssi_data *d = &dev->tssi_data;
-
-	if (!mt76_tssi_enabled(dev))
-		return;
-
-	val = mt76_eeprom_get(dev, MT_EE_TX_TSSI_SLOPE);
-	d->slope = val & 0xff;
-	d->offset_low = val >> 8;
-	val = mt76_eeprom_get(dev, MT_EE_TX_TSSI_OFFSET_GROUP);
-	d->offset_mid = val & 0xff;
-	d->offset_high = val >> 8;
-
-	d->tx0_delta_offset =
-		mt76_eeprom_get(dev, MT_EE_TX_TSSI_OFFSET) * 1024;
-
-	init_offset = -((dev->tssi0_db * d->slope + d->offset_mid) / 4096) + 10;
-
-	mt76_rmw(dev, MT_TX_ALC_CFG_1, MT_TX_ALC_CFG_1_TEMP_COMP,
-		 int_to_s6(init_offset) & MT_TX_ALC_CFG_1_TEMP_COMP);
-
-	trace_printk("TSSI: slope:%02hhx offset=%02hhx %02hhx %02hhx delta_off:%08x\n",
-		     d->slope, d->offset_low, d->offset_mid, d->offset_high,
-		     d->tx0_delta_offset);
-
-	mt7601u_init_pa_mode_table(dev);
 }
