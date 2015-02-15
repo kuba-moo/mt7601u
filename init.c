@@ -937,7 +937,9 @@ int mt7601u_register_device(struct mt7601u_dev *dev)
 		    IEEE80211_HW_PS_NULLFUNC_STACK |
 		    IEEE80211_HW_SUPPORTS_HT_CCK_RATES |
 		    IEEE80211_HW_AMPDU_AGGREGATION |
+#ifdef MAC80211_IS_PATCHED
 		    IEEE80211_HW_TX_STATS_EVERY_MPDU |
+#endif
 		    IEEE80211_HW_SUPPORTS_RC_TABLE;
 	hw->max_rates = 1;
 	hw->max_report_rates = 7;
