@@ -22,6 +22,7 @@
 #include "mt7601u.h"
 #include "dma.h"
 #include "mcu.h"
+#include "usb.h"
 #include "trace.h"
 
 static inline int firmware_running(struct mt7601u_dev *dev)
@@ -43,7 +44,7 @@ mt7601u_mcu_msg_alloc(struct mt7601u_dev *dev, const void *data, int len)
 
 static void mt7601u_mcu_resp_deinit(struct mt7601u_dev *dev)
 {
-	struct usb_device *usb_dev = to_usb_device(dev->dev->parent);
+	struct usb_device *usb_dev = mt7601u_to_usb_dev(dev);
 
 	usb_free_urb(dev->mcu.resp.urb);
 	usb_free_coherent(usb_dev, MCU_RESP_URB_SIZE,
@@ -52,7 +53,7 @@ static void mt7601u_mcu_resp_deinit(struct mt7601u_dev *dev)
 
 static int mt7601u_mcu_resp_init(struct mt7601u_dev *dev)
 {
-	struct usb_device *usb_dev = to_usb_device(dev->dev->parent);
+	struct usb_device *usb_dev = mt7601u_to_usb_dev(dev);
 
 	init_completion(&dev->mcu.resp_cmpl);
 	dev->mcu.resp.len = MCU_RESP_URB_SIZE;
@@ -77,7 +78,7 @@ static void mt7601u_dma_skb_wrap_cmd(struct sk_buff *skb,
 
 static int mt7601u_mcu_resp_submit(struct mt7601u_dev *dev)
 {
-	struct usb_device *usb_dev = to_usb_device(dev->dev->parent);
+	struct usb_device *usb_dev = mt7601u_to_usb_dev(dev);
 	unsigned recv_pipe = usb_rcvbulkpipe(usb_dev, dev->in_eps[1]);
 
 	usb_fill_bulk_urb(dev->mcu.resp.urb, usb_dev, recv_pipe,
@@ -136,7 +137,7 @@ static int
 mt7601u_mcu_msg_send(struct mt7601u_dev *dev, struct sk_buff *skb,
 		     enum mcu_cmd cmd, bool wait_resp)
 {
-	struct usb_device *usb_dev = to_usb_device(dev->dev->parent);
+	struct usb_device *usb_dev = mt7601u_to_usb_dev(dev);
 	unsigned cmd_pipe = usb_sndbulkpipe(usb_dev, dev->out_eps[0]);
 	int sent, ret;
 	u8 seq = 0;
@@ -410,7 +411,7 @@ static int mt7601u_upload_firmware(struct mt7601u_dev *dev,
 				   const struct firmware *fw,
 				   const struct mt76_fw_header *hdr)
 {
-	struct usb_device *usb_dev = to_usb_device(dev->dev->parent);
+	struct usb_device *usb_dev = mt7601u_to_usb_dev(dev);
 	struct urb *urb;
 	void *buf, *ivb;
 	dma_addr_t dma;

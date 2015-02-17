@@ -16,6 +16,7 @@
 #include <linux/usb.h>
 
 #include "mt7601u.h"
+#include "usb.h"
 #include "trace.h"
 
 static struct usb_device_id mt7601u_device_table[] = {
@@ -57,7 +58,7 @@ mt7601u_vendor_request(struct mt7601u_dev *mt7601u, const u8 req,
 		       const u8 direction, const u16 val, const u16 offset,
 		       void *buf, const size_t buflen)
 {
-	struct usb_device *usb_dev = to_usb_device(mt7601u->dev->parent);
+	struct usb_device *usb_dev = mt7601u_to_usb_dev(mt7601u);
 	unsigned int pipe = (direction == USB_DIR_IN) ?
 		usb_rcvctrlpipe(usb_dev, 0) : usb_sndctrlpipe(usb_dev, 0);
 	int ret;

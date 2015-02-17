@@ -13,6 +13,7 @@
 
 #include "mt7601u.h"
 #include "dma.h"
+#include "usb.h"
 #include "trace.h"
 
 static void mt7601u_complete_rx(struct urb *urb);
@@ -22,6 +23,8 @@ void mt7601u_complete_urb(struct urb *urb)
 	struct completion *cmpl = urb->context;
 
 	/* TODO: handle errors */
+	if (mt7601u_urb_has_error(urb))
+		printk("Error: generic urb failed %d\n", urb->status);
 
 	complete(cmpl);
 }
@@ -136,7 +139,7 @@ out:
 static int mt7601u_rx_submit_entry(struct mt7601u_dev *dev,
 				   struct mt7601u_dma_buf *e, gfp_t gfp)
 {
-	struct usb_device *usb_dev = to_usb_device(dev->dev->parent);
+	struct usb_device *usb_dev = mt7601u_to_usb_dev(dev);
 	unsigned recv_pipe = usb_rcvbulkpipe(usb_dev, dev->in_eps[EP_IN_PKT]);
 	int ret;
 
@@ -158,7 +161,7 @@ static int mt7601u_rx_entry_check(struct mt7601u_dma_buf *e)
 	if (!e->urb->status)
 		return 0;
 
-	if (e->urb->status != -ESHUTDOWN)
+	if (mt7601u_urb_has_error(e->urb))
 		printk("Error: RX urb failed %d\n", e->urb->status);
 
 	return 1;
@@ -229,7 +232,7 @@ static int mt7601u_submit_rx(struct mt7601u_dev *dev)
 
 static void mt7601u_free_rx(struct mt7601u_dev *dev)
 {
-	struct usb_device *usb_dev = to_usb_device(dev->dev->parent);
+	struct usb_device *usb_dev = mt7601u_to_usb_dev(dev);
 	int i;
 
 	for (i = 0; i < dev->rx_q.entries; i++) {
@@ -242,7 +245,7 @@ static void mt7601u_free_rx(struct mt7601u_dev *dev)
 static int
 mt7601u_alloc_rx_entry(struct mt7601u_dev *dev, struct mt7601u_dma_buf *e)
 {
-	struct usb_device *usb_dev = to_usb_device(dev->dev->parent);
+	struct usb_device *usb_dev = mt7601u_to_usb_dev(dev);
 
 	e->len = RX_URB_SIZE;
 	e->urb = usb_alloc_urb(0, GFP_KERNEL);
@@ -327,6 +330,9 @@ static void mt7601u_complete_tx(struct urb *urb)
 	if (WARN_ON(q->e[q->start].urb != urb))
 		goto out;
 
+	if (mt7601u_urb_has_error(urb))
+		dev_err(dev->dev, "Error: TX urb failed %d\n", urb->status);
+
 	skb = q->e[q->start].skb;
 
 	trace_tx_dma_done(skb);
@@ -350,7 +356,7 @@ out:
 
 int usb_kick_out(struct mt7601u_dev *dev, struct sk_buff *skb, u8 ep)
 {
-	struct usb_device *usb_dev = to_usb_device(dev->dev->parent);
+	struct usb_device *usb_dev = mt7601u_to_usb_dev(dev);
 	unsigned snd_pipe = usb_sndbulkpipe(usb_dev, dev->out_eps[ep]);
 	struct mt7601u_tx_queue *q = &dev->tx_q[ep];
 	unsigned long flags;
