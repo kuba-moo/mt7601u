@@ -224,6 +224,8 @@ static int mt7601u_probe(struct usb_interface *usb_intf,
 	if (ret)
 		goto err_hw;
 
+	set_bit(MT7601U_INITIALIZED, &dev->flags);
+
 	return 0;
 err_hw:
 	mt7601u_cleanup(dev);

@@ -93,6 +93,9 @@ mt7601u_rx_process_entry(struct mt7601u_dev *dev, struct mt7601u_dma_buf *e)
 	u8 *data = e->buf;
 	int cnt = 0;
 
+	if (!test_bit(MT7601U_INITIALIZED, &dev->flags))
+		return;
+
 	while ((seg_len = mt7601u_rx_next_seg_len(data, data_len))) {
 		mt7601u_rx_process_seg(dev, data, seg_len);
 
