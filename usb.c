@@ -275,6 +275,7 @@ static struct usb_driver mt7601u_driver = {
 	.suspend	= mt7601u_suspend,
 	.resume		= mt7601u_resume,
 	.reset_resume	= mt7601u_resume,
+	.soft_unbind	= 1,
 	.disable_hub_initiated_lpm = 1,
 };
 module_usb_driver(mt7601u_driver);
