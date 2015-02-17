@@ -717,10 +717,6 @@ int mt7601u_init_hardware(struct mt7601u_dev *dev)
 	if (ret)
 		goto err_rx;
 
-	/* TODO: drop this */
-	if (dev->bw != MT_BW_20)
-		printk("Error: mt7601u_init_cal assumes BW = 20 for mt7601u_bw_filter_cal\n");
-
 	ret = mt7601u_phy_init(dev);
 	if (ret)
 		goto err_rx;
