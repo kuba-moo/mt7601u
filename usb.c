@@ -195,7 +195,7 @@ static int mt7601u_probe(struct usb_interface *usb_intf,
 		return -ENOMEM;
 
 	usb_dev = usb_get_dev(usb_dev);
-	/* TODO: rt2x00 does usb_reset_device(usb_dev) here */
+	usb_reset_device(usb_dev);
 
 	usb_set_intfdata(usb_intf, dev);
 
