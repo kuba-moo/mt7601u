@@ -26,8 +26,7 @@ static struct usb_device_id mt7601u_device_table[] = {
 };
 
 static int
-__mt7601u_vendor_request(struct mt7601u_dev *mt7601u,
-			 struct usb_device *usb_dev, unsigned int pipe,
+__mt7601u_vendor_request(struct usb_device *usb_dev, unsigned int pipe,
 			 const u8 req, const u8 direction, const u16 val,
 			 const u16 offset, void *buf, const size_t buflen)
 {
@@ -54,28 +53,28 @@ __mt7601u_vendor_request(struct mt7601u_dev *mt7601u,
 }
 
 int
-mt7601u_vendor_request(struct mt7601u_dev *mt7601u, const u8 req,
+mt7601u_vendor_request(struct mt7601u_dev *dev, const u8 req,
 		       const u8 direction, const u16 val, const u16 offset,
 		       void *buf, const size_t buflen)
 {
-	struct usb_device *usb_dev = mt7601u_to_usb_dev(mt7601u);
+	struct usb_device *usb_dev = mt7601u_to_usb_dev(dev);
 	unsigned int pipe = (direction == USB_DIR_IN) ?
 		usb_rcvctrlpipe(usb_dev, 0) : usb_sndctrlpipe(usb_dev, 0);
 	int ret;
 
-	mutex_lock(&mt7601u->vendor_req_mutex);
+	mutex_lock(&dev->vendor_req_mutex);
 
-	ret = __mt7601u_vendor_request(mt7601u, usb_dev, pipe, req, direction,
+	ret = __mt7601u_vendor_request(usb_dev, pipe, req, direction,
 				       val, offset, buf, buflen);
 
-	mutex_unlock(&mt7601u->vendor_req_mutex);
+	mutex_unlock(&dev->vendor_req_mutex);
 
 	return ret;
 }
 
-void mt7601u_vendor_reset(struct mt7601u_dev *mt7601u)
+void mt7601u_vendor_reset(struct mt7601u_dev *dev)
 {
-	mt7601u_vendor_request(mt7601u, VEND_DEV_MODE, USB_DIR_OUT,
+	mt7601u_vendor_request(dev, VEND_DEV_MODE, USB_DIR_OUT,
 			       VEND_DEV_MODE_RESET, 0, NULL, 0);
 }
 
@@ -152,7 +151,7 @@ void mt7601u_addr_wr(struct mt7601u_dev *dev, const u32 offset, const u8 *addr)
 }
 
 static int mt7601u_assign_pipes(struct usb_interface *usb_intf,
-				struct mt7601u_dev *mt7601u)
+				struct mt7601u_dev *dev)
 {
 	struct usb_endpoint_descriptor *ep_desc;
 	struct usb_host_interface *intf_desc = usb_intf->cur_altsetting;
@@ -164,16 +163,16 @@ static int mt7601u_assign_pipes(struct usb_interface *usb_intf,
 		if (usb_endpoint_is_bulk_in(ep_desc) &&
 		    ep_i++ < MT7601U_N_PIPES_IN) {
 			/* EP0 - data in; EP1 - cmd resp */
-			mt7601u->in_eps[ep_i - 1] = usb_endpoint_num(ep_desc);
+			dev->in_eps[ep_i - 1] = usb_endpoint_num(ep_desc);
 			/* TODO: drop the next line. */
-			mt7601u->in_eps[ep_i - 1] |= USB_ENDPOINT_DIR_MASK;
-			mt7601u->in_max_packet = usb_endpoint_maxp(ep_desc);
+			dev->in_eps[ep_i - 1] |= USB_ENDPOINT_DIR_MASK;
+			dev->in_max_packet = usb_endpoint_maxp(ep_desc);
 		} else  if (usb_endpoint_is_bulk_out(ep_desc) &&
 			    ep_o++ < MT7601U_N_PIPES_OUT) {
 			/* There are 6 bulk out EP. EP6 highest priority. */
 			/* EP0 in-band cmd. EP1-4 is EDCA. EP5 is HCCA. */
-			mt7601u->out_eps[ep_o - 1] = usb_endpoint_num(ep_desc);
-			mt7601u->out_max_packet = usb_endpoint_maxp(ep_desc);
+			dev->out_eps[ep_o - 1] = usb_endpoint_num(ep_desc);
+			dev->out_max_packet = usb_endpoint_maxp(ep_desc);
 		}
 	}
 

@@ -312,10 +312,10 @@ static inline u32 mt76_clear(struct mt76_dev *dev, u32 offset, u32 val)
 }
 
 /* USB */
-int mt7601u_vendor_request(struct mt7601u_dev *mt7601u, const u8 req,
+int mt7601u_vendor_request(struct mt7601u_dev *dev, const u8 req,
 			   const u8 direction, const u16 val, const u16 offset,
 			   void *buf, const size_t buflen);
-void mt7601u_vendor_reset(struct mt7601u_dev *mt7601u);
+void mt7601u_vendor_reset(struct mt7601u_dev *dev);
 int mt7601u_vendor_single_wr(struct mt7601u_dev *dev, const u8 req,
 			     const u16 offset, const u32 val);
 int mt7601u_write_reg_pairs(struct mt7601u_dev *dev, u32 base,
