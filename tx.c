@@ -37,7 +37,7 @@ void mt7601u_tx_status(struct mt7601u_dev *dev, struct sk_buff *skb)
 	ieee80211_tx_status(dev->hw, skb);
 }
 
-static int mt7601u_skb_rooms(struct sk_buff *skb)
+static int mt7601u_skb_rooms(struct mt7601u_dev *dev, struct sk_buff *skb)
 {
 	int hdr_len = ieee80211_get_hdrlen_from_skb(skb);
 	u32 need_head, need_tail;
@@ -49,7 +49,7 @@ static int mt7601u_skb_rooms(struct sk_buff *skb)
 	if (hdr_len % 4)
 		need_head += 2;
 
-	if (skb_headroom(skb) < need_head)
+	if (skb_headroom(skb) < need_head && dev->n_cows++ > 100)
 		printk("Warning: TX skb needs more head - will COW!\n");
 	if (skb_tailroom(skb) < need_tail) {
 		printk("Error: TX skb needs more tail - fail!!\n");
@@ -113,7 +113,7 @@ void mt7601u_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 	u8 ep = q2ep(hw_q), nss;
 	unsigned long flags;
 
-	if (mt7601u_skb_rooms(skb) || mt76_insert_hdr_pad(skb)) {
+	if (mt7601u_skb_rooms(dev, skb) || mt76_insert_hdr_pad(skb)) {
 		ieee80211_free_txskb(dev->hw, skb);
 		return;
 	}
