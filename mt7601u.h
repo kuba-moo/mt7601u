@@ -76,14 +76,14 @@ struct mt7601u_mcu {
 	struct completion resp_cmpl;
 };
 
-enum mt7601u_flags {
-	MT7601U_INITIALIZED,
-	MT7601U_REMOVED,
-	MT7601U_WLAN_RUNNING,
-	MT7601U_MCU_RUNNING,
-	MT7601U_SCANNING,
-	MT7601U_STATS_READING,
-	MT7601U_STATS_MORE,
+enum {
+	MT7601U_STATE_INITIALIZED,
+	MT7601U_STATE_REMOVED,
+	MT7601U_STATE_WLAN_RUNNING,
+	MT7601U_STATE_MCU_RUNNING,
+	MT7601U_STATE_SCANNING,
+	MT7601U_STATE_READING_STATS,
+	MT7601U_STATE_MORE_STATS,
 };
 
 struct mac_stats {
@@ -186,7 +186,7 @@ struct mt7601u_dev {
 	} freq_cal;
 
 	/***** Mine *****/
-	unsigned long flags;
+	unsigned long state;
 	u32 asic_rev;
 	u32 mac_rev;
 

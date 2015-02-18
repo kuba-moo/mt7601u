@@ -193,7 +193,7 @@ int mt7601u_mcu_tssi_read_kick(struct mt7601u_dev *dev, int use_hvga)
 {
 	int ret;
 
-	if (!test_bit(MT7601U_MCU_RUNNING, &dev->flags))
+	if (!test_bit(MT7601U_STATE_MCU_RUNNING, &dev->state))
 		return 0;
 
 	ret = mt76_mcu_function_select(dev, ATOMIC_TSSI_SETTING,
@@ -567,7 +567,7 @@ int mt7601u_mcu_init(struct mt7601u_dev *dev)
 	if (ret)
 		return ret;
 
-	set_bit(MT7601U_MCU_RUNNING, &dev->flags);
+	set_bit(MT7601U_STATE_MCU_RUNNING, &dev->state);
 
 	return 0;
 }

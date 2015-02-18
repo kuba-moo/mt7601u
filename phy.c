@@ -390,7 +390,7 @@ static int __mt7601u_phy_set_channel(struct mt76_dev *dev,
 
 	/* TODO: perhaps set ctrl channel (below/above)? */
 
-	if (test_bit(MT7601U_SCANNING, &dev->flags))
+	if (test_bit(MT7601U_STATE_SCANNING, &dev->state))
 		mt7601u_agc_reset(dev);
 
 	dev->chandef = *chandef;
@@ -412,7 +412,7 @@ int mt7601u_phy_set_channel(struct mt76_dev *dev,
 	if (ret)
 		return ret;
 
-	if (test_bit(MT7601U_SCANNING, &dev->flags))
+	if (test_bit(MT7601U_STATE_SCANNING, &dev->state))
 		return 0;
 
 	ieee80211_queue_delayed_work(dev->hw, &dev->cal_work,

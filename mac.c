@@ -196,7 +196,7 @@ void mt7601u_mac_stat(struct work_struct *work)
 	/* Note: careful with accessing things here - there is no explicit
 	 *	 locking!
 	 */
-	while (!test_bit(MT7601U_REMOVED, &dev->flags)) {
+	while (!test_bit(MT7601U_STATE_REMOVED, &dev->state)) {
 		stat1 = mt7601u_rr(dev, MT_TX_STAT_FIFO);
 		if (!(stat1 & MT_TX_STAT_FIFO_VALID))
 			break;
@@ -233,11 +233,12 @@ void mt7601u_mac_stat(struct work_struct *work)
 	trace_tx_status_cleaned(cleaned);
 
 	spin_lock_irqsave(&dev->tx_lock, flags);
-	if (cleaned || __test_and_clear_bit(MT7601U_STATS_MORE, &dev->flags))
+	if (cleaned ||
+	    __test_and_clear_bit(MT7601U_STATE_MORE_STATS, &dev->state))
 		queue_delayed_work(dev->stat_wq, &dev->stat_work,
 				   msecs_to_jiffies(15));
 	else
-		__clear_bit(MT7601U_STATS_READING, &dev->flags);
+		__clear_bit(MT7601U_STATE_READING_STATS, &dev->state);
 	spin_unlock_irqrestore(&dev->tx_lock, flags);
 }
 

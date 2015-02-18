@@ -96,7 +96,7 @@ mt7601u_rx_process_entry(struct mt7601u_dev *dev, struct mt7601u_dma_buf *e)
 	u8 *data = e->buf;
 	int cnt = 0;
 
-	if (!test_bit(MT7601U_INITIALIZED, &dev->flags))
+	if (!test_bit(MT7601U_STATE_INITIALIZED, &dev->state))
 		return;
 
 	while ((seg_len = mt7601u_rx_next_seg_len(data, data_len))) {
@@ -346,8 +346,8 @@ static void mt7601u_complete_tx(struct urb *urb)
 	q->start = (q->start + 1) % q->entries;
 	q->used--;
 
-	__set_bit(MT7601U_STATS_MORE, &dev->flags);
-	if (!__test_and_set_bit(MT7601U_STATS_READING, &dev->flags))
+	__set_bit(MT7601U_STATE_MORE_STATS, &dev->state);
+	if (!__test_and_set_bit(MT7601U_STATE_READING_STATS, &dev->state))
 		queue_delayed_work(dev->stat_wq, &dev->stat_work,
 				   msecs_to_jiffies(10));
 out:

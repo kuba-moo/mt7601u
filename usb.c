@@ -67,7 +67,7 @@ mt7601u_vendor_request(struct mt7601u_dev *dev, const u8 req,
 	ret = __mt7601u_vendor_request(usb_dev, pipe, req, direction,
 				       val, offset, buf, buflen);
 	if (ret == -ENODEV)
-		set_bit(MT7601U_REMOVED, &dev->flags);
+		set_bit(MT7601U_STATE_REMOVED, &dev->state);
 
 	mutex_unlock(&dev->vendor_req_mutex);
 
@@ -227,7 +227,7 @@ static int mt7601u_probe(struct usb_interface *usb_intf,
 	if (ret)
 		goto err_hw;
 
-	set_bit(MT7601U_INITIALIZED, &dev->flags);
+	set_bit(MT7601U_STATE_INITIALIZED, &dev->state);
 
 	return 0;
 err_hw:

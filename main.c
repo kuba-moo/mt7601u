@@ -321,7 +321,7 @@ mt7601u_sw_scan(struct ieee80211_hw *hw,
 	struct mt76_dev *dev = hw->priv;
 
 	mt7601u_agc_save(dev); /* TODO: this will race with agc tune */
-	set_bit(MT7601U_SCANNING, &dev->flags);
+	set_bit(MT7601U_STATE_SCANNING, &dev->state);
 }
 
 static void
@@ -331,7 +331,7 @@ mt7601u_sw_scan_complete(struct ieee80211_hw *hw,
 	struct mt76_dev *dev = hw->priv;
 
 	mt7601u_agc_restore(dev);
-	clear_bit(MT7601U_SCANNING, &dev->flags);
+	clear_bit(MT7601U_STATE_SCANNING, &dev->state);
 }
 
 static int
