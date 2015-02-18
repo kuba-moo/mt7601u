@@ -36,9 +36,11 @@ Now when you connect your device a new network interface should be created. Some
 The warning about EEPROM version is harmless but keep an eye on the logs and if you spot any errors please report them here.
 
 ### Supported hardware
-The driver was tested only for devices with USB ID of 148f:7601. Specifically I tested it with:
+The driver was tested for devices with USB ID of 148f:7601. Specifically I tested it with:
  * TP-LINK TL-WN727N v4;
  * the no-name black&red device from ebay with small detachable antenna.
+
+Also tested with USB ID of 148f:760b wich has MT7601UM chip and works fine with this driver.
 
 But in principle it *should* work with any device supported by the vendor driver.
 
