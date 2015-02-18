@@ -321,6 +321,7 @@ __mt7601u_dma_fw(struct mt7601u_dev *dev, struct usb_device *usb_dev,
 {
 	DECLARE_COMPLETION_ONSTACK(cmpl);
 	unsigned cmd_pipe = usb_sndbulkpipe(usb_dev, dev->out_eps[0]);
+	__le32 reg;
 	u32 val;
 	int ret;
 
@@ -335,12 +336,12 @@ __mt7601u_dma_fw(struct mt7601u_dev *dev, struct usb_device *usb_dev,
 	 */
 
 	/* TODO: make this skb so we can use common func */
-	val = cpu_to_le32(MT76_SET(MT_TXD_INFO_TYPE, DMA_PACKET) |
+	reg = cpu_to_le32(MT76_SET(MT_TXD_INFO_TYPE, DMA_PACKET) |
 			  MT76_SET(MT_TXD_INFO_D_PORT, CPU_TX_PORT) |
 			  MT76_SET(MT_TXD_INFO_LEN, len));
-	memcpy(buf, &val, sizeof(val));
-	memcpy(buf + sizeof(val), data, len);
-	memset(buf + sizeof(val) + len, 0, 8);
+	memcpy(buf, &reg, sizeof(reg));
+	memcpy(buf + sizeof(reg), data, len);
+	memset(buf + sizeof(reg) + len, 0, 8);
 
 	ret = mt7601u_vendor_single_wr(dev, VEND_WRITE_FCE,
 				       MT_FCE_DMA_ADDR, dst_addr);
@@ -352,7 +353,7 @@ __mt7601u_dma_fw(struct mt7601u_dev *dev, struct usb_device *usb_dev,
 	if (ret)
 				return ret;
 
-	usb_fill_bulk_urb(urb, usb_dev, cmd_pipe, buf, sizeof(val) + len + 4,
+	usb_fill_bulk_urb(urb, usb_dev, cmd_pipe, buf, sizeof(reg) + len + 4,
 			  mt7601u_complete_urb, &cmpl);
 	urb->transfer_dma = dma;
 	urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
