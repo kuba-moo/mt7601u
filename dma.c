@@ -199,9 +199,19 @@ out:
 static void mt7601u_kill_rx(struct mt7601u_dev *dev)
 {
 	int i;
+	unsigned long flags;
 
-	for (i = 0; i < dev->rx_q.entries; i++)
-		usb_poison_urb(dev->rx_q.e[i].urb);
+	spin_lock_irqsave(&dev->rx_lock, flags);
+
+	for (i = 0; i < dev->rx_q.entries; i++) {
+		int next = dev->rx_q.end;
+
+		spin_unlock_irqrestore(&dev->rx_lock, flags);
+		usb_poison_urb(dev->rx_q.e[next].urb);
+		spin_lock_irqsave(&dev->rx_lock, flags);
+	}
+
+	spin_unlock_irqrestore(&dev->rx_lock, flags);
 }
 
 static int mt7601u_submit_rx(struct mt7601u_dev *dev)
