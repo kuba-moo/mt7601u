@@ -15,6 +15,7 @@ After that make sure you have installed all packages required by your distro to 
 $ git clone git@github.com:kuba-moo/mt7601u.git
 $ cd mt7601u
 $ make
+# modprobe mac80211
 # insmod ./mt7601u.ko
 ```
 
