@@ -94,7 +94,8 @@ u32 mt7601u_rr(struct mt7601u_dev *dev, u32 offset)
 	val = le32_to_cpu(reg);
 	if (ret != sizeof(reg)) {
 		/* TODO: rt2k handles partial reads, but legacy doesn't */
-		printk("RR of wrong size  %d!!\n", ret);
+		if (ret != -ENODEV)
+			printk("RR of %08x - wrong size  %d!!\n", offset, ret);
 		val = ~0;
 	}
 

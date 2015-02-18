@@ -95,6 +95,9 @@ mt7601u_rf_wr(struct mt7601u_dev *dev, u8 bank, u8 offset, u8 value)
 	WARN_ON(!(dev->wlan_ctrl & MT_WLAN_FUN_CTRL_WLAN_EN));
 	WARN_ON(offset >= 63);
 
+	if (test_bit(MT7601U_STATE_REMOVED, &dev->state))
+		return 0;
+
 	mutex_lock(&dev->reg_atomic_mutex);
 
 	if (!mt76_poll(dev, MT_RF_CSR_CFG, MT_RF_CSR_CFG_KICK, 0, 100)) {
@@ -122,6 +125,9 @@ mt7601u_rf_rr(struct mt7601u_dev *dev, u8 bank, u8 offset)
 
 	WARN_ON(!(dev->wlan_ctrl & MT_WLAN_FUN_CTRL_WLAN_EN));
 	WARN_ON(offset >= 63);
+
+	if (test_bit(MT7601U_STATE_REMOVED, &dev->state))
+		return 0xff;
 
 	mutex_lock(&dev->reg_atomic_mutex);
 

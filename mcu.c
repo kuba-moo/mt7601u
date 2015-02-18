@@ -142,6 +142,9 @@ mt7601u_mcu_msg_send(struct mt7601u_dev *dev, struct sk_buff *skb,
 	int sent, ret;
 	u8 seq = 0;
 
+	if (test_bit(MT7601U_STATE_REMOVED, &dev->state))
+		return 0;
+
 	mutex_lock(&dev->mcu.mutex);
 
 	if (wait_resp)

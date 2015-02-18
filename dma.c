@@ -386,7 +386,10 @@ int usb_kick_out(struct mt7601u_dev *dev, struct sk_buff *skb, u8 ep)
 	q->e[e].urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 	ret = usb_submit_urb(q->e[e].urb, GFP_ATOMIC);
 	if (ret) {
-		printk("Error: submit %d\n", ret);
+		if (ret == -ENODEV)
+			set_bit(MT7601U_STATE_REMOVED, &dev->state);
+		else
+			printk("Error: submit %d\n", ret);
 		goto out;
 	}
 

@@ -102,6 +102,8 @@ u8 mt7601u_bbp_rr(struct mt7601u_dev *dev, u8 offset)
 		printk("Error: %s wlan not enabled\n", __func__);
 		return 0xff;
 	}
+	if (test_bit(MT7601U_STATE_REMOVED, &dev->state))
+		return 0xff;
 
 	mutex_lock(&dev->reg_atomic_mutex);
 
@@ -140,6 +142,8 @@ void mt7601u_bbp_wr(struct mt7601u_dev *dev, u8 offset, u8 val)
 		printk("Error: %s wlan not enabled\n", __func__);
 		return;
 	}
+	if (test_bit(MT7601U_STATE_REMOVED, &dev->state))
+		return;
 
 	mutex_lock(&dev->reg_atomic_mutex);
 
@@ -541,9 +545,12 @@ int mt7601u_mac_start(struct mt7601u_dev *dev)
 	return 0;
 }
 
-void mt7601u_mac_stop(struct mt7601u_dev *dev)
+static void mt7601u_mac_stop_hw(struct mt7601u_dev *dev)
 {
 	int i, ok;
+
+	if (test_bit(MT7601U_STATE_REMOVED, &dev->state))
+		return;
 
 	mt76_clear(dev, MT_BEACON_TIME_CFG, MT_BEACON_TIME_CFG_TIMER_EN |
 		   MT_BEACON_TIME_CFG_SYNC_MODE | MT_BEACON_TIME_CFG_TBTT_EN |
@@ -574,6 +581,7 @@ void mt7601u_mac_stop(struct mt7601u_dev *dev)
 			ok++;
 		if (ok > 6)
 			break;
+
 		msleep(1);
 		/* TODO: vendor does rx and cmd processing here. */
 	}
@@ -585,7 +593,11 @@ void mt7601u_mac_stop(struct mt7601u_dev *dev)
 
 	if (!mt76_poll(dev, MT_USB_DMA_CFG, MT_USB_DMA_CFG_RX_BUSY, 0, 1000))
 		printk("Error: RX DMA did not stop!\n");
+}
 
+void mt7601u_mac_stop(struct mt7601u_dev *dev)
+{
+	mt7601u_mac_stop_hw(dev);
 	flush_workqueue(dev->stat_wq);
 }
 

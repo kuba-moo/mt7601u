@@ -39,6 +39,9 @@ bool mt76_poll(struct mt76_dev *dev, u32 offset, u32 mask, u32 val,
 		if (cur == val)
 			return true;
 
+		if (test_bit(MT7601U_STATE_REMOVED, &dev->state))
+			return false;
+
 		udelay(10);
 	} while (timeout-- > 0);
 
@@ -57,6 +60,9 @@ bool mt76_poll_msec(struct mt76_dev *dev, u32 offset, u32 mask, u32 val,
 		cur = mt76_rr(dev, offset) & mask;
 		if (cur == val)
 			return true;
+
+		if (test_bit(MT7601U_STATE_REMOVED, &dev->state))
+			return false;
 
 		msleep(10);
 	} while (timeout-- > 0);
