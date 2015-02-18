@@ -66,6 +66,8 @@ mt7601u_vendor_request(struct mt7601u_dev *dev, const u8 req,
 
 	ret = __mt7601u_vendor_request(usb_dev, pipe, req, direction,
 				       val, offset, buf, buflen);
+	if (ret == -ENODEV)
+		set_bit(MT7601U_REMOVED, &dev->flags);
 
 	mutex_unlock(&dev->vendor_req_mutex);
 

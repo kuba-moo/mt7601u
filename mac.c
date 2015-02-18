@@ -196,7 +196,7 @@ void mt7601u_mac_stat(struct work_struct *work)
 	/* Note: careful with accessing things here - there is no explicit
 	 *	 locking!
 	 */
-	while (1) {
+	while (!test_bit(MT7601U_REMOVED, &dev->flags)) {
 		stat1 = mt7601u_rr(dev, MT_TX_STAT_FIFO);
 		if (!(stat1 & MT_TX_STAT_FIFO_VALID))
 			break;
