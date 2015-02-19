@@ -202,7 +202,7 @@ void mt7601u_mac_stat(struct work_struct *work)
 			break;
 
 		stat2 = mt76_rr(dev, MT_TX_STAT_FIFO_EXT);
-		trace_tx_status(stat1, stat2);
+		trace_mt_tx_status(dev, stat1, stat2);
 
 		stat.valid = 1;
 		stat.success = !!(stat1 & MT_TX_STAT_FIFO_SUCCESS);
@@ -230,7 +230,7 @@ void mt7601u_mac_stat(struct work_struct *work)
 		cleaned++;
 	}
 
-	trace_tx_status_cleaned(cleaned);
+	trace_mt_tx_status_cleaned(dev, cleaned);
 
 	spin_lock_irqsave(&dev->tx_lock, flags);
 	if (cleaned ||

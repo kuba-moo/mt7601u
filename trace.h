@@ -26,12 +26,12 @@
 #define MAXNAME		32
 #define DEV_ENTRY	__array(char, wiphy_name, 32)
 #define DEV_ASSIGN	strlcpy(__entry->wiphy_name, wiphy_name(dev->hw->wiphy), MAXNAME)
-#define DEV_PR_FMT	"%s"
+#define DEV_PR_FMT	"%s "
 #define DEV_PR_ARG	__entry->wiphy_name
 
 #define REG_ENTRY	__field(u32, reg) __field(u32, val)
 #define REG_ASSIGN	__entry->reg = reg; __entry->val = val
-#define REG_PR_FMT	" %04x=%08x"
+#define REG_PR_FMT	"%04x=%08x"
 #define REG_PR_ARG	__entry->reg, __entry->val
 
 DECLARE_EVENT_CLASS(dev_reg_evt,
@@ -307,37 +307,34 @@ TRACE_EVENT(tx_dma_done,
 	TP_printk("%p", __entry->skb)
 );
 
-TRACE_EVENT(tx_status_cleaned,
-	TP_PROTO(int cleaned),
-
-	TP_ARGS(cleaned),
-
+TRACE_EVENT(mt_tx_status_cleaned,
+	TP_PROTO(struct mt7601u_dev *dev, int cleaned),
+	TP_ARGS(dev, cleaned),
 	TP_STRUCT__entry(
+		DEV_ENTRY
 		__field(int, cleaned)
 	),
-
 	TP_fast_assign(
+		DEV_ASSIGN;
 		__entry->cleaned = cleaned;
 	),
-
-	TP_printk("%d", __entry->cleaned)
+	TP_printk(DEV_PR_FMT "%d", DEV_PR_ARG, __entry->cleaned)
 );
 
-TRACE_EVENT(tx_status,
-	TP_PROTO(u32 stat1, u32 stat2),
-
-	TP_ARGS(stat1, stat2),
-
+TRACE_EVENT(mt_tx_status,
+	TP_PROTO(struct mt7601u_dev *dev, u32 stat1, u32 stat2),
+	TP_ARGS(dev, stat1, stat2),
 	TP_STRUCT__entry(
+		DEV_ENTRY
 		__field(u32, stat1)	__field(u32, stat2)
 	),
-
 	TP_fast_assign(
+		DEV_ASSIGN;
 		__entry->stat1 = stat1;
 		__entry->stat2 = stat2;
 	),
-
-	TP_printk("%08x %08x", __entry->stat1, __entry->stat2)
+	TP_printk(DEV_PR_FMT "%08x %08x",
+		  DEV_PR_ARG, __entry->stat1, __entry->stat2)
 );
 
 TRACE_EVENT(mt_tx,
