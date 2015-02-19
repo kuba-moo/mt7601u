@@ -47,10 +47,6 @@ mt76_mac_process_tx_rate(struct ieee80211_tx_rate *txrate, u16 rate,
 		txrate->flags |= IEEE80211_TX_RC_MCS;
 		txrate->idx = idx;
 		break;
-	case MT_PHY_TYPE_VHT:
-		txrate->flags |= IEEE80211_TX_RC_VHT_MCS;
-		txrate->idx = idx;
-		break;
 	default:
 		WARN_ON(1);
 		return;
@@ -127,15 +123,7 @@ mt76_mac_tx_rate_val(struct mt76_dev *dev, const struct ieee80211_tx_rate *rate,
 	u8 nss = 1;
 	u8 bw = 0;
 
-	if (rate->flags & IEEE80211_TX_RC_VHT_MCS) {
-		rate_idx = rate->idx;
-		nss = 1 + (rate->idx >> 4);
-		phy = MT_PHY_TYPE_VHT;
-		if (rate->flags & IEEE80211_TX_RC_80_MHZ_WIDTH)
-			bw = 2;
-		else if (rate->flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
-			bw = 1;
-	} else if (rate->flags & IEEE80211_TX_RC_MCS) {
+	if (rate->flags & IEEE80211_TX_RC_MCS) {
 		rate_idx = rate->idx;
 		nss = 1 + (rate->idx >> 3);
 		phy = MT_PHY_TYPE_HT;

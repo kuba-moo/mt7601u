@@ -125,7 +125,6 @@ enum mt76_phy_type {
 	MT_PHY_TYPE_OFDM,
 	MT_PHY_TYPE_HT,
 	MT_PHY_TYPE_HT_GF,
-	MT_PHY_TYPE_VHT,
 };
 
 enum mt76_phy_bandwith {
