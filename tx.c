@@ -110,6 +110,7 @@ void mt7601u_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 	int pkt_len = skb->len;
 	int hw_q = skb2q(skb);
 	u32 dma_flags, pkt_id = 1;
+	u16 rate_ctl;
 	u8 ep = q2ep(hw_q), nss;
 	unsigned long flags;
 
@@ -137,10 +138,11 @@ void mt7601u_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 
 	spin_lock_irqsave(&dev->lock, flags);
 	if (rate->idx < 0 || !rate->count)
-		txwi->rate_ctl = wcid->tx_rate;
+		rate_ctl = wcid->tx_rate;
 	else
-		txwi->rate_ctl = mt76_mac_tx_rate_val(dev, rate, &nss);
+		rate_ctl = mt76_mac_tx_rate_val(dev, rate, &nss);
 	spin_unlock_irqrestore(&dev->lock, flags);
+	txwi->rate_ctl = cpu_to_le16(rate_ctl);
 
 	if (!(info->flags & IEEE80211_TX_CTL_NO_ACK))
 		txwi->ack_ctl |= MT_TXWI_ACK_CTL_REQ;

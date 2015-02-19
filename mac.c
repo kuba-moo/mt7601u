@@ -114,9 +114,8 @@ mt76_mac_fill_tx_status(struct mt76_dev *dev, struct ieee80211_tx_info *info,
 		info->flags |= IEEE80211_TX_STAT_ACK;
 }
 
-__le16
-mt76_mac_tx_rate_val(struct mt76_dev *dev, const struct ieee80211_tx_rate *rate,
-		     u8 *nss_val)
+u16 mt76_mac_tx_rate_val(struct mt76_dev *dev,
+			 const struct ieee80211_tx_rate *rate, u8 *nss_val)
 {
 	u16 rateval;
 	u8 phy, rate_idx;
@@ -154,7 +153,7 @@ mt76_mac_tx_rate_val(struct mt76_dev *dev, const struct ieee80211_tx_rate *rate,
 		rateval |= MT_RXWI_RATE_SGI;
 
 	*nss_val = nss;
-	return cpu_to_le16(rateval);
+	return rateval;
 }
 
 void mt76_mac_wcid_set_rate(struct mt76_dev *dev, struct mt76_wcid *wcid,

@@ -255,7 +255,7 @@ struct mt76_wcid {
 	u8 idx;
 	u8 hw_key_idx;
 
-	__le16 tx_rate;
+	u16 tx_rate;
 	bool tx_rate_set;
 	u8 tx_rate_nss;
 };

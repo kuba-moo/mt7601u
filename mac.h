@@ -232,6 +232,6 @@ void mt76_mac_process_tx_status_fifo(struct mt76_dev *dev);
 
 void mt76_mac_work(struct work_struct *work);
 
-__le16 mt76_mac_tx_rate_val(struct mt76_dev *dev,
-			    const struct ieee80211_tx_rate *rate, u8 *nss_val);
+u16 mt76_mac_tx_rate_val(struct mt76_dev *dev,
+			 const struct ieee80211_tx_rate *rate, u8 *nss_val);
 #endif
