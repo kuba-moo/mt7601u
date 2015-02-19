@@ -358,7 +358,7 @@ TRACE_EVENT(mt_tx,
 	),
 
 	TP_printk("skb:%p sta:%p  flg:%04hx rate_ctl:%04hx ack:%02hhx "
-		  "wcid:%02hhx len_ctl:%05hx\n",
+		  "wcid:%02hhx len_ctl:%05hx",
 		  __entry->skb, __entry->sta,
 		  le16_to_cpu(__entry->h.flags),
 		  le16_to_cpu(__entry->h.rate_ctl),
