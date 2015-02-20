@@ -176,6 +176,8 @@ void mt7601u_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 		txwi->flags = cpu_to_le16(MT_TXWI_FLAGS_AMPDU |
 					  MT76_SET(MT_TXWI_FLAGS_MPDU_DENSITY,
 						   sta->ht_cap.ampdu_density));
+		if (info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE)
+			txwi->flags = 0;
 	}
 	txwi->wcid = wcid->idx;
 
