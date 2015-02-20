@@ -46,6 +46,13 @@ void mt7601u_tx_status(struct mt7601u_dev *dev, struct sk_buff *skb)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 
+	skb_pull(skb, sizeof(struct mt76_txwi) + 4);
+	if (ieee80211_get_hdrlen_from_skb(skb) % 4)
+		mt76_remove_hdr_pad(skb);
+
+	/* TODO: trim the tail */
+	/* TODO: figure out what's going on with mac80211 and IV */
+
 	ieee80211_tx_info_clear_status(info);
 	info->status.rates[0].idx = -1;
 	info->flags |= IEEE80211_TX_STAT_ACK;
