@@ -29,6 +29,7 @@ struct mt76_tx_status {
 	u8 success:1;
 	u8 aggr:1;
 	u8 ack_req:1;
+	u8 is_probe:1;
 	u8 wcid;
 	u8 pktid;
 	u8 retry;
@@ -234,4 +235,9 @@ void mt76_mac_work(struct work_struct *work);
 
 u16 mt76_mac_tx_rate_val(struct mt76_dev *dev,
 			 const struct ieee80211_tx_rate *rate, u8 *nss_val);
+struct mt76_tx_status
+mt7601u_mac_fetch_tx_status(struct mt7601u_dev *dev);
+void
+mt76_mac_fill_tx_status(struct mt76_dev *dev, struct ieee80211_tx_info *info,
+			struct mt76_tx_status *st);
 #endif

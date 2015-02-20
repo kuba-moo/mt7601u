@@ -27,6 +27,21 @@ enum mt76_txq_id { /* TODO: is this mapping correct? */
 	__MT_TXQ_MAX
 };
 
+static u8 mt7601u_tx_pktid_enc(struct mt7601u_dev *dev, u8 rate, bool is_probe)
+{
+	u8 encoded = (rate + 1) + is_probe *  8;
+
+	/* Because PKT_ID 0 disables status reporting only 15 values are
+	 * available but 16 are needed (8 MCS * 2 for encoding is_probe)
+	 * - we need to cram together two rates. MCS0 and MCS7 with is_probe
+	 * share PKT_ID 9.
+	 */
+	if (is_probe && rate == 7)
+		return encoded - 7;
+
+	return encoded;
+}
+
 void mt7601u_tx_status(struct mt7601u_dev *dev, struct sk_buff *skb)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
@@ -109,10 +124,11 @@ void mt7601u_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 	struct mt76_txwi *txwi;
 	int pkt_len = skb->len;
 	int hw_q = skb2q(skb);
-	u32 dma_flags, pkt_id = 1;
+	u32 dma_flags, pkt_id;
 	u16 rate_ctl;
 	u8 ep = q2ep(hw_q), nss;
 	unsigned long flags;
+	bool is_probe;
 
 	if (mt7601u_skb_rooms(dev, skb) || mt76_insert_hdr_pad(skb)) {
 		ieee80211_free_txskb(dev->hw, skb);
@@ -148,8 +164,6 @@ void mt7601u_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 		txwi->ack_ctl |= MT_TXWI_ACK_CTL_REQ;
 	if (info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ)
 		txwi->ack_ctl |= MT_TXWI_ACK_CTL_NSEQ;
-	if (info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE)
-		pkt_id |= MT_TXWI_PKTID_PROBE;
 	txwi->ack_ctl |= MT76_SET(MT_TXWI_ACK_CTL_BA_WINDOW, 7);
 	if ((info->flags & IEEE80211_TX_CTL_AMPDU) && sta) {
 		u8 ba_size = IEEE80211_MIN_AMPDU_BUF;
@@ -165,6 +179,25 @@ void mt7601u_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 	}
 	txwi->wcid = wcid->idx;
 
+	/* Note: TX retry reporting is a bit broken.
+	 *	 Retries are reported only once per AMPDU and often come
+	 *	 a frame early i.e. they are reported in the last status
+	 *	 preceding the AMPDU. Apart from the fact that it's hard
+	 *	 to know length of the AMPDU (to how many consecutive frames
+	 *	 retries should be applied), if status comes early on full
+	 *	 fifo it gets lost and retries of the whole AMPDU become
+	 *	 invisible.
+	 *	 As a work-around encode the desired rate in PKT_ID and based
+	 *	 on that guess the retries (every rate is tried once).
+	 *	 Only downside here is that for MCS0 we have to rely solely on
+	 *	 transmission failures as no retries can ever be reported.
+	 *	 Not having to read EXT_FIFO has a nice effect of doubling
+	 *	 the number of reports which can be fetched.
+	 *	 Also the vendor driver never uses the EXT_FIFO register
+	 *	 so it may be untested.
+	 */
+	is_probe = !!(info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE);
+	pkt_id = mt7601u_tx_pktid_enc(dev, rate_ctl & 0x7, is_probe);
 	pkt_len |= MT76_SET(MT_TXWI_LEN_PKTID, pkt_id);
 	txwi->len_ctl = cpu_to_le16(pkt_len);
 
@@ -179,6 +212,76 @@ void mt7601u_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 	}
 
 	trace_mt_tx(skb, msta, txwi);
+}
+
+static void mt7601u_tx_pktid_dec(struct mt7601u_dev *dev,
+				 struct mt76_tx_status *stat)
+{
+	u8 req_rate = stat->pktid;
+	u8 eff_rate = stat->rate & 0x7;
+
+	req_rate -= 1;
+
+	if (req_rate > 7) {
+		stat->is_probe = true;
+		req_rate -= 8;
+
+		/* Decide between MCS0 and MCS7 which share pktid 9 */
+		if (!req_rate && eff_rate)
+			req_rate = 7;
+	}
+
+	stat->retry = req_rate - eff_rate;
+}
+
+void mt7601u_tx_stat(struct work_struct *work)
+{
+	struct mt7601u_dev *dev = container_of(work, struct mt7601u_dev,
+					       stat_work.work);
+
+	struct mt76_tx_status stat;
+	struct ieee80211_tx_info info = {};
+	struct ieee80211_sta *sta = NULL;
+	struct mt76_wcid *wcid = NULL;
+	void *msta;
+	int cleaned = 0;
+	unsigned long flags;
+
+	while (!test_bit(MT7601U_STATE_REMOVED, &dev->state)) {
+		stat = mt7601u_mac_fetch_tx_status(dev);
+		if (!stat.valid)
+			break;
+
+		mt7601u_tx_pktid_dec(dev, &stat);
+
+		rcu_read_lock();
+		if (stat.wcid < ARRAY_SIZE(dev->wcid))
+			wcid = rcu_dereference(dev->wcid[stat.wcid]);
+
+		if (wcid) {
+			msta = container_of(wcid, struct mt76_sta, wcid);
+			sta = container_of(msta, struct ieee80211_sta,
+					   drv_priv);
+		}
+
+		mt76_mac_fill_tx_status(dev, &info, &stat);
+		ieee80211_tx_status_noskb(dev->hw, sta, &info);
+		rcu_read_unlock();
+
+		cleaned++;
+	}
+	trace_mt_tx_status_cleaned(dev, cleaned);
+
+	spin_lock_irqsave(&dev->tx_lock, flags);
+	if (cleaned)
+		queue_delayed_work(dev->stat_wq, &dev->stat_work,
+				   msecs_to_jiffies(10));
+	else if (__test_and_clear_bit(MT7601U_STATE_MORE_STATS, &dev->state))
+		queue_delayed_work(dev->stat_wq, &dev->stat_work,
+				   msecs_to_jiffies(20));
+	else
+		__clear_bit(MT7601U_STATE_READING_STATS, &dev->state);
+	spin_unlock_irqrestore(&dev->tx_lock, flags);
 }
 
 int mt7601u_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,

@@ -70,7 +70,7 @@ mt76_mac_process_tx_rate(struct ieee80211_tx_rate *txrate, u16 rate,
 		txrate->flags |= IEEE80211_TX_RC_SHORT_GI;
 }
 
-static void
+void
 mt76_mac_fill_tx_status(struct mt76_dev *dev, struct ieee80211_tx_info *info,
 			struct mt76_tx_status *st)
 {
@@ -101,7 +101,7 @@ mt76_mac_fill_tx_status(struct mt76_dev *dev, struct ieee80211_tx_info *info,
 #endif
 	info->status.ampdu_ack_len = st->success;
 
-	if (st->pktid & MT_TXWI_PKTID_PROBE)
+	if (st->is_probe)
 		info->flags |= IEEE80211_TX_CTL_RATE_CTRL_PROBE;
 
 	if (st->aggr)
@@ -167,66 +167,22 @@ void mt76_mac_wcid_set_rate(struct mt76_dev *dev, struct mt76_wcid *wcid,
 	spin_unlock_irqrestore(&dev->lock, flags);
 }
 
-void mt7601u_mac_stat(struct work_struct *work)
+struct mt76_tx_status
+mt7601u_mac_fetch_tx_status(struct mt7601u_dev *dev)
 {
-	struct mt7601u_dev *dev = container_of(work, struct mt7601u_dev,
-					       stat_work.work);
-	u32 stat1, stat2;
-	struct mt76_tx_status stat;
-	struct ieee80211_tx_info info = {};
-	struct ieee80211_sta *sta = NULL;
-	struct mt76_wcid *wcid = NULL;
-	void *msta;
-	int cleaned = 0;
-	unsigned long flags;
+	struct mt76_tx_status stat = {};
+	u32 val;
 
-	/* Note: careful with accessing things here - there is no explicit
-	 *	 locking!
-	 */
-	while (!test_bit(MT7601U_STATE_REMOVED, &dev->state)) {
-		stat1 = mt7601u_rr(dev, MT_TX_STAT_FIFO);
-		if (!(stat1 & MT_TX_STAT_FIFO_VALID))
-			break;
+	val = mt7601u_rr(dev, MT_TX_STAT_FIFO);
+	stat.valid = !!(val & MT_TX_STAT_FIFO_VALID);
+	stat.success = !!(val & MT_TX_STAT_FIFO_SUCCESS);
+	stat.aggr = !!(val & MT_TX_STAT_FIFO_AGGR);
+	stat.ack_req = !!(val & MT_TX_STAT_FIFO_ACKREQ);
+	stat.pktid = MT76_GET(MT_TX_STAT_FIFO_PID_TYPE, val);
+	stat.wcid = MT76_GET(MT_TX_STAT_FIFO_WCID, val);
+	stat.rate = MT76_GET(MT_TX_STAT_FIFO_RATE, val);
 
-		stat2 = mt76_rr(dev, MT_TX_STAT_FIFO_EXT);
-		trace_mt_tx_status(dev, stat1, stat2);
-
-		stat.valid = 1;
-		stat.success = !!(stat1 & MT_TX_STAT_FIFO_SUCCESS);
-		stat.aggr = !!(stat1 & MT_TX_STAT_FIFO_AGGR);
-		stat.ack_req = !!(stat1 & MT_TX_STAT_FIFO_ACKREQ);
-		stat.pktid = MT76_GET(MT_TX_STAT_FIFO_PID_TYPE, stat1);
-		stat.wcid = MT76_GET(MT_TX_STAT_FIFO_WCID, stat1);
-		stat.rate = MT76_GET(MT_TX_STAT_FIFO_RATE, stat1);
-		stat.retry = MT76_GET(MT_TX_STAT_FIFO_EXT_RETRY, stat2);
-
-		rcu_read_lock();
-		if (stat.wcid < ARRAY_SIZE(dev->wcid))
-			wcid = rcu_dereference(dev->wcid[stat.wcid]);
-
-		if (wcid) {
-			msta = container_of(wcid, struct mt76_sta, wcid);
-			sta = container_of(msta, struct ieee80211_sta,
-					   drv_priv);
-		}
-
-		mt76_mac_fill_tx_status(dev, &info, &stat);
-		ieee80211_tx_status_noskb(dev->hw, sta, &info);
-		rcu_read_unlock();
-
-		cleaned++;
-	}
-
-	trace_mt_tx_status_cleaned(dev, cleaned);
-
-	spin_lock_irqsave(&dev->tx_lock, flags);
-	if (cleaned ||
-	    __test_and_clear_bit(MT7601U_STATE_MORE_STATS, &dev->state))
-		queue_delayed_work(dev->stat_wq, &dev->stat_work,
-				   msecs_to_jiffies(15));
-	else
-		__clear_bit(MT7601U_STATE_READING_STATS, &dev->state);
-	spin_unlock_irqrestore(&dev->tx_lock, flags);
+	return stat;
 }
 
 void mt7601u_mac_set_protection(struct mt7601u_dev *dev, bool legacy_prot,

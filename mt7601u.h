@@ -369,7 +369,6 @@ void mt7601u_phy_freq_cal_onoff(struct mt76_dev *dev,
 
 /* MAC */
 void mt7601u_mac_work(struct work_struct *work);
-void mt7601u_mac_stat(struct work_struct *work);
 void mt7601u_mac_set_protection(struct mt7601u_dev *dev, bool legacy_prot,
 				int ht_mode);
 void mt7601u_mac_set_short_preamble(struct mt7601u_dev *dev, bool short_preamb);
@@ -384,6 +383,7 @@ void mt7601u_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 int mt7601u_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		    u16 queue, const struct ieee80211_tx_queue_params *params);
 void mt7601u_tx_status(struct mt7601u_dev *dev, struct sk_buff *skb);
+void mt7601u_tx_stat(struct work_struct *work);
 
 /* util */
 void mt76_remove_hdr_pad(struct sk_buff *skb);

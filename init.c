@@ -979,7 +979,7 @@ int mt7601u_register_device(struct mt7601u_dev *dev)
 		return ret;
 
 	INIT_DELAYED_WORK(&dev->mac_work, mt7601u_mac_work);
-	INIT_DELAYED_WORK(&dev->stat_work, mt7601u_mac_stat);
+	INIT_DELAYED_WORK(&dev->stat_work, mt7601u_tx_stat);
 
 	ret = ieee80211_register_hw(hw);
 	if (ret)
