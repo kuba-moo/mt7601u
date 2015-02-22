@@ -160,18 +160,23 @@ static int mt7601u_assign_pipes(struct usb_interface *usb_intf,
 	struct usb_host_interface *intf_desc = usb_intf->cur_altsetting;
 	unsigned i, ep_i = 0, ep_o = 0;
 
+	dev->in_eps = devm_kmalloc_array(dev->dev, __MT_EP_IN_MAX,
+					 sizeof(*dev->in_eps), GFP_KERNEL);
+	dev->out_eps = devm_kmalloc_array(dev->dev, __MT_EP_OUT_MAX,
+					  sizeof(*dev->out_eps), GFP_KERNEL);
+
 	for (i = 0; i < intf_desc->desc.bNumEndpoints; i++) {
 		ep_desc = &intf_desc->endpoint[i].desc;
 
 		if (usb_endpoint_is_bulk_in(ep_desc) &&
-		    ep_i++ < MT7601U_N_PIPES_IN) {
+		    ep_i++ < __MT_EP_IN_MAX) {
 			/* EP0 - data in; EP1 - cmd resp */
 			dev->in_eps[ep_i - 1] = usb_endpoint_num(ep_desc);
 			/* TODO: drop the next line. */
 			dev->in_eps[ep_i - 1] |= USB_ENDPOINT_DIR_MASK;
 			dev->in_max_packet = usb_endpoint_maxp(ep_desc);
 		} else  if (usb_endpoint_is_bulk_out(ep_desc) &&
-			    ep_o++ < MT7601U_N_PIPES_OUT) {
+			    ep_o++ < __MT_EP_OUT_MAX) {
 			/* There are 6 bulk out EP. EP6 highest priority. */
 			/* EP0 in-band cmd. EP1-4 is EDCA. EP5 is HCCA. */
 			dev->out_eps[ep_o - 1] = usb_endpoint_num(ep_desc);
@@ -179,7 +184,7 @@ static int mt7601u_assign_pipes(struct usb_interface *usb_intf,
 		}
 	}
 
-	if (ep_i != MT7601U_N_PIPES_IN || ep_o != MT7601U_N_PIPES_OUT) {
+	if (ep_i != __MT_EP_IN_MAX || ep_o != __MT_EP_OUT_MAX) {
 		printk("Error - wrong pipes!\n");
 		return -EINVAL;
 	}

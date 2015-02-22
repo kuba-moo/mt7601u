@@ -140,7 +140,7 @@ static int mt7601u_rx_submit_entry(struct mt7601u_dev *dev,
 				   struct mt7601u_dma_buf *e, gfp_t gfp)
 {
 	struct usb_device *usb_dev = mt7601u_to_usb_dev(dev);
-	unsigned recv_pipe = usb_rcvbulkpipe(usb_dev, dev->in_eps[EP_IN_PKT]);
+	unsigned recv_pipe = usb_rcvbulkpipe(usb_dev, dev->in_eps[MT_EP_IN_PKT_RX]);
 	int ret;
 
 	usb_fill_bulk_urb(e->urb, usb_dev, recv_pipe, e->buf, e->len,
@@ -285,7 +285,7 @@ static void mt7601u_free_tx(struct mt7601u_dev *dev)
 {
 	int i;
 
-	for (i = 0; i < MT7601U_N_PIPES_OUT; i++)
+	for (i = 0; i < __MT_EP_OUT_MAX; i++)
 		mt7601u_free_tx_queue(&dev->tx_q[i]);
 }
 
@@ -294,7 +294,6 @@ static int mt7601u_alloc_tx_queue(struct mt7601u_dev *dev,
 {
 	int i;
 
-	memset(q, 0, sizeof(*q));
 	q->dev = dev;
 	q->entries = N_TX_ENTRIES;
 
@@ -311,7 +310,10 @@ static int mt7601u_alloc_tx(struct mt7601u_dev *dev)
 {
 	int i;
 
-	for (i = 0; i < MT7601U_N_PIPES_OUT; i++)
+	dev->tx_q = devm_kcalloc(dev->dev, __MT_EP_OUT_MAX,
+				 sizeof(*dev->tx_q), GFP_KERNEL);
+
+	for (i = 0; i < __MT_EP_OUT_MAX; i++)
 		if (mt7601u_alloc_tx_queue(dev, &dev->tx_q[i]))
 			return -ENOMEM;
 

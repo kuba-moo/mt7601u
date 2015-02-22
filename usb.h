@@ -11,10 +11,35 @@
  * GNU General Public License for more details.
  */
 
-#ifndef __MT76_USB_H
-#define __MT76_USB_H
+#ifndef __MT7601U_USB_H
+#define __MT7601U_USB_H
 
 #include "mt7601u.h"
+
+#define VEND_DEV_MODE_RESET		1
+
+enum mt_vendor_req {
+	VEND_DEV_MODE = 1,
+	VEND_WRITE = 2,
+	VEND_MULTI_READ = 7,
+	VEND_WRITE_FCE = 0x42,
+};
+
+enum mt_usb_ep_in {
+	MT_EP_IN_PKT_RX,
+	MT_EP_IN_CMD_RESP,
+	__MT_EP_IN_MAX,
+};
+
+enum mt_usb_ep_out {
+	MT_EP_OUT_INBAND_CMD,
+	MT_EP_OUT_AC_BK,
+	MT_EP_OUT_AC_BE,
+	MT_EP_OUT_AC_VI,
+	MT_EP_OUT_AC_VO,
+	MT_EP_OUT_HCCA,
+	__MT_EP_OUT_MAX,
+};
 
 static inline struct usb_device *mt7601u_to_usb_dev(struct mt7601u_dev *mt7601u)
 {

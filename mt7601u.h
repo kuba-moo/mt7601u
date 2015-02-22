@@ -37,27 +37,7 @@
 #define MT7601U_VENDOR_REQ_MAX_RETRY	10
 #define MT7601U_VENDOR_REQ_TOUT_MS	300
 
-
-#define INBAND_PACKET_MAX_LEN		192
-
 #define MT_BBP_REG_VERSION		0x00
-
-enum mt_vendor_req {
-	VEND_DEV_MODE = 1,
-	VEND_WRITE = 2,
-	VEND_MULTI_READ = 7,
-	VEND_WRITE_FCE = 0x42,
-};
-
-#define VEND_DEV_MODE_RESET		1
-
-struct mt7601u_pipes {
-	u8 ep;
-	u8 max_packet;
-};
-
-#define MT7601U_N_PIPES_OUT	6
-#define MT7601U_N_PIPES_IN	2
 
 struct mt7601u_dma_buf {
 	struct urb *urb;
@@ -160,7 +140,7 @@ struct mt7601u_dev {
 
 	/* TX */
 	spinlock_t tx_lock;
-	struct mt7601u_tx_queue tx_q[MT7601U_N_PIPES_OUT];
+	struct mt7601u_tx_queue *tx_q;
 
 	/* RX */
 	spinlock_t rx_lock;
@@ -213,8 +193,8 @@ struct mt7601u_dev {
 	/* TODO: Is this needed? dev->mutex should suffice */
 	struct mutex hw_atomic_mutex;
 
-	u8 out_eps[MT7601U_N_PIPES_OUT];
-	u8 in_eps[MT7601U_N_PIPES_IN];
+	u8 *out_eps;
+	u8 *in_eps;
 	u16 out_max_packet;
 	u16 in_max_packet;
 #define RX_URB_SIZE		(12 * 2048)

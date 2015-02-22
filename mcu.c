@@ -63,10 +63,12 @@ mt7601u_mcu_msg_alloc(struct mt7601u_dev *dev, const void *data, int len)
 	return skb;
 }
 
+/* TODO: this is a candidate for submit_urb_generic */
 static int mt7601u_mcu_resp_submit(struct mt7601u_dev *dev)
 {
 	struct usb_device *usb_dev = mt7601u_to_usb_dev(dev);
-	unsigned recv_pipe = usb_rcvbulkpipe(usb_dev, dev->in_eps[1]);
+	unsigned recv_pipe = usb_rcvbulkpipe(usb_dev,
+					     dev->in_eps[MT_EP_IN_CMD_RESP]);
 
 	usb_fill_bulk_urb(dev->mcu.resp.urb, usb_dev, recv_pipe,
 			  dev->mcu.resp.buf, MCU_RESP_URB_SIZE,

@@ -37,11 +37,6 @@ enum dma_info_type {
 	DMA_COMMAND,
 };
 
-enum mt7601u_in_eps {
-	EP_IN_PKT,
-	EP_IN_CMD,
-};
-
 enum dma_msg_port {
 	WLAN_PORT,
 	CPU_RX_PORT,
