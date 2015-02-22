@@ -14,7 +14,6 @@
 
 #include "mt7601u.h"
 #include "mac.h"
-#include "mcu.h"
 #include <linux/etherdevice.h>
 #include <linux/version.h>
 
@@ -218,11 +217,8 @@ mt7601u_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			       MT_BKOFF_SLOT_CFG_SLOTTIME, slottime);
 	}
 
-	if (changed & BSS_CHANGED_ASSOC) {
-		mt7601u_mcu_calibrate(dev, MCU_CAL_DPD, dev->curr_temp);
-
-		mt7601u_rxdc_cal(dev);
-	}
+	if (changed & BSS_CHANGED_ASSOC)
+		mt7601u_phy_recalibrate_after_assoc(dev);
 
 	mutex_unlock(&dev->mutex);
 }

@@ -515,7 +515,7 @@ static s8 mt7601u_read_temp(struct mt7601u_dev *dev)
 	return temp;
 }
 
-void mt7601u_rxdc_cal(struct mt7601u_dev *dev)
+static void mt7601u_rxdc_cal(struct mt7601u_dev *dev)
 {
 	static const struct mt76_reg_pair intro[] = {
 		{ 158, 0x8d }, { 159, 0xfc },
@@ -552,6 +552,13 @@ void mt7601u_rxdc_cal(struct mt7601u_dev *dev)
 		printk("%s outro failed\n", __func__);
 
 	mt7601u_wr(dev, MT_MAC_SYS_CTRL, mac_ctrl);
+}
+
+void mt7601u_phy_recalibrate_after_assoc(struct mt7601u_dev *dev)
+{
+	mt7601u_mcu_calibrate(dev, MCU_CAL_DPD, dev->curr_temp);
+
+	mt7601u_rxdc_cal(dev);
 }
 
 /* TODO: rewrite this - it's copied */
