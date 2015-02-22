@@ -78,25 +78,24 @@ TRACE_EVENT(submit_urb,
 	TP_printk("p:%08x len:%u", __entry->pipe, __entry->len)
 );
 
-TRACE_EVENT(mcu_msg_send,
-	TP_PROTO(struct sk_buff *skb, u32 csum, bool resp),
-
-	TP_ARGS(skb, csum, resp),
-
+TRACE_EVENT(mt_mcu_msg_send,
+	TP_PROTO(struct mt7601u_dev *dev,
+		 struct sk_buff *skb, u32 csum, bool resp),
+	TP_ARGS(dev, skb, csum, resp),
 	TP_STRUCT__entry(
+		DEV_ENTRY
 		__field(u32, info)
 		__field(u32, csum)
 		__field(bool, resp)
 	),
-
 	TP_fast_assign(
+		DEV_ASSIGN;
 		__entry->info = *(u32 *)skb->data;
 		__entry->csum = csum;
 		__entry->resp = resp;
 	),
-
-	TP_printk("i:%08x c:%08x r:%d", __entry->info, __entry->csum,
-		  __entry->resp)
+	TP_printk(DEV_PR_FMT "i:%08x c:%08x r:%d",
+		  DEV_PR_ARG, __entry->info, __entry->csum, __entry->resp)
 );
 
 #define trace_submit_urb_sync(__pipe, __len) ({	\

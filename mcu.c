@@ -38,15 +38,15 @@ static inline void mt7601u_dma_skb_wrap_cmd(struct sk_buff *skb,
 			     MT76_SET(MT_TXD_PKT_INFO_TYPE, cmd));
 }
 
-static inline void trace_mcu_msg_send_cs(struct sk_buff *skb, bool need_resp)
+static inline void trace_mt_mcu_msg_send_cs(struct mt7601u_dev *dev,
+					    struct sk_buff *skb, bool need_resp)
 {
-	u32 *val = (void *)skb->data, csum = 0;
-	int i;
+	u32 i, csum = 0;
 
-	for (i = 0; i < skb->len/4; i++)
-		csum ^= *val++;
+	for (i = 0; i < skb->len / 4; i++)
+		csum ^= get_unaligned_le32(skb->data + i * 4);
 
-	trace_mcu_msg_send(skb, csum, need_resp);
+	trace_mt_mcu_msg_send(dev, skb, csum, need_resp);
 }
 
 static struct sk_buff *
@@ -131,7 +131,7 @@ mt7601u_mcu_msg_send(struct mt7601u_dev *dev, struct sk_buff *skb,
 	if (dev->mcu.resp_cmpl.done)
 		printk("Error: MCU response pre-completed!\n");
 
-	trace_mcu_msg_send_cs(skb, wait_resp);
+	trace_mt_mcu_msg_send_cs(dev, skb, wait_resp);
 	trace_submit_urb_sync(cmd_pipe, skb->len);
 	ret = usb_bulk_msg(usb_dev, cmd_pipe, skb->data, skb->len, &sent, 500);
 	if (ret) {
