@@ -228,11 +228,11 @@ static int mt7601u_set_bw_filter(struct mt7601u_dev *dev, bool cal)
 		filter |= 0x00100;
 
 	/* TX */
-	ret = mt76_mcu_calibration(dev, MT7601U_CAL_BW, filter | 1);
+	ret = mt7601u_mcu_calibrate(dev, MT7601U_CAL_BW, filter | 1);
 	if (ret)
 		return ret;
 	/* RX */
-	return mt76_mcu_calibration(dev, MT7601U_CAL_BW, filter);
+	return mt7601u_mcu_calibrate(dev, MT7601U_CAL_BW, filter);
 }
 
 static int mt7601u_update_bbp_temp_table_after_set_bw(struct mt7601u_dev *dev)
@@ -279,7 +279,7 @@ static int mt7601u_update_bbp_temp_table_after_set_bw(struct mt7601u_dev *dev)
 		return -EINVAL;
 	}
 
-	return mt7601u_write_reg_pairs(dev, MT7601U_MCU_MEMMAP_BBP, t, n);
+	return mt7601u_write_reg_pairs(dev, MT_MCU_MEMMAP_BBP, t, n);
 }
 
 static int __mt7601u_phy_set_channel(struct mt7601u_dev *dev,
@@ -347,7 +347,7 @@ static int __mt7601u_phy_set_channel(struct mt7601u_dev *dev,
 	for (i = 0; i < FREQ_PLAN_REGS; i++)
 		channel_freq_plan[i].value = freq_plan[chan_idx][i];
 
-	ret = mt7601u_write_reg_pairs(dev, MT7601U_MCU_MEMMAP_RF,
+	ret = mt7601u_write_reg_pairs(dev, MT_MCU_MEMMAP_RF,
 				      channel_freq_plan, FREQ_PLAN_REGS);
 	if (ret)
 		return ret;
@@ -355,7 +355,7 @@ static int __mt7601u_phy_set_channel(struct mt7601u_dev *dev,
 	mt7601u_rmw(dev, MT_TX_ALC_CFG_0, 0x3f3f,
 		    dev->ee->chan_pwr[chan_idx] & 0x3f);
 
-	ret = mt7601u_write_reg_pairs(dev, MT7601U_MCU_MEMMAP_BBP,
+	ret = mt7601u_write_reg_pairs(dev, MT_MCU_MEMMAP_BBP,
 				      bbp_settings, ARRAY_SIZE(bbp_settings));
 	if (ret)
 		return ret;
@@ -529,7 +529,7 @@ void mt7601u_rxdc_cal(struct mt7601u_dev *dev)
 	mac_ctrl = mt7601u_rr(dev, MT_MAC_SYS_CTRL);
 	mt7601u_wr(dev, MT_MAC_SYS_CTRL, MT_MAC_SYS_CTRL_ENABLE_RX);
 
-	ret = mt7601u_write_reg_pairs(dev, MT7601U_MCU_MEMMAP_BBP,
+	ret = mt7601u_write_reg_pairs(dev, MT_MCU_MEMMAP_BBP,
 				      intro, ARRAY_SIZE(intro));
 	if (ret)
 		printk("%s intro failed\n", __func__);
@@ -546,7 +546,7 @@ void mt7601u_rxdc_cal(struct mt7601u_dev *dev)
 
 	mt7601u_wr(dev, MT_MAC_SYS_CTRL, 0);
 
-	ret = mt7601u_write_reg_pairs(dev, MT7601U_MCU_MEMMAP_BBP,
+	ret = mt7601u_write_reg_pairs(dev, MT_MCU_MEMMAP_BBP,
 				      outro, ARRAY_SIZE(outro));
 	if (ret)
 		printk("%s outro failed\n", __func__);
@@ -693,16 +693,16 @@ static int mt7601u_bbp_temp(struct mt7601u_dev *dev,
 	dev->temp_mode = mode;
 	trace_printk("Switching to %s temp\n", name);
 
-	ret = mt7601u_write_reg_pairs(dev, MT7601U_MCU_MEMMAP_BBP,
+	ret = mt7601u_write_reg_pairs(dev, MT_MCU_MEMMAP_BBP,
 				      common, n_common);
 	if (ret)
 		return ret;
 
 	if (dev->bw == MT_BW_20)
-		return mt7601u_write_reg_pairs(dev, MT7601U_MCU_MEMMAP_BBP,
+		return mt7601u_write_reg_pairs(dev, MT_MCU_MEMMAP_BBP,
 					       bw20, n_bw20);
 	else
-		return mt7601u_write_reg_pairs(dev, MT7601U_MCU_MEMMAP_BBP,
+		return mt7601u_write_reg_pairs(dev, MT_MCU_MEMMAP_BBP,
 					       bw40, n_bw40);
 }
 
@@ -718,7 +718,8 @@ static int mt7601u_temp_comp(struct mt7601u_dev *dev, bool on)
 	if (temp - dev->dpd_temp > 450 || temp - dev->dpd_temp < -450) {
 		dev->dpd_temp = temp;
 
-		ret = mt76_mcu_calibration(dev, MT7601U_CAL_DPD, dev->dpd_temp);
+		ret = mt7601u_mcu_calibrate(dev, MT7601U_CAL_DPD,
+					    dev->dpd_temp);
 		if (ret)
 			return ret;
 
@@ -1129,7 +1130,7 @@ static int mt7601u_init_cal(struct mt7601u_dev *dev)
 
 	mac_ctrl = mt7601u_rr(dev, MT_MAC_SYS_CTRL);
 
-	ret = mt76_mcu_calibration(dev, MT7601U_CAL_R, 0);
+	ret = mt7601u_mcu_calibrate(dev, MT7601U_CAL_R, 0);
 	if (ret)
 		return ret;
 
@@ -1142,7 +1143,7 @@ static int mt7601u_init_cal(struct mt7601u_dev *dev)
 		return ret;
 	msleep(2);
 
-	ret = mt76_mcu_calibration(dev, MT7601U_CAL_TXDCOC, 0);
+	ret = mt7601u_mcu_calibrate(dev, MT7601U_CAL_TXDCOC, 0);
 	if (ret)
 		return ret;
 
@@ -1151,16 +1152,16 @@ static int mt7601u_init_cal(struct mt7601u_dev *dev)
 	ret = mt7601u_set_bw_filter(dev, true);
 	if (ret)
 		return ret;
-	ret = mt76_mcu_calibration(dev, MT7601U_CAL_LOFT, 0);
+	ret = mt7601u_mcu_calibrate(dev, MT7601U_CAL_LOFT, 0);
 	if (ret)
 		return ret;
-	ret = mt76_mcu_calibration(dev, MT7601U_CAL_TXIQ, 0);
+	ret = mt7601u_mcu_calibrate(dev, MT7601U_CAL_TXIQ, 0);
 	if (ret)
 		return ret;
-	ret = mt76_mcu_calibration(dev, MT7601U_CAL_RXIQ, 0);
+	ret = mt7601u_mcu_calibrate(dev, MT7601U_CAL_RXIQ, 0);
 	if (ret)
 		return ret;
-	ret = mt76_mcu_calibration(dev, MT7601U_CAL_DPD, dev->dpd_temp);
+	ret = mt7601u_mcu_calibrate(dev, MT7601U_CAL_DPD, dev->dpd_temp);
 	if (ret)
 		return ret;
 
@@ -1226,7 +1227,7 @@ void mt7601u_set_tx_dac(struct mt7601u_dev *dev, u8 dac)
 }
 
 #define RF_REG_PAIR(bank, reg, value)				\
-	{ MT7601U_MCU_MEMMAP_RF | (bank) << 16 | (reg), value }
+	{ MT_MCU_MEMMAP_RF | (bank) << 16 | (reg), value }
 
 int mt7601u_phy_init(struct mt7601u_dev *dev)
 {

@@ -212,8 +212,8 @@ int mt7601u_mcu_tssi_read_kick(struct mt7601u_dev *dev, int use_hvga)
 	return 0;
 }
 
-int mt76_mcu_calibration(struct mt7601u_dev *dev,
-			 enum mt7601u_mcu_cal cal, u32 val)
+int mt7601u_mcu_calibrate(struct mt7601u_dev *dev,
+			  enum mcu_calibrate cal, u32 val)
 {
 	struct sk_buff *skb;
 	struct {
@@ -281,7 +281,7 @@ int mt7601u_burst_write_regs(struct mt7601u_dev *dev, u32 offset,
 	skb = alloc_skb(cnt * 4 + MT_DMA_HDR_LEN + 4, GFP_KERNEL);
 	skb_reserve(skb, MT_DMA_HDR_LEN);
 
-	skb_put_le32(skb, MT_MCU_MEMMAP_OFFSET + offset);
+	skb_put_le32(skb, MT_MCU_MEMMAP_WLAN + offset);
 	for (i = 0; i < cnt; i++)
 		skb_put_le32(skb, data[i]);
 

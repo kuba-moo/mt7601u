@@ -262,7 +262,7 @@ static int mt7601u_chip_init_bbp(struct mt7601u_dev *dev)
 		{ 196, 0x5a },
 	};
 
-	return mt7601u_write_reg_pairs(dev, MT7601U_MCU_MEMMAP_BBP,
+	return mt7601u_write_reg_pairs(dev, MT_MCU_MEMMAP_BBP,
 				       vals, ARRAY_SIZE(vals));
 }
 
@@ -359,7 +359,7 @@ static int mt7601u_write_mac_initvals(struct mt7601u_dev *dev)
 		{ MT_PWR_PIN_CFG,		0x00000000 },
 	};
 
-	return mt7601u_write_reg_pairs(dev, MT_MCU_MEMMAP_OFFSET,
+	return mt7601u_write_reg_pairs(dev, MT_MCU_MEMMAP_WLAN,
 				       vals, ARRAY_SIZE(vals));
 }
 
@@ -386,7 +386,7 @@ static int mt7601u_write_chip_mac_initvals(struct mt7601u_dev *dev)
 		{ MT_FCE_PARAMETERS,		0x00256f0f },
 	};
 
-	ret = mt7601u_write_reg_pairs(dev, MT_MCU_MEMMAP_OFFSET,
+	ret = mt7601u_write_reg_pairs(dev, MT_MCU_MEMMAP_WLAN,
 				      vals, ARRAY_SIZE(vals));
 	if (ret)
 		return ret;
