@@ -219,7 +219,7 @@ mt7601u_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	}
 
 	if (changed & BSS_CHANGED_ASSOC) {
-		mt7601u_mcu_calibrate(dev, MT7601U_CAL_DPD, dev->curr_temp);
+		mt7601u_mcu_calibrate(dev, MCU_CAL_DPD, dev->curr_temp);
 
 		mt7601u_rxdc_cal(dev);
 	}

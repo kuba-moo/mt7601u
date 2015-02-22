@@ -228,11 +228,11 @@ static int mt7601u_set_bw_filter(struct mt7601u_dev *dev, bool cal)
 		filter |= 0x00100;
 
 	/* TX */
-	ret = mt7601u_mcu_calibrate(dev, MT7601U_CAL_BW, filter | 1);
+	ret = mt7601u_mcu_calibrate(dev, MCU_CAL_BW, filter | 1);
 	if (ret)
 		return ret;
 	/* RX */
-	return mt7601u_mcu_calibrate(dev, MT7601U_CAL_BW, filter);
+	return mt7601u_mcu_calibrate(dev, MCU_CAL_BW, filter);
 }
 
 static int mt7601u_update_bbp_temp_table_after_set_bw(struct mt7601u_dev *dev)
@@ -718,8 +718,7 @@ static int mt7601u_temp_comp(struct mt7601u_dev *dev, bool on)
 	if (temp - dev->dpd_temp > 450 || temp - dev->dpd_temp < -450) {
 		dev->dpd_temp = temp;
 
-		ret = mt7601u_mcu_calibrate(dev, MT7601U_CAL_DPD,
-					    dev->dpd_temp);
+		ret = mt7601u_mcu_calibrate(dev, MCU_CAL_DPD, dev->dpd_temp);
 		if (ret)
 			return ret;
 
@@ -1130,7 +1129,7 @@ static int mt7601u_init_cal(struct mt7601u_dev *dev)
 
 	mac_ctrl = mt7601u_rr(dev, MT_MAC_SYS_CTRL);
 
-	ret = mt7601u_mcu_calibrate(dev, MT7601U_CAL_R, 0);
+	ret = mt7601u_mcu_calibrate(dev, MCU_CAL_R, 0);
 	if (ret)
 		return ret;
 
@@ -1143,7 +1142,7 @@ static int mt7601u_init_cal(struct mt7601u_dev *dev)
 		return ret;
 	msleep(2);
 
-	ret = mt7601u_mcu_calibrate(dev, MT7601U_CAL_TXDCOC, 0);
+	ret = mt7601u_mcu_calibrate(dev, MCU_CAL_TXDCOC, 0);
 	if (ret)
 		return ret;
 
@@ -1152,16 +1151,16 @@ static int mt7601u_init_cal(struct mt7601u_dev *dev)
 	ret = mt7601u_set_bw_filter(dev, true);
 	if (ret)
 		return ret;
-	ret = mt7601u_mcu_calibrate(dev, MT7601U_CAL_LOFT, 0);
+	ret = mt7601u_mcu_calibrate(dev, MCU_CAL_LOFT, 0);
 	if (ret)
 		return ret;
-	ret = mt7601u_mcu_calibrate(dev, MT7601U_CAL_TXIQ, 0);
+	ret = mt7601u_mcu_calibrate(dev, MCU_CAL_TXIQ, 0);
 	if (ret)
 		return ret;
-	ret = mt7601u_mcu_calibrate(dev, MT7601U_CAL_RXIQ, 0);
+	ret = mt7601u_mcu_calibrate(dev, MCU_CAL_RXIQ, 0);
 	if (ret)
 		return ret;
-	ret = mt7601u_mcu_calibrate(dev, MT7601U_CAL_DPD, dev->dpd_temp);
+	ret = mt7601u_mcu_calibrate(dev, MCU_CAL_DPD, dev->dpd_temp);
 	if (ret)
 		return ret;
 
