@@ -19,7 +19,7 @@
 static int
 mt76_reg_set(void *data, u64 val)
 {
-	struct mt76_dev *dev = data;
+	struct mt7601u_dev *dev = data;
 
 	mt76_wr(dev, dev->debugfs_reg, val);
 	return 0;
@@ -28,7 +28,7 @@ mt76_reg_set(void *data, u64 val)
 static int
 mt76_reg_get(void *data, u64 *val)
 {
-	struct mt76_dev *dev = data;
+	struct mt7601u_dev *dev = data;
 
 	*val = mt76_rr(dev, dev->debugfs_reg);
 	return 0;
@@ -40,7 +40,7 @@ DEFINE_SIMPLE_ATTRIBUTE(fops_regval, mt76_reg_get, mt76_reg_set, "0x%08llx\n");
 static int
 mt76_ampdu_stat_read(struct seq_file *file, void *data)
 {
-	struct mt76_dev *dev = file->private;
+	struct mt7601u_dev *dev = file->private;
 	int i, j;
 
 #define stat_printf(grp, off, name)  seq_printf(file, #name ":\t%llu\n", dev->stats.grp[off])
@@ -95,7 +95,7 @@ static const struct file_operations fops_ampdu_stat = {
 static int
 mt7601u_eeprom_param_read(struct seq_file *file, void *data)
 {
-	struct mt76_dev *dev = file->private;
+	struct mt7601u_dev *dev = file->private;
 	struct mt7601u_rate_power *rp = &dev->ee->power_rate_table;
 	struct tssi_data *td = &dev->ee->tssi_data;
 	int i;
@@ -150,7 +150,7 @@ static const struct file_operations fops_eeprom_param = {
 	.release = single_release,
 };
 
-void mt7601u_init_debugfs(struct mt76_dev *dev)
+void mt7601u_init_debugfs(struct mt7601u_dev *dev)
 {
 	struct dentry *dir;
 

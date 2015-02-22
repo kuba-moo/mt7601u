@@ -135,10 +135,11 @@ struct mt76_tssi_comp {
 	u8 offset1;
 } __packed __aligned(4);
 
-int mt76_mcu_calibrate(struct mt76_dev *dev, enum mcu_calibration type,
+int mt76_mcu_calibrate(struct mt7601u_dev *dev, enum mcu_calibration type,
 		       u32 param);
-int mt76_mcu_tssi_comp(struct mt76_dev *dev, struct mt76_tssi_comp *data);
-int mt76_mcu_init_gain(struct mt76_dev *dev, u8 channel, u32 gain, bool force);
+int mt76_mcu_tssi_comp(struct mt7601u_dev *dev, struct mt76_tssi_comp *data);
+int
+mt76_mcu_init_gain(struct mt7601u_dev *dev, u8 channel, u32 gain, bool force);
 int mt76_mcu_calibration(struct mt7601u_dev *dev,
 			 enum mt7601u_mcu_cal cal, u32 val);
 #endif

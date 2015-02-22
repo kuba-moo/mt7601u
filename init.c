@@ -846,7 +846,7 @@ static struct ieee80211_rate mt76_rates[] = {
 };
 
 static int
-mt76_init_sband(struct mt76_dev *dev, struct ieee80211_supported_band *sband,
+mt76_init_sband(struct mt7601u_dev *dev, struct ieee80211_supported_band *sband,
 		const struct ieee80211_channel *chan, int n_chan,
 		struct ieee80211_rate *rates, int n_rates)
 {
@@ -884,7 +884,7 @@ mt76_init_sband(struct mt76_dev *dev, struct ieee80211_supported_band *sband,
 }
 
 static int
-mt76_init_sband_2g(struct mt76_dev *dev)
+mt76_init_sband_2g(struct mt7601u_dev *dev)
 {
 	dev->sband_2g = devm_kzalloc(dev->dev, sizeof(*dev->sband_2g),
 				     GFP_KERNEL);

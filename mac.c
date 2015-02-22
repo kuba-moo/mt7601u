@@ -71,7 +71,7 @@ mt76_mac_process_tx_rate(struct ieee80211_tx_rate *txrate, u16 rate,
 }
 
 void
-mt76_mac_fill_tx_status(struct mt76_dev *dev, struct ieee80211_tx_info *info,
+mt76_mac_fill_tx_status(struct mt7601u_dev *dev, struct ieee80211_tx_info *info,
 			struct mt76_tx_status *st)
 {
 	struct ieee80211_tx_rate *rate = info->status.rates;
@@ -114,7 +114,7 @@ mt76_mac_fill_tx_status(struct mt76_dev *dev, struct ieee80211_tx_info *info,
 		info->flags |= IEEE80211_TX_STAT_ACK;
 }
 
-u16 mt76_mac_tx_rate_val(struct mt76_dev *dev,
+u16 mt76_mac_tx_rate_val(struct mt7601u_dev *dev,
 			 const struct ieee80211_tx_rate *rate, u8 *nss_val)
 {
 	u16 rateval;
@@ -156,7 +156,7 @@ u16 mt76_mac_tx_rate_val(struct mt76_dev *dev,
 	return rateval;
 }
 
-void mt76_mac_wcid_set_rate(struct mt76_dev *dev, struct mt76_wcid *wcid,
+void mt76_mac_wcid_set_rate(struct mt7601u_dev *dev, struct mt76_wcid *wcid,
 			    const struct ieee80211_tx_rate *rate)
 {
 	unsigned long flags;
@@ -301,8 +301,8 @@ static void mt7601u_check_mac_err(struct mt7601u_dev *dev)
 
 void mt7601u_mac_work(struct work_struct *work)
 {
-	struct mt76_dev *dev = container_of(work, struct mt76_dev,
-					    mac_work.work);
+	struct mt7601u_dev *dev = container_of(work, struct mt7601u_dev,
+					       mac_work.work);
 	struct {
 		u32 addr_base;
 		u32 span;
@@ -352,7 +352,8 @@ void mt7601u_mac_work(struct work_struct *work)
 	ieee80211_queue_delayed_work(dev->hw, &dev->mac_work, 10 * HZ);
 }
 
-void mt7601u_mac_wcid_setup(struct mt76_dev *dev, u8 idx, u8 vif_idx, u8 *mac)
+void
+mt7601u_mac_wcid_setup(struct mt7601u_dev *dev, u8 idx, u8 vif_idx, u8 *mac)
 {
 	u8 zmac[ETH_ALEN] = {};
 	u32 attr;
@@ -368,7 +369,7 @@ void mt7601u_mac_wcid_setup(struct mt76_dev *dev, u8 idx, u8 vif_idx, u8 *mac)
 	mt7601u_addr_wr(dev, MT_WCID_ADDR(idx), zmac);
 }
 
-void mt7601u_mac_set_ampdu_factor(struct mt76_dev *dev,
+void mt7601u_mac_set_ampdu_factor(struct mt7601u_dev *dev,
 				  struct ieee80211_sta_ht_cap *cap)
 {
 	/* TODO: ugly hack - this should be set to max of all the stas
@@ -426,8 +427,8 @@ mt76_mac_process_rate(struct ieee80211_rx_status *status, u16 rate)
 }
 
 static void
-mt7601u_rx_monitor_beacon(struct mt76_dev *dev, struct mt7601u_rxwi *rxwi,
-		       u16 rate)
+mt7601u_rx_monitor_beacon(struct mt7601u_dev *dev, struct mt7601u_rxwi *rxwi,
+			  u16 rate)
 {
 	spin_lock_bh(&dev->last_beacon.lock);
 	dev->last_beacon.freq_off = rxwi->freq_off;
@@ -435,14 +436,15 @@ mt7601u_rx_monitor_beacon(struct mt76_dev *dev, struct mt7601u_rxwi *rxwi,
 	spin_unlock_bh(&dev->last_beacon.lock);
 }
 
-static int mt7601u_rx_is_our_beacon(struct mt76_dev *dev, struct sk_buff *skb)
+static int
+mt7601u_rx_is_our_beacon(struct mt7601u_dev *dev, struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	return ieee80211_is_beacon(hdr->frame_control) &&
 		ether_addr_equal(hdr->addr2, dev->bssid);
 }
 
-int mt76_mac_process_rx(struct mt76_dev *dev, struct sk_buff *skb, void *rxi)
+int mt76_mac_process_rx(struct mt7601u_dev *dev, struct sk_buff *skb, void *rxi)
 {
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
 	struct mt7601u_rxwi *rxwi = rxi;
@@ -506,7 +508,7 @@ mt76_mac_get_key_info(struct ieee80211_key_conf *key, u8 *key_data)
 	}
 }
 
-int mt76_mac_wcid_set_key(struct mt76_dev *dev, u8 idx,
+int mt76_mac_wcid_set_key(struct mt7601u_dev *dev, u8 idx,
 			  struct ieee80211_key_conf *key)
 {
 	enum mt76_cipher_type cipher;
@@ -549,7 +551,7 @@ int mt76_mac_wcid_set_key(struct mt76_dev *dev, u8 idx,
 	return 0;
 }
 
-int mt76_mac_shared_key_setup(struct mt76_dev *dev, u8 vif_idx, u8 key_idx,
+int mt76_mac_shared_key_setup(struct mt7601u_dev *dev, u8 vif_idx, u8 key_idx,
 			      struct ieee80211_key_conf *key)
 {
 	enum mt76_cipher_type cipher;

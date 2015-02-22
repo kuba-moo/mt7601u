@@ -120,7 +120,7 @@ struct mt7601u_eeprom_params {
 	struct reg_channel_bounds reg;
 };
 
-int mt7601u_eeprom_init(struct mt76_dev *dev);
+int mt7601u_eeprom_init(struct mt7601u_dev *dev);
 
 static inline u32 s6_validate(u32 reg)
 {

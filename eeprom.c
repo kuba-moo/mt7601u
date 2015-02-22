@@ -36,7 +36,7 @@ field_validate(u8 val)
 }
 
 static int
-mt7601u_efuse_read(struct mt76_dev *dev, u16 addr, u8 *data,
+mt7601u_efuse_read(struct mt7601u_dev *dev, u16 addr, u8 *data,
 		   enum mt7601u_eeprom_access_modes mode)
 {
 	u32 val;
@@ -71,7 +71,7 @@ mt7601u_efuse_read(struct mt76_dev *dev, u16 addr, u8 *data,
 }
 
 static int
-mt7601u_efuse_physical_size_check(struct mt76_dev *dev)
+mt7601u_efuse_physical_size_check(struct mt7601u_dev *dev)
 {
 	const int map_reads = DIV_ROUND_UP(MT_EFUSE_USAGE_MAP_SIZE, 16);
 	u8 data[map_reads * 16];
@@ -102,7 +102,7 @@ mt7601u_efuse_physical_size_check(struct mt76_dev *dev)
 }
 
 static bool
-mt7601u_has_tssi(struct mt76_dev *dev, u8 *eeprom)
+mt7601u_has_tssi(struct mt7601u_dev *dev, u8 *eeprom)
 {
 	u16 nic_conf1 = get_unaligned_le16(eeprom + MT_EE_NIC_CONF_1);
 
@@ -110,7 +110,7 @@ mt7601u_has_tssi(struct mt76_dev *dev, u8 *eeprom)
 }
 
 static void
-mt7601u_set_chip_cap(struct mt76_dev *dev, u8 *eeprom)
+mt7601u_set_chip_cap(struct mt7601u_dev *dev, u8 *eeprom)
 {
 	u16 nic_conf0 = get_unaligned_le16(eeprom + MT_EE_NIC_CONF_0);
 	u16 nic_conf1 = get_unaligned_le16(eeprom + MT_EE_NIC_CONF_1);
@@ -135,7 +135,7 @@ mt7601u_set_chip_cap(struct mt76_dev *dev, u8 *eeprom)
 }
 
 static int
-mt7601u_set_macaddr(struct mt76_dev *dev, const u8 *eeprom)
+mt7601u_set_macaddr(struct mt7601u_dev *dev, const u8 *eeprom)
 {
 	const void *src = eeprom + MT_EE_MAC_ADDR;
 
@@ -155,8 +155,8 @@ mt7601u_set_macaddr(struct mt76_dev *dev, const u8 *eeprom)
 	return 0;
 }
 
-static void
-mt7601u_set_channel_target_power(struct mt76_dev *dev, u8 *eeprom, u8 max_pwr)
+static void mt7601u_set_channel_target_power(struct mt7601u_dev *dev,
+					     u8 *eeprom, u8 max_pwr)
 {
 	u8 trgt_pwr = eeprom[MT_EE_TX_TSSI_TARGET_POWER];
 
@@ -170,7 +170,7 @@ mt7601u_set_channel_target_power(struct mt76_dev *dev, u8 *eeprom, u8 max_pwr)
 }
 
 static void
-mt7601u_set_channel_power(struct mt76_dev *dev, u8 *eeprom)
+mt7601u_set_channel_power(struct mt7601u_dev *dev, u8 *eeprom)
 {
 	u32 i, val;
 	u8 max_pwr;
@@ -194,7 +194,7 @@ mt7601u_set_channel_power(struct mt76_dev *dev, u8 *eeprom)
 }
 
 static void
-mt7601u_set_country_reg(struct mt76_dev *dev, u8 *eeprom)
+mt7601u_set_country_reg(struct mt7601u_dev *dev, u8 *eeprom)
 {
 	/* Note: - region 31 is not valid for mt7601u (see rtmp_init.c)
 	 *	 - comments in rtmp_def.h are incorrect (see rt_channel.c)
@@ -230,7 +230,7 @@ mt7601u_set_country_reg(struct mt76_dev *dev, u8 *eeprom)
 }
 
 static void
-mt7601u_set_rf_freq_off(struct mt76_dev *dev, u8 *eeprom)
+mt7601u_set_rf_freq_off(struct mt7601u_dev *dev, u8 *eeprom)
 {
 	u8 comp;
 
@@ -244,7 +244,7 @@ mt7601u_set_rf_freq_off(struct mt76_dev *dev, u8 *eeprom)
 }
 
 static void
-mt7601u_set_rssi_offset(struct mt76_dev *dev, u8 *eeprom)
+mt7601u_set_rssi_offset(struct mt7601u_dev *dev, u8 *eeprom)
 {
 	int i;
 	s8 *rssi_offset = dev->ee->rssi_offset;
@@ -262,7 +262,7 @@ mt7601u_set_rssi_offset(struct mt76_dev *dev, u8 *eeprom)
 }
 
 static void
-mt7601u_extra_power_over_mac(struct mt76_dev *dev)
+mt7601u_extra_power_over_mac(struct mt7601u_dev *dev)
 {
 	u32 val;
 
@@ -284,7 +284,7 @@ mt7601u_set_power_rate(struct power_per_rate *rate, s8 delta, u8 value)
 }
 
 static void
-mt7601u_save_power_rate(struct mt76_dev *dev, s8 delta, u32 val, int i)
+mt7601u_save_power_rate(struct mt7601u_dev *dev, s8 delta, u32 val, int i)
 {
 	struct mt7601u_rate_power *t = &dev->ee->power_rate_table;
 
@@ -330,7 +330,7 @@ get_delta(u8 val)
 }
 
 static void
-mt7601u_config_tx_power_per_rate(struct mt76_dev *dev, u8 *eeprom)
+mt7601u_config_tx_power_per_rate(struct mt7601u_dev *dev, u8 *eeprom)
 {
 	u32 val;
 	s8 bw40_delta;
@@ -366,7 +366,7 @@ mt7601u_init_tssi_params(struct mt7601u_dev *dev, u8 *eeprom)
 }
 
 int
-mt7601u_eeprom_init(struct mt76_dev *dev)
+mt7601u_eeprom_init(struct mt7601u_dev *dev)
 {
 	u8 *eeprom;
 	int i, ret;

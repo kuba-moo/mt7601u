@@ -199,45 +199,47 @@ mt76_skb_tx_info(struct sk_buff *skb)
 	return (void *) info->status.status_driver_data;
 }
 
-int mt76_mac_reset(struct mt76_dev *dev, bool hard);
-int mt76_mac_start(struct mt76_dev *dev);
-void mt76_mac_stop(struct mt76_dev *dev, bool force);
-void mt76_mac_resume(struct mt76_dev *dev);
-void mt76_mac_set_bssid(struct mt76_dev *dev, u8 idx, const u8 *addr);
+int mt76_mac_reset(struct mt7601u_dev *dev, bool hard);
+int mt76_mac_start(struct mt7601u_dev *dev);
+void mt76_mac_stop(struct mt7601u_dev *dev, bool force);
+void mt76_mac_resume(struct mt7601u_dev *dev);
+void mt76_mac_set_bssid(struct mt7601u_dev *dev, u8 idx, const u8 *addr);
 
-int mt76_mac_process_rx(struct mt76_dev *dev, struct sk_buff *skb, void *rxwi);
-void mt76_mac_write_txwi(struct mt76_dev *dev, struct mt76_txwi *txwi,
+int
+mt76_mac_process_rx(struct mt7601u_dev *dev, struct sk_buff *skb, void *rxwi);
+void mt76_mac_write_txwi(struct mt7601u_dev *dev, struct mt76_txwi *txwi,
 			 struct sk_buff *skb, struct mt76_wcid *wcid,
 			 struct ieee80211_sta *sta);
-void mt76_mac_wcid_setup(struct mt76_dev *dev, u8 idx, u8 vif_idx, u8 *mac);
-int mt76_mac_wcid_set_key(struct mt76_dev *dev, u8 idx,
+void mt76_mac_wcid_setup(struct mt7601u_dev *dev, u8 idx, u8 vif_idx, u8 *mac);
+int mt76_mac_wcid_set_key(struct mt7601u_dev *dev, u8 idx,
 			  struct ieee80211_key_conf *key);
-void mt76_mac_wcid_set_rate(struct mt76_dev *dev, struct mt76_wcid *wcid,
+void mt76_mac_wcid_set_rate(struct mt7601u_dev *dev, struct mt76_wcid *wcid,
 			    const struct ieee80211_tx_rate *rate);
 
-int mt76_mac_shared_key_setup(struct mt76_dev *dev, u8 vif_idx, u8 key_idx,
+int mt76_mac_shared_key_setup(struct mt7601u_dev *dev, u8 vif_idx, u8 key_idx,
 			      struct ieee80211_key_conf *key);
 
 int mt76_insert_hdr_pad(struct sk_buff *skb);
 void mt76_remove_hdr_pad(struct sk_buff *skb);
-int mt76_mac_skb_tx_overhead(struct mt76_dev *dev, struct sk_buff *skb);
+int mt76_mac_skb_tx_overhead(struct mt7601u_dev *dev, struct sk_buff *skb);
 
-int mt76_mac_set_beacon(struct mt76_dev *dev, u8 vif_idx, struct sk_buff *skb);
-void mt76_mac_set_beacon_enable(struct mt76_dev *dev, u8 vif_idx, bool val);
+int
+mt76_mac_set_beacon(struct mt7601u_dev *dev, u8 vif_idx, struct sk_buff *skb);
+void mt76_mac_set_beacon_enable(struct mt7601u_dev *dev, u8 vif_idx, bool val);
 
-void mt76_mac_queue_txdone(struct mt76_dev *dev, struct sk_buff *skb,
+void mt76_mac_queue_txdone(struct mt7601u_dev *dev, struct sk_buff *skb,
 			   struct mt76_txwi *txwi);
 
-void mt76_mac_poll_tx_status(struct mt76_dev *dev, bool irq);
-void mt76_mac_process_tx_status_fifo(struct mt76_dev *dev);
+void mt76_mac_poll_tx_status(struct mt7601u_dev *dev, bool irq);
+void mt76_mac_process_tx_status_fifo(struct mt7601u_dev *dev);
 
 void mt76_mac_work(struct work_struct *work);
 
-u16 mt76_mac_tx_rate_val(struct mt76_dev *dev,
+u16 mt76_mac_tx_rate_val(struct mt7601u_dev *dev,
 			 const struct ieee80211_tx_rate *rate, u8 *nss_val);
 struct mt76_tx_status
 mt7601u_mac_fetch_tx_status(struct mt7601u_dev *dev);
 void
-mt76_mac_fill_tx_status(struct mt76_dev *dev, struct ieee80211_tx_info *info,
+mt76_mac_fill_tx_status(struct mt7601u_dev *dev, struct ieee80211_tx_info *info,
 			struct mt76_tx_status *st);
 #endif

@@ -156,7 +156,7 @@ out:
 }
 /* TODO: dunno about the ret val. */
 static int
-mt7601u_rf_rmw(struct mt76_dev *dev, u8 bank, u8 offset, u8 mask, u8 val)
+mt7601u_rf_rmw(struct mt7601u_dev *dev, u8 bank, u8 offset, u8 mask, u8 val)
 {
 	int ret;
 	ret = mt7601u_rf_rr(dev, bank, offset);
@@ -167,18 +167,19 @@ mt7601u_rf_rmw(struct mt76_dev *dev, u8 bank, u8 offset, u8 mask, u8 val)
 	return val;
 }
 
-static int mt7601u_rf_set(struct mt76_dev *dev, u8 bank, u8 offset, u8 val)
+static int mt7601u_rf_set(struct mt7601u_dev *dev, u8 bank, u8 offset, u8 val)
 {
 	return mt7601u_rf_rmw(dev, bank, offset, 0, val);
 }
 
-static int mt7601u_rf_clear(struct mt76_dev *dev, u8 bank, u8 offset, u8 mask)
+static int
+mt7601u_rf_clear(struct mt7601u_dev *dev, u8 bank, u8 offset, u8 mask)
 {
 	return mt7601u_rf_rmw(dev, bank, offset, mask, 0);
 }
 
-int
-mt7601u_phy_get_rssi(struct mt76_dev *dev, struct mt7601u_rxwi *rxwi, u16 rate)
+int mt7601u_phy_get_rssi(struct mt7601u_dev *dev,
+			 struct mt7601u_rxwi *rxwi, u16 rate)
 {
 	static const s8 lna[2][2][3] = {
 		/* main LNA */ {
@@ -207,7 +208,7 @@ mt7601u_phy_get_rssi(struct mt76_dev *dev, struct mt7601u_rxwi *rxwi, u16 rate)
 	return val;
 }
 
-static void mt7601u_vco_cal(struct mt76_dev *dev)
+static void mt7601u_vco_cal(struct mt7601u_dev *dev)
 {
 	/* TODO: these two can be combined in an andes write */
 	mt7601u_rf_wr(dev, 0, 4, 0x0a);
@@ -216,7 +217,7 @@ static void mt7601u_vco_cal(struct mt76_dev *dev)
 	msleep(2);
 }
 
-static int mt7601u_set_bw_filter(struct mt76_dev *dev, bool cal)
+static int mt7601u_set_bw_filter(struct mt7601u_dev *dev, bool cal)
 {
 	u32 filter = 0;
 	int ret;
@@ -281,7 +282,7 @@ static int mt7601u_update_bbp_temp_table_after_set_bw(struct mt7601u_dev *dev)
 	return mt7601u_write_reg_pairs(dev, MT7601U_MCU_MEMMAP_BBP, t, n);
 }
 
-static int __mt7601u_phy_set_channel(struct mt76_dev *dev,
+static int __mt7601u_phy_set_channel(struct mt7601u_dev *dev,
 				     struct cfg80211_chan_def *chandef)
 {
 	struct ieee80211_channel *chan = chandef->chan;
@@ -404,7 +405,7 @@ static int __mt7601u_phy_set_channel(struct mt76_dev *dev,
 	return 0;
 }
 
-int mt7601u_phy_set_channel(struct mt76_dev *dev,
+int mt7601u_phy_set_channel(struct mt7601u_dev *dev,
 			    struct cfg80211_chan_def *chandef)
 {
 	int ret;
@@ -1000,7 +1001,7 @@ static void mt7601u_agc_tune(struct mt7601u_dev *dev)
 
 static void mt7601u_phy_calibrate(struct work_struct *work)
 {
-	struct mt76_dev *dev = container_of(work, struct mt76_dev,
+	struct mt7601u_dev *dev = container_of(work, struct mt7601u_dev,
 					    cal_work.work);
 
 	mt7601u_agc_tune(dev);
@@ -1093,7 +1094,7 @@ static void mt7601u_phy_freq_cal(struct work_struct *work)
 	spin_unlock_bh(&dev->last_beacon.lock);
 }
 
-void mt7601u_phy_freq_cal_onoff(struct mt76_dev *dev,
+void mt7601u_phy_freq_cal_onoff(struct mt7601u_dev *dev,
 				struct ieee80211_bss_conf *info)
 {
 	/* TODO: support multi-bssid? */

@@ -28,7 +28,7 @@ int mt7601u_wait_asic_ready(struct mt7601u_dev *dev)
 	return -EIO;
 }
 
-bool mt76_poll(struct mt76_dev *dev, u32 offset, u32 mask, u32 val,
+bool mt76_poll(struct mt7601u_dev *dev, u32 offset, u32 mask, u32 val,
 	       int timeout)
 {
 	u32 cur;
@@ -50,7 +50,7 @@ bool mt76_poll(struct mt76_dev *dev, u32 offset, u32 mask, u32 val,
 	return false;
 }
 
-bool mt76_poll_msec(struct mt76_dev *dev, u32 offset, u32 mask, u32 val,
+bool mt76_poll_msec(struct mt7601u_dev *dev, u32 offset, u32 mask, u32 val,
 		    int timeout)
 {
 	u32 cur;

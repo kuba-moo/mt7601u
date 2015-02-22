@@ -24,7 +24,7 @@
 
 static int mt7601u_start(struct ieee80211_hw *hw)
 {
-	struct mt76_dev *dev = hw->priv;
+	struct mt7601u_dev *dev = hw->priv;
 	int ret;
 
 	mutex_lock(&dev->mutex);
@@ -44,7 +44,7 @@ out:
 
 static void mt7601u_stop(struct ieee80211_hw *hw)
 {
-	struct mt76_dev *dev = hw->priv;
+	struct mt7601u_dev *dev = hw->priv;
 
 	mutex_lock(&dev->mutex);
 
@@ -83,7 +83,7 @@ static void mt7601u_remove_interface(struct ieee80211_hw *hw,
 
 static int mt7601u_config(struct ieee80211_hw *hw, u32 changed)
 {
-	struct mt76_dev *dev = hw->priv;
+	struct mt7601u_dev *dev = hw->priv;
 	int ret = 0;
 
 	printk("%s %08x ch:%d\n", __func__, changed,
@@ -117,7 +117,7 @@ static void
 mt76_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
 		      unsigned int *total_flags, u64 multicast)
 {
-	struct mt76_dev *dev = hw->priv;
+	struct mt7601u_dev *dev = hw->priv;
 	u32 flags = 0;
 
 #define MT76_FILTER(_flag, _hw) do { \
@@ -154,7 +154,7 @@ static void
 mt7601u_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			 struct ieee80211_bss_conf *info, u32 changed)
 {
-	struct mt76_dev *dev = hw->priv;
+	struct mt7601u_dev *dev = hw->priv;
 
 	/* 00004000 - BSS_CHANGED_IDLE
 	 * 000000e0 - BSS_CHANGED_BASIC_RATES
@@ -228,7 +228,7 @@ mt7601u_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 }
 
 static int
-mt76_wcid_alloc(struct mt76_dev *dev)
+mt76_wcid_alloc(struct mt7601u_dev *dev)
 {
 	int i, idx = 0;
 
@@ -253,7 +253,7 @@ static int
 mt7601u_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		struct ieee80211_sta *sta)
 {
-	struct mt76_dev *dev = hw->priv;
+	struct mt7601u_dev *dev = hw->priv;
 	struct mt76_sta *msta = (struct mt76_sta *) sta->drv_priv;
 	struct mt76_vif *mvif = (struct mt76_vif *) vif->drv_priv;
 	int ret = 0;
@@ -290,7 +290,7 @@ static int
 mt7601u_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		   struct ieee80211_sta *sta)
 {
-	struct mt76_dev *dev = hw->priv;
+	struct mt7601u_dev *dev = hw->priv;
 	struct mt76_sta *msta = (struct mt76_sta *) sta->drv_priv;
 	int idx = msta->wcid.idx;
 
@@ -318,7 +318,7 @@ mt7601u_sw_scan(struct ieee80211_hw *hw,
 		struct ieee80211_vif *vif,
 		const u8 *mac_addr)
 {
-	struct mt76_dev *dev = hw->priv;
+	struct mt7601u_dev *dev = hw->priv;
 
 	mt7601u_agc_save(dev); /* TODO: this will race with agc tune */
 	set_bit(MT7601U_STATE_SCANNING, &dev->state);
@@ -328,7 +328,7 @@ static void
 mt7601u_sw_scan_complete(struct ieee80211_hw *hw,
 			 struct ieee80211_vif *vif)
 {
-	struct mt76_dev *dev = hw->priv;
+	struct mt7601u_dev *dev = hw->priv;
 
 	mt7601u_agc_restore(dev);
 	clear_bit(MT7601U_STATE_SCANNING, &dev->state);
@@ -339,7 +339,7 @@ mt7601u_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		struct ieee80211_vif *vif, struct ieee80211_sta *sta,
 		struct ieee80211_key_conf *key)
 {
-	struct mt76_dev *dev = hw->priv;
+	struct mt7601u_dev *dev = hw->priv;
 	struct mt76_vif *mvif = (struct mt76_vif *) vif->drv_priv;
 	struct mt76_sta *msta = sta ? (struct mt76_sta *) sta->drv_priv : NULL;
 	struct mt76_wcid *wcid = msta ? &msta->wcid : &mvif->group_wcid;
@@ -374,7 +374,7 @@ mt7601u_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 static int mt7601u_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 {
-	struct mt76_dev *dev = hw->priv;
+	struct mt7601u_dev *dev = hw->priv;
 
 	printk("%s\n", __func__);
 
@@ -389,7 +389,7 @@ mt76_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		  enum ieee80211_ampdu_mlme_action action,
 		  struct ieee80211_sta *sta, u16 tid, u16 *ssn, u8 buf_size)
 {
-	struct mt76_dev *dev = hw->priv;
+	struct mt7601u_dev *dev = hw->priv;
 	struct mt76_sta *msta = (struct mt76_sta *) sta->drv_priv;
 
 	WARN_ON(msta->wcid.idx > GROUP_WCID(0));
@@ -423,7 +423,7 @@ static void
 mt76_sta_rate_tbl_update(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			 struct ieee80211_sta *sta)
 {
-	struct mt76_dev *dev = hw->priv;
+	struct mt7601u_dev *dev = hw->priv;
 	struct mt76_sta *msta = (struct mt76_sta *) sta->drv_priv;
 	struct ieee80211_sta_rates *rates;
 	struct ieee80211_tx_rate rate = {};
