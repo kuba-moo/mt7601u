@@ -71,7 +71,6 @@ struct mt7601u_mcu {
 
 	u8 msg_seq;
 
-#define MCU_RESP_URB_SIZE	1024
 	struct mt7601u_dma_buf resp;
 	struct completion resp_cmpl;
 };
@@ -338,12 +337,6 @@ u8 mt7601u_bbp_rmc(struct mt7601u_dev *dev, u8 offset, u8 mask, u8 val);
 
 int mt7601u_mac_start(struct mt7601u_dev *dev);
 void mt7601u_mac_stop(struct mt7601u_dev *dev);
-
-/* MCU */
-int mt7601u_mcu_init(struct mt7601u_dev *dev);
-int mt7601u_mcu_cmd_init(struct mt7601u_dev *dev);
-void mt7601u_mcu_cmd_deinit(struct mt7601u_dev *dev);
-int mt7601u_mcu_tssi_read_kick(struct mt7601u_dev *dev, int use_hvga);
 
 /* DMA */
 void mt7601u_complete_urb(struct urb *urb);

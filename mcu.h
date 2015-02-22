@@ -33,6 +33,8 @@
 #define MT_MCU_MEMMAP_BBP		0x40000000
 #define MT_MCU_MEMMAP_RF		0x80000000
 
+#define MCU_RESP_URB_SIZE		1024
+
 enum mcu_cmd {
 	CMD_FUN_SET_OP = 1,
 	CMD_LOAD_CR = 2,
@@ -82,7 +84,12 @@ enum mcu_calibrate {
 	MCU_CAL_TXDCOC,
 };
 
+int mt7601u_mcu_init(struct mt7601u_dev *dev);
+int mt7601u_mcu_cmd_init(struct mt7601u_dev *dev);
+void mt7601u_mcu_cmd_deinit(struct mt7601u_dev *dev);
+
 int
 mt7601u_mcu_calibrate(struct mt7601u_dev *dev, enum mcu_calibrate cal, u32 val);
+int mt7601u_mcu_tssi_read_kick(struct mt7601u_dev *dev, int use_hvga);
 
 #endif
