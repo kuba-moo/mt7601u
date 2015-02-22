@@ -182,11 +182,11 @@ static int mt76_mcu_function_select(struct mt7601u_dev *dev,
 {
 	struct sk_buff *skb;
 	struct {
-	    __le32 id;
-	    __le32 value;
+		__le32 id;
+		__le32 value;
 	} __packed __aligned(4) msg = {
-	    .id = cpu_to_le32(func),
-	    .value = cpu_to_le32(val),
+		.id = cpu_to_le32(func),
+		.value = cpu_to_le32(val),
 	};
 
 	skb = mt7601u_mcu_msg_alloc(dev, &msg, sizeof(msg));
@@ -217,11 +217,11 @@ int mt7601u_mcu_calibrate(struct mt7601u_dev *dev,
 {
 	struct sk_buff *skb;
 	struct {
-	    __le32 id;
-	    __le32 value;
+		__le32 id;
+		__le32 value;
 	} __packed __aligned(4) msg = {
-	    .id = cpu_to_le32(cal),
-	    .value = cpu_to_le32(val),
+		.id = cpu_to_le32(cal),
+		.value = cpu_to_le32(val),
 	};
 
 	skb = mt7601u_mcu_msg_alloc(dev, &msg, sizeof(msg));
@@ -359,7 +359,7 @@ __mt7601u_dma_fw(struct mt7601u_dev *dev, struct usb_device *usb_dev,
 	ret = mt7601u_vendor_single_wr(dev, VEND_WRITE_FCE,
 				       MT_FCE_DMA_LEN, len << 16);
 	if (ret)
-				return ret;
+		return ret;
 
 	usb_fill_bulk_urb(urb, usb_dev, cmd_pipe, buf, sizeof(reg) + len + 4,
 			  mt7601u_complete_urb, &cmpl);
@@ -508,7 +508,7 @@ static int mt7601u_load_firmware(struct mt7601u_dev *dev)
 
 	val = le16_to_cpu(hdr->fw_ver);
 	printk("Firmware Version: %d.%d.%02d\n",
-		(val >> 12) & 0xf, (val >> 8) & 0xf, val & 0xf);
+	       (val >> 12) & 0xf, (val >> 8) & 0xf, val & 0xf);
 
 	val = le16_to_cpu(hdr->build_ver);
 	printk("Build: %x\n", val);
