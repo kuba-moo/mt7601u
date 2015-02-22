@@ -13,7 +13,6 @@
  */
 
 #include "mt7601u.h"
-#include "mcu.h"
 #include "trace.h"
 #include <linux/etherdevice.h>
 

@@ -14,7 +14,6 @@
 
 #include "mt7601u.h"
 #include "dma.h" /* TODO: take the dma code out of here! */
-#include "mcu.h"
 #include "trace.h"
 
 enum mt76_txq_id { /* TODO: is this mapping correct? */
