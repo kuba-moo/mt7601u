@@ -569,7 +569,9 @@ static void mt7601u_mac_stop_hw(struct mt7601u_dev *dev)
 	if (!mt76_poll(dev, MT_MAC_STATUS, MT_MAC_STATUS_TX, 0, 1000))
 		printk("Error: MAC TX did not stop!\n");
 
-	mt76_clear(dev, MT_MAC_SYS_CTRL, MT_MAC_SYS_CTRL_ENABLE_RX);
+	/* TODO: don't disable TX when going into PSM. */
+	mt76_clear(dev, MT_MAC_SYS_CTRL, MT_MAC_SYS_CTRL_ENABLE_RX |
+					 MT_MAC_SYS_CTRL_ENABLE_TX);
 
 	/* Page count on RxQ */
 	ok = 0;
@@ -598,7 +600,8 @@ static void mt7601u_mac_stop_hw(struct mt7601u_dev *dev)
 void mt7601u_mac_stop(struct mt7601u_dev *dev)
 {
 	mt7601u_mac_stop_hw(dev);
-	flush_workqueue(dev->stat_wq);
+	flush_delayed_work(&dev->stat_work);
+	cancel_delayed_work_sync(&dev->stat_work);
 }
 
 static void mt7601u_stop_hardware(struct mt7601u_dev *dev)

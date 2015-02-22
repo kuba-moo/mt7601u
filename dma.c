@@ -346,6 +346,9 @@ static void mt7601u_complete_tx(struct urb *urb)
 	q->start = (q->start + 1) % q->entries;
 	q->used--;
 
+	if (urb->status)
+		goto out;
+
 	__set_bit(MT7601U_STATE_MORE_STATS, &dev->state);
 	if (!__test_and_set_bit(MT7601U_STATE_READING_STATS, &dev->state))
 		queue_delayed_work(dev->stat_wq, &dev->stat_work,

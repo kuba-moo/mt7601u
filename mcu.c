@@ -110,8 +110,8 @@ static int mt7601u_mcu_wait_resp(struct mt7601u_dev *dev, u8 seq)
 	while (i--) {
 		if (!wait_for_completion_timeout(&dev->mcu.resp_cmpl,
 						 msecs_to_jiffies(300))) {
-			printk("Error: %s t/o\n", __func__);
-			return -ETIMEDOUT;
+			dev_warn(dev->dev, "Warning: %s retrying\n", __func__);
+			continue;
 		}
 
 		/* Make copies of important data before reusing the urb */
@@ -130,6 +130,7 @@ static int mt7601u_mcu_wait_resp(struct mt7601u_dev *dev, u8 seq)
 		       seq, MT76_GET(MT_RX_FCE_INFO_CMD_SEQ, rxfce));
 	}
 
+	dev_err(dev->dev, "Error: %s timed out\n", __func__);
 	return -ETIMEDOUT;
 }
 
@@ -201,8 +202,11 @@ int mt7601u_mcu_tssi_read_kick(struct mt7601u_dev *dev, int use_hvga)
 
 	ret = mt76_mcu_function_select(dev, ATOMIC_TSSI_SETTING,
 				       use_hvga);
-	if (ret)
+	if (ret) {
+		dev_warn(dev->dev, "Warning: MCU TSSI read kick failed\n");
 		return ret;
+	}
+
 	dev->tssi_read_trig = true;
 
 	return 0;
