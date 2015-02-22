@@ -42,16 +42,23 @@ static u8 mt7601u_tx_pktid_enc(struct mt7601u_dev *dev, u8 rate, bool is_probe)
 	return encoded;
 }
 
-void mt7601u_tx_status(struct mt7601u_dev *dev, struct sk_buff *skb)
+static void mt7601u_tx_skb_remove_dma_overhead(struct sk_buff *skb,
+					       struct ieee80211_tx_info *info)
 {
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	int pkt_len = (unsigned long)info->status.status_driver_data[0];
 
 	skb_pull(skb, sizeof(struct mt76_txwi) + 4);
 	if (ieee80211_get_hdrlen_from_skb(skb) % 4)
 		mt76_remove_hdr_pad(skb);
 
-	/* TODO: trim the tail */
-	/* TODO: figure out what's going on with mac80211 and IV */
+	skb_trim(skb, pkt_len);
+}
+
+void mt7601u_tx_status(struct mt7601u_dev *dev, struct sk_buff *skb)
+{
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+
+	mt7601u_tx_skb_remove_dma_overhead(skb, info);
 
 	ieee80211_tx_info_clear_status(info);
 	info->status.rates[0].idx = -1;
@@ -137,6 +144,10 @@ void mt7601u_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 	unsigned long flags;
 	bool is_probe;
 
+	BUILD_BUG_ON(ARRAY_SIZE(info->status.status_driver_data) < 1);
+	info->status.status_driver_data[0] = (void *)(unsigned long)pkt_len;
+
+	/* TODO: should pkt_len include hdr_pad? */
 	if (mt7601u_skb_rooms(dev, skb) || mt76_insert_hdr_pad(skb)) {
 		ieee80211_free_txskb(dev->hw, skb);
 		return;
