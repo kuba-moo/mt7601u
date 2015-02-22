@@ -793,30 +793,6 @@ struct mt7601u_dev *mt7601u_alloc_device(struct device *pdev)
 	return dev;
 }
 
-static const struct ieee80211_iface_limit if_limits[] = {
-	{
-		.max = 1,
-		.types = BIT(NL80211_IFTYPE_ADHOC)
-	}, {
-		.max = 8,
-		.types = BIT(NL80211_IFTYPE_STATION) |
-#ifdef CONFIG_MAC80211_MESH
-			 BIT(NL80211_IFTYPE_MESH_POINT) |
-#endif
-			 BIT(NL80211_IFTYPE_AP)
-	 },
-};
-
-static const struct ieee80211_iface_combination if_comb[] = {
-	{
-		.limits = if_limits,
-		.n_limits = ARRAY_SIZE(if_limits),
-		.max_interfaces = 8,
-		.num_different_channels = 1,
-		.beacon_int_infra_match = true,
-	}
-};
-
 #define CHAN2G(_idx, _freq) {			\
 	.band = IEEE80211_BAND_2GHZ,		\
 	.center_freq = (_freq),			\
@@ -966,16 +942,7 @@ int mt7601u_register_device(struct mt7601u_dev *dev)
 
 	wiphy->features |= NL80211_FEATURE_ACTIVE_MONITOR;
 
-	wiphy->interface_modes =
-		BIT(NL80211_IFTYPE_STATION) |
-		BIT(NL80211_IFTYPE_AP) |
-#ifdef CONFIG_MAC80211_MESH
-		BIT(NL80211_IFTYPE_MESH_POINT) |
-#endif
-		BIT(NL80211_IFTYPE_ADHOC);
-
-	wiphy->iface_combinations = if_comb;
-	wiphy->n_iface_combinations = ARRAY_SIZE(if_comb);
+	wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
 
 	ret = mt76_init_sband_2g(dev);
 	if (ret)
