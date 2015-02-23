@@ -30,6 +30,11 @@ static inline int firmware_running(struct mt7601u_dev *dev)
 	return mt7601u_rr(dev, MT_MCU_COM_REG0) == 1;
 }
 
+static inline void skb_put_le32(struct sk_buff *skb, u32 val)
+{
+	put_unaligned_le32(val, skb_put(skb, 4));
+}
+
 static inline void mt7601u_dma_skb_wrap_cmd(struct sk_buff *skb,
 					    u8 seq, enum mcu_cmd cmd)
 {
@@ -89,9 +94,9 @@ static int mt7601u_mcu_wait_resp(struct mt7601u_dev *dev, u8 seq)
 		    MT76_GET(MT_RX_FCE_INFO_EVT_TYPE, rxfce) == CMD_DONE)
 			return 0;
 
-		printk("Error: MCU response evt:%hhx seq:%hhx-%hhx!\n",
-		       MT76_GET(MT_RX_FCE_INFO_EVT_TYPE, rxfce),
-		       seq, MT76_GET(MT_RX_FCE_INFO_CMD_SEQ, rxfce));
+		dev_err(dev->dev, "Error: MCU resp evt:%hhx seq:%hhx-%hhx!\n",
+			MT76_GET(MT_RX_FCE_INFO_EVT_TYPE, rxfce),
+			seq, MT76_GET(MT_RX_FCE_INFO_CMD_SEQ, rxfce));
 	}
 
 	dev_err(dev->dev, "Error: %s timed out\n", __func__);
@@ -103,7 +108,8 @@ mt7601u_mcu_msg_send(struct mt7601u_dev *dev, struct sk_buff *skb,
 		     enum mcu_cmd cmd, bool wait_resp)
 {
 	struct usb_device *usb_dev = mt7601u_to_usb_dev(dev);
-	unsigned cmd_pipe = usb_sndbulkpipe(usb_dev, dev->out_eps[0]);
+	unsigned cmd_pipe = usb_sndbulkpipe(usb_dev,
+					    dev->out_eps[MT_EP_OUT_INBAND_CMD]);
 	int sent, ret;
 	u8 seq = 0;
 
@@ -119,17 +125,17 @@ mt7601u_mcu_msg_send(struct mt7601u_dev *dev, struct sk_buff *skb,
 	mt7601u_dma_skb_wrap_cmd(skb, seq, cmd);
 
 	if (dev->mcu.resp_cmpl.done)
-		printk("Error: MCU response pre-completed!\n");
+		dev_err(dev->dev, "Error: MCU response pre-completed!\n");
 
 	trace_mt_mcu_msg_send_cs(dev, skb, wait_resp);
 	trace_submit_urb_sync(cmd_pipe, skb->len);
 	ret = usb_bulk_msg(usb_dev, cmd_pipe, skb->data, skb->len, &sent, 500);
 	if (ret) {
-		printk("Error: %s failed %d\n", __func__, ret);
+		dev_err(dev->dev, "Error: send MCU cmd failed:%d\n", ret);
 		goto out;
 	}
 	if (sent != skb->len)
-		printk("Error: %s sent != skb->len\n", __func__);
+		dev_err(dev->dev, "Error: %s sent != skb->len\n", __func__);
 
 	if (wait_resp)
 		ret = mt7601u_mcu_wait_resp(dev, seq);
@@ -141,8 +147,8 @@ out:
 	return ret;
 }
 
-static int mt76_mcu_function_select(struct mt7601u_dev *dev,
-				    enum mcu_function func, u32 val)
+static int mt7601u_mcu_function_select(struct mt7601u_dev *dev,
+				       enum mcu_function func, u32 val)
 {
 	struct sk_buff *skb;
 	struct {
@@ -164,8 +170,8 @@ int mt7601u_mcu_tssi_read_kick(struct mt7601u_dev *dev, int use_hvga)
 	if (!test_bit(MT7601U_STATE_MCU_RUNNING, &dev->state))
 		return 0;
 
-	ret = mt76_mcu_function_select(dev, ATOMIC_TSSI_SETTING,
-				       use_hvga);
+	ret = mt7601u_mcu_function_select(dev, ATOMIC_TSSI_SETTING,
+					  use_hvga);
 	if (ret) {
 		dev_warn(dev->dev, "Warning: MCU TSSI read kick failed\n");
 		return ret;
@@ -176,8 +182,8 @@ int mt7601u_mcu_tssi_read_kick(struct mt7601u_dev *dev, int use_hvga)
 	return 0;
 }
 
-int mt7601u_mcu_calibrate(struct mt7601u_dev *dev,
-			  enum mcu_calibrate cal, u32 val)
+int
+mt7601u_mcu_calibrate(struct mt7601u_dev *dev, enum mcu_calibrate cal, u32 val)
 {
 	struct sk_buff *skb;
 	struct {
@@ -192,26 +198,21 @@ int mt7601u_mcu_calibrate(struct mt7601u_dev *dev,
 	return mt7601u_mcu_msg_send(dev, skb, CMD_CALIBRATION_OP, true);
 }
 
-static void skb_put_le32(struct sk_buff *skb, u32 val)
-{
-	__le32 data = cpu_to_le32(val);
-	memcpy(skb_put(skb, 4), &data, sizeof(data));
-}
-
 int mt7601u_write_reg_pairs(struct mt7601u_dev *dev, u32 base,
 			    const struct mt76_reg_pair *data, int n)
 {
-	const u32 max_vals_per_cmd = INBAND_PACKET_MAX_LEN/8;
+	const int max_vals_per_cmd = INBAND_PACKET_MAX_LEN/8;
 	struct sk_buff *skb;
-	u32 cnt;
-	int ret, i;
+	int cnt, i, ret;
 
 	if (!n)
 		return 0;
 
-	cnt = min_t(u32, max_vals_per_cmd, n);
+	cnt = min(max_vals_per_cmd, n);
 
 	skb = alloc_skb(cnt * 8 + MT_DMA_HDR_LEN + 4, GFP_KERNEL);
+	if (!skb)
+		return -ENOMEM;
 	skb_reserve(skb, MT_DMA_HDR_LEN);
 
 	for (i = 0; i < cnt; i++) {
@@ -226,23 +227,21 @@ int mt7601u_write_reg_pairs(struct mt7601u_dev *dev, u32 base,
 	return mt7601u_write_reg_pairs(dev, base, data + cnt, n - cnt);
 }
 
-/* TODO: if no one ever uses this to things other than zeroing -
- *       pass the repeated values directly here. And perhaps rename
- *       to *_init_* afterwards. */
 int mt7601u_burst_write_regs(struct mt7601u_dev *dev, u32 offset,
 			     const u32 *data, int n)
 {
-	const u32 max_regs_per_cmd = INBAND_PACKET_MAX_LEN/4 - 1;
+	const int max_regs_per_cmd = INBAND_PACKET_MAX_LEN/4 - 1;
 	struct sk_buff *skb;
-	u32 cnt;
-	int ret, i;
+	int cnt, i, ret;
 
 	if (!n)
 		return 0;
 
-	cnt = min_t(u32, max_regs_per_cmd, n);
+	cnt = min(max_regs_per_cmd, n);
 
 	skb = alloc_skb(cnt * 4 + MT_DMA_HDR_LEN + 4, GFP_KERNEL);
+	if (!skb)
+		return -ENOMEM;
 	skb_reserve(skb, MT_DMA_HDR_LEN);
 
 	skb_put_le32(skb, MT_MCU_MEMMAP_WLAN + offset);
