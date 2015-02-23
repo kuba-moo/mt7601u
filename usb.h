@@ -54,4 +54,7 @@ static inline bool mt7601u_urb_has_error(struct urb *urb)
 		urb->status != -ESHUTDOWN;
 }
 
+int mt7601u_usb_submit_buf(struct mt7601u_dev *dev, int dir, int ep_idx,
+			   struct mt7601u_dma_buf *buf, gfp_t gfp,
+			   usb_complete_t complete_fn, void *context);
 #endif

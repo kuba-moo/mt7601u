@@ -63,23 +63,6 @@ mt7601u_mcu_msg_alloc(struct mt7601u_dev *dev, const void *data, int len)
 	return skb;
 }
 
-/* TODO: this is a candidate for submit_urb_generic */
-static int mt7601u_mcu_resp_submit(struct mt7601u_dev *dev)
-{
-	struct usb_device *usb_dev = mt7601u_to_usb_dev(dev);
-	unsigned recv_pipe = usb_rcvbulkpipe(usb_dev,
-					     dev->in_eps[MT_EP_IN_CMD_RESP]);
-
-	usb_fill_bulk_urb(dev->mcu.resp.urb, usb_dev, recv_pipe,
-			  dev->mcu.resp.buf, MCU_RESP_URB_SIZE,
-			  mt7601u_complete_urb, &dev->mcu.resp_cmpl);
-	dev->mcu.resp.urb->transfer_dma = dev->mcu.resp.dma;
-	dev->mcu.resp.urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
-
-	trace_submit_urb(dev->mcu.resp.urb);
-	return usb_submit_urb(dev->mcu.resp.urb, GFP_KERNEL);
-}
-
 static int mt7601u_mcu_wait_resp(struct mt7601u_dev *dev, u8 seq)
 {
 	u32 rxfce;
@@ -95,7 +78,10 @@ static int mt7601u_mcu_wait_resp(struct mt7601u_dev *dev, u8 seq)
 		/* Make copies of important data before reusing the urb */
 		rxfce = get_unaligned_le32(dev->mcu.resp.buf);
 
-		ret = mt7601u_mcu_resp_submit(dev);
+		ret = mt7601u_usb_submit_buf(dev, USB_DIR_IN, MT_EP_IN_CMD_RESP,
+					     &dev->mcu.resp, GFP_KERNEL,
+					     mt7601u_complete_urb,
+					     &dev->mcu.resp_cmpl);
 		if (ret)
 			return ret;
 
@@ -594,7 +580,9 @@ int mt7601u_mcu_cmd_init(struct mt7601u_dev *dev)
 	ret = mt7601u_mcu_resp_init(dev);
 	if (ret)
 		return ret;
-	ret = mt7601u_mcu_resp_submit(dev);
+	ret = mt7601u_usb_submit_buf(dev, USB_DIR_IN, MT_EP_IN_CMD_RESP,
+				     &dev->mcu.resp, GFP_KERNEL,
+				     mt7601u_complete_urb, &dev->mcu.resp_cmpl);
 	if (ret) {
 		mt7601u_mcu_resp_deinit(dev);
 		return ret;

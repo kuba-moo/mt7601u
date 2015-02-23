@@ -136,26 +136,6 @@ out:
 	return buf;
 }
 
-static int mt7601u_rx_submit_entry(struct mt7601u_dev *dev,
-				   struct mt7601u_dma_buf *e, gfp_t gfp)
-{
-	struct usb_device *usb_dev = mt7601u_to_usb_dev(dev);
-	unsigned recv_pipe = usb_rcvbulkpipe(usb_dev, dev->in_eps[MT_EP_IN_PKT_RX]);
-	int ret;
-
-	usb_fill_bulk_urb(e->urb, usb_dev, recv_pipe, e->buf, e->len,
-			  mt7601u_complete_rx, dev);
-	e->urb->transfer_dma = e->dma;
-	e->urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
-
-	trace_submit_urb(e->urb);
-	ret = usb_submit_urb(e->urb, gfp);
-	if (ret)
-		printk("Error: rx submit URB failed: %d\n", ret);
-
-	return ret;
-}
-
 static int mt7601u_rx_entry_check(struct mt7601u_dma_buf *e)
 {
 	if (!e->urb->status)
@@ -177,7 +157,8 @@ static void mt7601u_rx_tasklet(unsigned long data)
 			continue;
 
 		mt7601u_rx_process_entry(dev, e);
-		mt7601u_rx_submit_entry(dev, e, GFP_ATOMIC);
+		mt7601u_usb_submit_buf(dev, USB_DIR_IN, MT_EP_IN_PKT_RX, e,
+				       GFP_ATOMIC, mt7601u_complete_rx, dev);
 	}
 }
 
@@ -222,7 +203,9 @@ static int mt7601u_submit_rx(struct mt7601u_dev *dev)
 	int i, ret;
 
 	for (i = 0; i < dev->rx_q.entries; i++) {
-		ret = mt7601u_rx_submit_entry(dev, &dev->rx_q.e[i], GFP_KERNEL);
+		ret = mt7601u_usb_submit_buf(dev, USB_DIR_IN, MT_EP_IN_PKT_RX,
+					     &dev->rx_q.e[i], GFP_KERNEL,
+					     mt7601u_complete_rx, dev);
 		if (ret)
 			return ret;
 	}
