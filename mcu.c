@@ -280,10 +280,8 @@ get_string(const char *data, int len)
 	return buf;
 }
 
-#define MCU_IVB_SIZE		0x40
 #define MCU_URB_MAX_PAYLOAD	0x3800
 #define MCU_URB_SIZE		0x3900 /* TODO change to calc */
-#define MCU_DLM_OFFSET		0x80000
 
 static int
 __mt7601u_dma_fw(struct mt7601u_dev *dev, struct usb_device *usb_dev,
@@ -382,40 +380,37 @@ static int mt7601u_upload_firmware(struct mt7601u_dev *dev,
 				   const struct mt76_fw_header *hdr)
 {
 	struct usb_device *usb_dev = mt7601u_to_usb_dev(dev);
-	struct urb *urb;
-	void *buf, *ivb;
-	dma_addr_t dma;
+	struct mt7601u_dma_buf dma_buf;
+	void *ivb;
 	u32 ilm_len, dlm_len;
 	int i, ret;
 
-	/* TODO: all the explicit dma is probably superfluous */
-	urb = usb_alloc_urb(0, GFP_KERNEL);
-	buf = usb_alloc_coherent(usb_dev, MCU_URB_SIZE, GFP_KERNEL, &dma);
-	ivb = kmalloc(MCU_IVB_SIZE, GFP_KERNEL);
-	if (!urb || !buf || !ivb) {
+	ivb = kmalloc(MT_MCU_IVB_SIZE, GFP_KERNEL);
+	if (!ivb || mt7601u_usb_alloc_buf(dev, MCU_URB_SIZE, &dma_buf)) {
 		ret = -ENOMEM;
 		goto error;
 	}
 
 	ilm_len = le32_to_cpu(hdr->ilm_len);
-	trace_printk("loading FW - ILM %u\n", ilm_len);
-	ret = mt7601u_dma_fw(dev, usb_dev, urb,
-			     fw->data + sizeof(*hdr) + MCU_IVB_SIZE,
-			     ilm_len - MCU_IVB_SIZE, buf, dma, MCU_IVB_SIZE);
+	dev_dbg(dev->dev, "loading FW - ILM %u\n", ilm_len);
+	ret = mt7601u_dma_fw(dev, usb_dev, dma_buf.urb,
+			     fw->data + sizeof(*hdr) + MT_MCU_IVB_SIZE,
+			     ilm_len - MT_MCU_IVB_SIZE, dma_buf.buf,
+			     dma_buf.dma, MT_MCU_IVB_SIZE);
 	if (ret)
 		goto error;
 
 	dlm_len = le32_to_cpu(hdr->dlm_len);
-	trace_printk("loading FW - DLM %u\n", dlm_len);
-	ret = mt7601u_dma_fw(dev, usb_dev, urb,
-			     fw->data + sizeof(*hdr) + ilm_len,
-			     dlm_len, buf, dma, MCU_DLM_OFFSET);
+	dev_dbg(dev->dev, "loading FW - DLM %u\n", dlm_len);
+	ret = mt7601u_dma_fw(dev, usb_dev, dma_buf.urb,
+			     fw->data + sizeof(*hdr) + ilm_len, dlm_len,
+			     dma_buf.buf, dma_buf.dma, MT_MCU_DLM_OFFSET);
 	if (ret)
 		goto error;
 
-	memcpy(ivb, fw->data + sizeof(*hdr), MCU_IVB_SIZE);
+	memcpy(ivb, fw->data + sizeof(*hdr), MT_MCU_IVB_SIZE);
 	ret = mt7601u_vendor_request(dev, VEND_DEV_MODE, USB_DIR_OUT,
-				     0x12, 0, ivb, MCU_IVB_SIZE);
+				     0x12, 0, ivb, MT_MCU_IVB_SIZE);
 	if (ret < 0)
 		goto error;
 	ret = 0;
@@ -427,12 +422,12 @@ static int mt7601u_upload_firmware(struct mt7601u_dev *dev,
 		goto error;
 	}
 
-	trace_printk("Firmware running!\n");
+	dev_dbg(dev->dev, "Firmware running!\n");
 
 error:
 	kfree(ivb);
-	usb_free_coherent(usb_dev, MCU_URB_SIZE, buf, dma);
-	usb_free_urb(urb);
+	usb_free_coherent(usb_dev, MCU_URB_SIZE, dma_buf.buf, dma_buf.dma);
+	usb_free_urb(dma_buf.urb);
 
 	return ret;
 }
@@ -459,7 +454,7 @@ static int mt7601u_load_firmware(struct mt7601u_dev *dev)
 
 	hdr = (const struct mt76_fw_header *) fw->data;
 
-	if (le32_to_cpu(hdr->ilm_len) <= MCU_IVB_SIZE)
+	if (le32_to_cpu(hdr->ilm_len) <= MT_MCU_IVB_SIZE)
 		goto err_inv_fw;
 
 	len = sizeof(*hdr);
@@ -572,7 +567,7 @@ int mt7601u_mcu_cmd_init(struct mt7601u_dev *dev)
 {
 	int ret;
 
-	ret = mt76_mcu_function_select(dev, Q_SELECT, 1);
+	ret = mt7601u_mcu_function_select(dev, Q_SELECT, 1);
 	if (ret)
 		return ret;
 

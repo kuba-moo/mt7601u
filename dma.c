@@ -225,18 +225,6 @@ static void mt7601u_free_rx(struct mt7601u_dev *dev)
 	}
 }
 
-static int
-mt7601u_alloc_rx_entry(struct mt7601u_dev *dev, struct mt7601u_dma_buf *e)
-{
-	struct usb_device *usb_dev = mt7601u_to_usb_dev(dev);
-
-	e->len = RX_URB_SIZE;
-	e->urb = usb_alloc_urb(0, GFP_KERNEL);
-	e->buf = usb_alloc_coherent(usb_dev, e->len, GFP_KERNEL, &e->dma);
-
-	return !e->urb || !e->buf;
-}
-
 static int mt7601u_alloc_rx(struct mt7601u_dev *dev)
 {
 	int i;
@@ -246,7 +234,7 @@ static int mt7601u_alloc_rx(struct mt7601u_dev *dev)
 	dev->rx_q.entries = N_RX_ENTRIES;
 
 	for (i = 0; i < N_RX_ENTRIES; i++)
-		if (mt7601u_alloc_rx_entry(dev, &dev->rx_q.e[i]))
+		if (mt7601u_usb_alloc_buf(dev, RX_URB_SIZE, &dev->rx_q.e[i]))
 			return -ENOMEM;
 
 	return 0;

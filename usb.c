@@ -25,6 +25,18 @@ static struct usb_device_id mt7601u_device_table[] = {
 	{ 0, }
 };
 
+bool mt7601u_usb_alloc_buf(struct mt7601u_dev *dev, size_t len,
+			   struct mt7601u_dma_buf *buf)
+{
+	struct usb_device *usb_dev = mt7601u_to_usb_dev(dev);
+
+	buf->len = len;
+	buf->urb = usb_alloc_urb(0, GFP_KERNEL);
+	buf->buf = usb_alloc_coherent(usb_dev, buf->len, GFP_KERNEL, &buf->dma);
+
+	return !buf->urb || !buf->buf;
+}
+
 int mt7601u_usb_submit_buf(struct mt7601u_dev *dev, int dir, int ep_idx,
 			   struct mt7601u_dma_buf *buf, gfp_t gfp,
 			   usb_complete_t complete_fn, void *context)
