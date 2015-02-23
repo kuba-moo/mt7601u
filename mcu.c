@@ -375,7 +375,7 @@ static int mt7601u_upload_firmware(struct mt7601u_dev *dev,
 	u32 ilm_len, dlm_len;
 	int i, ret;
 
-	ivb = kmalloc(MT_MCU_IVB_SIZE, GFP_KERNEL);
+	ivb = kmemdup(fw->ivb, MT_MCU_IVB_SIZE, GFP_KERNEL);
 	if (!ivb || mt7601u_usb_alloc_buf(dev, MCU_URB_SIZE, &dma_buf)) {
 		ret = -ENOMEM;
 		goto error;
@@ -397,7 +397,6 @@ static int mt7601u_upload_firmware(struct mt7601u_dev *dev,
 	if (ret)
 		goto error;
 
-	memcpy(ivb, fw->ivb, MT_MCU_IVB_SIZE);
 	ret = mt7601u_vendor_request(dev, VEND_DEV_MODE, USB_DIR_OUT,
 				     0x12, 0, ivb, MT_MCU_IVB_SIZE);
 	if (ret < 0)
