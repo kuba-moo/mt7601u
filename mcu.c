@@ -324,34 +324,26 @@ static int __mt7601u_dma_fw(struct mt7601u_dev *dev,
 
 static int
 mt7601u_dma_fw(struct mt7601u_dev *dev, struct mt7601u_dma_buf *dma_buf,
-	       const void *data, u32 len, u32 dst_addr)
+	       const void *data, int len, u32 dst_addr)
 {
-	u32 done, size, val;
-	int i, ret;
+	int n, ret;
 
-	for (done = 0; done < len; done += size) {
-		size = min_t(u32, MCU_FW_URB_MAX_PAYLOAD, len - done);
+	if (len == 0)
+		return 0;
 
-		ret = __mt7601u_dma_fw(dev, dma_buf, data + done,
-				       size, dst_addr + done);
-		if (ret)
-			return ret;
+	n = min(MCU_FW_URB_MAX_PAYLOAD, len);
+	ret = __mt7601u_dma_fw(dev, dma_buf, data, n, dst_addr);
+	if (ret)
+		return ret;
 
-		for (i = 100; i; i--) {
-			val = mt7601u_rr(dev, MT_MCU_COM_REG1);
-			if (val & BIT(31))
-				break;
-			msleep(5);
-		}
-		if (!i)
-			return -ETIMEDOUT;
-	}
+	if (!mt76_poll_msec(dev, MT_MCU_COM_REG1, BIT(31), BIT(31), 500))
+		return -ETIMEDOUT;
 
-	return 0;
+	return mt7601u_dma_fw(dev, dma_buf, data + n, len - n, dst_addr + n);
 }
 
-static int mt7601u_upload_firmware(struct mt7601u_dev *dev,
-				   const struct mt76_fw *fw)
+static int
+mt7601u_upload_firmware(struct mt7601u_dev *dev, const struct mt76_fw *fw)
 {
 	struct mt7601u_dma_buf dma_buf;
 	void *ivb;
