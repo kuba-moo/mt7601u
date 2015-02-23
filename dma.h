@@ -74,12 +74,18 @@ static inline void mt7601u_dma_skb_wrap(struct sk_buff *skb,
 	u32 info;
 	int pad_len;
 
+	/* Buffer layout:
+	 *	|    4B     |  xfer len  |  4B  |      pad       |
+	 *	| RX/TXINFO |  pkt/cmd   | zero | zero pad to 4B |
+	 *
+	 * length field of *XINFO should be set to 'xfer len'.
+	 */
+
 	info = flags |
 		MT76_SET(MT_TXD_INFO_LEN, round_up(skb->len, 4)) |
 		MT76_SET(MT_TXD_INFO_D_PORT, d_port) |
 		MT76_SET(MT_TXD_INFO_TYPE, type);
 
-	/* Add descriptor and padding - they are not counted into length */
 	put_unaligned_le32(info, skb_push(skb, sizeof(info)));
 	pad_len = round_up(skb->len, 4) - skb->len + 4;
 	memset(skb_put(skb, pad_len), 0, pad_len);

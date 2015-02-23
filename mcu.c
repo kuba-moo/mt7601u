@@ -284,16 +284,6 @@ __mt7601u_dma_fw(struct mt7601u_dev *dev, const struct mt7601u_dma_buf *dma_buf,
 	u32 val;
 	int ret;
 
-	/* Buffer layout:
-	 *   |   4B   |  xfer len  |  4B  |    pad    |
-	 *   | TXINFO | data/instr | zero | pad to 4B |
-	 *
-	 * lenghts:
-	 *   txinfo: len
-	 *   vend_req: (len + pad) << 16
-	 *   urb: txinfo + len + 4 + pad
-	 */
-
 	/* TODO: make this skb so we can use common func */
 	reg = cpu_to_le32(MT76_SET(MT_TXD_INFO_TYPE, DMA_PACKET) |
 			  MT76_SET(MT_TXD_INFO_D_PORT, CPU_TX_PORT) |
