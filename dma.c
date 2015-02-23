@@ -215,14 +215,10 @@ static int mt7601u_submit_rx(struct mt7601u_dev *dev)
 
 static void mt7601u_free_rx(struct mt7601u_dev *dev)
 {
-	struct usb_device *usb_dev = mt7601u_to_usb_dev(dev);
 	int i;
 
-	for (i = 0; i < dev->rx_q.entries; i++) {
-		usb_free_urb(dev->rx_q.e[i].urb);
-		usb_free_coherent(usb_dev, dev->rx_q.e[i].len,
-				  dev->rx_q.e[i].buf, dev->rx_q.e[i].dma);
-	}
+	for (i = 0; i < dev->rx_q.entries; i++)
+		mt7601u_usb_free_buf(dev, &dev->rx_q.e[i]);
 }
 
 static int mt7601u_alloc_rx(struct mt7601u_dev *dev)

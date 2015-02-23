@@ -37,6 +37,14 @@ bool mt7601u_usb_alloc_buf(struct mt7601u_dev *dev, size_t len,
 	return !buf->urb || !buf->buf;
 }
 
+void mt7601u_usb_free_buf(struct mt7601u_dev *dev, struct mt7601u_dma_buf *buf)
+{
+	struct usb_device *usb_dev = mt7601u_to_usb_dev(dev);
+
+	usb_free_coherent(usb_dev, buf->len, buf->buf, buf->dma);
+	usb_free_urb(buf->urb);
+}
+
 int mt7601u_usb_submit_buf(struct mt7601u_dev *dev, int dir, int ep_idx,
 			   struct mt7601u_dma_buf *buf, gfp_t gfp,
 			   usb_complete_t complete_fn, void *context)

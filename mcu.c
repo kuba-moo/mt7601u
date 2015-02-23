@@ -414,8 +414,7 @@ static int mt7601u_upload_firmware(struct mt7601u_dev *dev,
 
 error:
 	kfree(ivb);
-	usb_free_coherent(usb_dev, MCU_URB_SIZE, dma_buf.buf, dma_buf.dma);
-	usb_free_urb(dma_buf.urb);
+	mt7601u_usb_free_buf(dev, &dma_buf);
 
 	return ret;
 }
