@@ -256,9 +256,6 @@ int mt7601u_burst_write_regs(struct mt7601u_dev *dev, u32 offset,
 					data + cnt, n - cnt);
 }
 
-/**************************************
- ***            FIRMWARE            ***
- **************************************/
 struct mt76_fw_header {
 	__le32 ilm_len;
 	__le32 dlm_len;
@@ -268,17 +265,11 @@ struct mt76_fw_header {
 	char build_time[16];
 };
 
-static const char *
-get_string(const char *data, int len)
-{
-	static char buf[17];
-
-	BUG_ON(len >= sizeof(buf));
-	memcpy(buf, data, len);
-	buf[len] = 0;
-
-	return buf;
-}
+struct mt76_fw {
+	struct mt76_fw_header hdr;
+	u8 ivb[MT_MCU_IVB_SIZE];
+	u8 ilm[];
+};
 
 #define MCU_URB_MAX_PAYLOAD	0x3800
 #define MCU_URB_SIZE		0x3900 /* TODO change to calc */
@@ -376,8 +367,7 @@ mt7601u_dma_fw(struct mt7601u_dev *dev, struct usb_device *usb_dev,
 }
 
 static int mt7601u_upload_firmware(struct mt7601u_dev *dev,
-				   const struct firmware *fw,
-				   const struct mt76_fw_header *hdr)
+				   const struct mt76_fw *fw)
 {
 	struct usb_device *usb_dev = mt7601u_to_usb_dev(dev);
 	struct mt7601u_dma_buf dma_buf;
@@ -391,24 +381,23 @@ static int mt7601u_upload_firmware(struct mt7601u_dev *dev,
 		goto error;
 	}
 
-	ilm_len = le32_to_cpu(hdr->ilm_len);
-	dev_dbg(dev->dev, "loading FW - ILM %u\n", ilm_len);
-	ret = mt7601u_dma_fw(dev, usb_dev, dma_buf.urb,
-			     fw->data + sizeof(*hdr) + MT_MCU_IVB_SIZE,
-			     ilm_len - MT_MCU_IVB_SIZE, dma_buf.buf,
-			     dma_buf.dma, MT_MCU_IVB_SIZE);
+	ilm_len = le32_to_cpu(fw->hdr.ilm_len) - MT_MCU_IVB_SIZE;
+	dev_dbg(dev->dev, "loading FW - ILM %u + IVB %u\n",
+		ilm_len, MT_MCU_IVB_SIZE);
+	ret = mt7601u_dma_fw(dev, usb_dev, dma_buf.urb, fw->ilm, ilm_len,
+			     dma_buf.buf, dma_buf.dma, MT_MCU_IVB_SIZE);
 	if (ret)
 		goto error;
 
-	dlm_len = le32_to_cpu(hdr->dlm_len);
+	dlm_len = le32_to_cpu(fw->hdr.dlm_len);
 	dev_dbg(dev->dev, "loading FW - DLM %u\n", dlm_len);
 	ret = mt7601u_dma_fw(dev, usb_dev, dma_buf.urb,
-			     fw->data + sizeof(*hdr) + ilm_len, dlm_len,
+			     fw->ilm + ilm_len, dlm_len,
 			     dma_buf.buf, dma_buf.dma, MT_MCU_DLM_OFFSET);
 	if (ret)
 		goto error;
 
-	memcpy(ivb, fw->data + sizeof(*hdr), MT_MCU_IVB_SIZE);
+	memcpy(ivb, fw->ivb, MT_MCU_IVB_SIZE);
 	ret = mt7601u_vendor_request(dev, VEND_DEV_MODE, USB_DIR_OUT,
 				     0x12, 0, ivb, MT_MCU_IVB_SIZE);
 	if (ret < 0)
@@ -470,7 +459,7 @@ static int mt7601u_load_firmware(struct mt7601u_dev *dev)
 
 	val = le16_to_cpu(hdr->build_ver);
 	printk("Build: %x\n", val);
-	printk("Build Time: %16s\n", get_string(hdr->build_time, 16));
+	printk("Build Time: %16s\n", hdr->build_time);
 
 	len = le32_to_cpu(hdr->ilm_len);
 
@@ -510,7 +499,7 @@ static int mt7601u_load_firmware(struct mt7601u_dev *dev)
 	/* FCE skip_fs_en */
 	mt7601u_wr(dev, MT_FCE_SKIP_FS, 3);
 
-	ret = mt7601u_upload_firmware(dev, fw, hdr);
+	ret = mt7601u_upload_firmware(dev, (const struct mt76_fw *)fw->data);
 
 	release_firmware(fw);
 
