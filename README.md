@@ -22,10 +22,8 @@ $ make
 Now when you connect your device a new network interface should be created. Something like this should appear in your kernel logs:
 
 ```
-[ 5515.098424] ASIC revision: 76010001  MAC revision: 76010500
-[ 5515.100954] Firmware Version: 0.1.00
-[ 5515.101015] Build: 7640
-[ 5515.101063] Build Time: 201302052146____
+[ 5515.098424] mt7601u 1-6:1.0: ASIC revision: 76010001  MAC revision: 76010500
+[ 5515.100954] mt7601u 1-6:1.0: Firmware Version: 0.1.00 Build: 7640 Build time: 201302052146____
 [ 5515.466817] mt7601u 1-6:1.0: Warning: unsupported EEPROM version 0d
 [ 5515.466876] mt7601u 1-6:1.0: EEPROM ver:0d fae:00
 [ 5515.467561] mt7601u 1-6:1.0: EEPROM country region 01 (channels 1-13)
