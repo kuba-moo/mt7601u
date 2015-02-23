@@ -275,12 +275,11 @@ struct mt76_fw {
 #define MCU_URB_SIZE		0x3900 /* TODO change to calc */
 
 static int
-__mt7601u_dma_fw(struct mt7601u_dev *dev, struct mt7601u_dma_buf *dma_buf,
+__mt7601u_dma_fw(struct mt7601u_dev *dev, const struct mt7601u_dma_buf *dma_buf,
 		 const void *data, u32 len, u32 dst_addr)
 {
 	DECLARE_COMPLETION_ONSTACK(cmpl);
-	struct usb_device *usb_dev = mt7601u_to_usb_dev(dev);
-	unsigned cmd_pipe = usb_sndbulkpipe(usb_dev, dev->out_eps[0]);
+	struct mt7601u_dma_buf buf = *dma_buf; /* we need to fake length */
 	__le32 reg;
 	u32 val;
 	int ret;
@@ -299,9 +298,9 @@ __mt7601u_dma_fw(struct mt7601u_dev *dev, struct mt7601u_dma_buf *dma_buf,
 	reg = cpu_to_le32(MT76_SET(MT_TXD_INFO_TYPE, DMA_PACKET) |
 			  MT76_SET(MT_TXD_INFO_D_PORT, CPU_TX_PORT) |
 			  MT76_SET(MT_TXD_INFO_LEN, len));
-	memcpy(dma_buf->buf, &reg, sizeof(reg));
-	memcpy(dma_buf->buf + sizeof(reg), data, len);
-	memset(dma_buf->buf + sizeof(reg) + len, 0, 8);
+	memcpy(buf.buf, &reg, sizeof(reg));
+	memcpy(buf.buf + sizeof(reg), data, len);
+	memset(buf.buf + sizeof(reg) + len, 0, 8);
 
 	ret = mt7601u_vendor_single_wr(dev, VEND_WRITE_FCE,
 				       MT_FCE_DMA_ADDR, dst_addr);
@@ -313,19 +312,15 @@ __mt7601u_dma_fw(struct mt7601u_dev *dev, struct mt7601u_dma_buf *dma_buf,
 	if (ret)
 		return ret;
 
-	usb_fill_bulk_urb(dma_buf->urb, usb_dev, cmd_pipe, dma_buf->buf,
-			  sizeof(reg) + len + 4, mt7601u_complete_urb, &cmpl);
-	dma_buf->urb->transfer_dma = dma_buf->dma;
-	dma_buf->urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
-	trace_submit_urb(dma_buf->urb);
-	ret = usb_submit_urb(dma_buf->urb, GFP_KERNEL);
-	if (ret) {
-		printk("Submit urb failed %d\n", ret);
+	buf.len = MT_DMA_HDR_LEN + len + 4;
+	ret = mt7601u_usb_submit_buf(dev, USB_DIR_OUT, MT_EP_OUT_INBAND_CMD,
+				     &buf, GFP_KERNEL,
+				     mt7601u_complete_urb, &cmpl);
+	if (ret)
 		return ret;
-	}
 
 	if (!wait_for_completion_timeout(&cmpl, msecs_to_jiffies(1000))) {
-		usb_kill_urb(dma_buf->urb);
+		usb_kill_urb(buf.urb);
 		trace_printk("URB timeout\n");
 		return -ETIMEDOUT;
 	}
