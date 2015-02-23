@@ -499,32 +499,6 @@ int mt7601u_mcu_init(struct mt7601u_dev *dev)
 	return 0;
 }
 
-static void mt7601u_mcu_resp_deinit(struct mt7601u_dev *dev)
-{
-	struct usb_device *usb_dev = mt7601u_to_usb_dev(dev);
-
-	usb_free_urb(dev->mcu.resp.urb);
-	usb_free_coherent(usb_dev, MCU_RESP_URB_SIZE,
-			  dev->mcu.resp.buf, dev->mcu.resp.dma);
-}
-
-static int mt7601u_mcu_resp_init(struct mt7601u_dev *dev)
-{
-	struct usb_device *usb_dev = mt7601u_to_usb_dev(dev);
-
-	init_completion(&dev->mcu.resp_cmpl);
-	dev->mcu.resp.len = MCU_RESP_URB_SIZE;
-	dev->mcu.resp.urb = usb_alloc_urb(0, GFP_KERNEL);
-	dev->mcu.resp.buf = usb_alloc_coherent(usb_dev, MCU_RESP_URB_SIZE,
-					       GFP_KERNEL, &dev->mcu.resp.dma);
-	if (!dev->mcu.resp.urb || !dev->mcu.resp.buf) {
-		mt7601u_mcu_resp_deinit(dev);
-		return -ENOMEM;
-	}
-
-	return 0;
-}
-
 int mt7601u_mcu_cmd_init(struct mt7601u_dev *dev)
 {
 	int ret;
@@ -533,14 +507,17 @@ int mt7601u_mcu_cmd_init(struct mt7601u_dev *dev)
 	if (ret)
 		return ret;
 
-	ret = mt7601u_mcu_resp_init(dev);
-	if (ret)
-		return ret;
+	init_completion(&dev->mcu.resp_cmpl);
+	if (mt7601u_usb_alloc_buf(dev, MCU_RESP_URB_SIZE, &dev->mcu.resp)) {
+		mt7601u_usb_free_buf(dev, &dev->mcu.resp);
+		return -ENOMEM;
+	}
+
 	ret = mt7601u_usb_submit_buf(dev, USB_DIR_IN, MT_EP_IN_CMD_RESP,
 				     &dev->mcu.resp, GFP_KERNEL,
 				     mt7601u_complete_urb, &dev->mcu.resp_cmpl);
 	if (ret) {
-		mt7601u_mcu_resp_deinit(dev);
+		mt7601u_usb_free_buf(dev, &dev->mcu.resp);
 		return ret;
 	}
 
@@ -550,5 +527,5 @@ int mt7601u_mcu_cmd_init(struct mt7601u_dev *dev)
 void mt7601u_mcu_cmd_deinit(struct mt7601u_dev *dev)
 {
 	usb_kill_urb(dev->mcu.resp.urb);
-	mt7601u_mcu_resp_deinit(dev);
+	mt7601u_usb_free_buf(dev, &dev->mcu.resp);
 }
