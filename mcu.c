@@ -375,17 +375,17 @@ static int mt7601u_upload_firmware(struct mt7601u_dev *dev,
 	u32 ilm_len, dlm_len;
 	int i, ret;
 
-	ivb = kmemdup(fw->ivb, MT_MCU_IVB_SIZE, GFP_KERNEL);
+	ivb = kmemdup(fw->ivb, sizeof(fw->ivb), GFP_KERNEL);
 	if (!ivb || mt7601u_usb_alloc_buf(dev, MCU_URB_SIZE, &dma_buf)) {
 		ret = -ENOMEM;
 		goto error;
 	}
 
-	ilm_len = le32_to_cpu(fw->hdr.ilm_len) - MT_MCU_IVB_SIZE;
+	ilm_len = le32_to_cpu(fw->hdr.ilm_len) - sizeof(fw->ivb);
 	dev_dbg(dev->dev, "loading FW - ILM %u + IVB %u\n",
-		ilm_len, MT_MCU_IVB_SIZE);
+		ilm_len, sizeof(fw->ivb));
 	ret = mt7601u_dma_fw(dev, usb_dev, dma_buf.urb, fw->ilm, ilm_len,
-			     dma_buf.buf, dma_buf.dma, MT_MCU_IVB_SIZE);
+			     dma_buf.buf, dma_buf.dma, sizeof(fw->ivb));
 	if (ret)
 		goto error;
 
@@ -398,7 +398,7 @@ static int mt7601u_upload_firmware(struct mt7601u_dev *dev,
 		goto error;
 
 	ret = mt7601u_vendor_request(dev, VEND_DEV_MODE, USB_DIR_OUT,
-				     0x12, 0, ivb, MT_MCU_IVB_SIZE);
+				     0x12, 0, ivb, sizeof(fw->ivb));
 	if (ret < 0)
 		goto error;
 	ret = 0;
