@@ -275,11 +275,11 @@ struct mt76_fw {
 #define MCU_URB_SIZE		0x3900 /* TODO change to calc */
 
 static int
-__mt7601u_dma_fw(struct mt7601u_dev *dev, struct usb_device *usb_dev,
-		 struct urb *urb, const void *data, u32 len,
-		 void *buf, dma_addr_t dma, u32 dst_addr)
+__mt7601u_dma_fw(struct mt7601u_dev *dev, struct mt7601u_dma_buf *dma_buf,
+		 const void *data, u32 len, u32 dst_addr)
 {
 	DECLARE_COMPLETION_ONSTACK(cmpl);
+	struct usb_device *usb_dev = mt7601u_to_usb_dev(dev);
 	unsigned cmd_pipe = usb_sndbulkpipe(usb_dev, dev->out_eps[0]);
 	__le32 reg;
 	u32 val;
@@ -299,9 +299,9 @@ __mt7601u_dma_fw(struct mt7601u_dev *dev, struct usb_device *usb_dev,
 	reg = cpu_to_le32(MT76_SET(MT_TXD_INFO_TYPE, DMA_PACKET) |
 			  MT76_SET(MT_TXD_INFO_D_PORT, CPU_TX_PORT) |
 			  MT76_SET(MT_TXD_INFO_LEN, len));
-	memcpy(buf, &reg, sizeof(reg));
-	memcpy(buf + sizeof(reg), data, len);
-	memset(buf + sizeof(reg) + len, 0, 8);
+	memcpy(dma_buf->buf, &reg, sizeof(reg));
+	memcpy(dma_buf->buf + sizeof(reg), data, len);
+	memset(dma_buf->buf + sizeof(reg) + len, 0, 8);
 
 	ret = mt7601u_vendor_single_wr(dev, VEND_WRITE_FCE,
 				       MT_FCE_DMA_ADDR, dst_addr);
@@ -313,19 +313,19 @@ __mt7601u_dma_fw(struct mt7601u_dev *dev, struct usb_device *usb_dev,
 	if (ret)
 		return ret;
 
-	usb_fill_bulk_urb(urb, usb_dev, cmd_pipe, buf, sizeof(reg) + len + 4,
-			  mt7601u_complete_urb, &cmpl);
-	urb->transfer_dma = dma;
-	urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
-	trace_submit_urb(urb);
-	ret = usb_submit_urb(urb, GFP_KERNEL);
+	usb_fill_bulk_urb(dma_buf->urb, usb_dev, cmd_pipe, dma_buf->buf,
+			  sizeof(reg) + len + 4, mt7601u_complete_urb, &cmpl);
+	dma_buf->urb->transfer_dma = dma_buf->dma;
+	dma_buf->urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+	trace_submit_urb(dma_buf->urb);
+	ret = usb_submit_urb(dma_buf->urb, GFP_KERNEL);
 	if (ret) {
 		printk("Submit urb failed %d\n", ret);
 		return ret;
 	}
 
 	if (!wait_for_completion_timeout(&cmpl, msecs_to_jiffies(1000))) {
-		usb_kill_urb(urb);
+		usb_kill_urb(dma_buf->urb);
 		trace_printk("URB timeout\n");
 		return -ETIMEDOUT;
 	}
@@ -338,9 +338,8 @@ __mt7601u_dma_fw(struct mt7601u_dev *dev, struct usb_device *usb_dev,
 }
 
 static int
-mt7601u_dma_fw(struct mt7601u_dev *dev, struct usb_device *usb_dev,
-	       struct urb *urb, const void *data, u32 len,
-	       void *buf, dma_addr_t dma, u32 dst_addr)
+mt7601u_dma_fw(struct mt7601u_dev *dev, struct mt7601u_dma_buf *dma_buf,
+	       const void *data, u32 len, u32 dst_addr)
 {
 	u32 done, size, val;
 	int i, ret;
@@ -348,8 +347,8 @@ mt7601u_dma_fw(struct mt7601u_dev *dev, struct usb_device *usb_dev,
 	for (done = 0; done < len; done += size) {
 		size = min_t(u32, MCU_URB_MAX_PAYLOAD, len - done);
 
-		ret = __mt7601u_dma_fw(dev, usb_dev, urb, data + done, size,
-				       buf, dma, dst_addr + done);
+		ret = __mt7601u_dma_fw(dev, dma_buf, data + done,
+				       size, dst_addr + done);
 		if (ret)
 			return ret;
 
@@ -369,7 +368,6 @@ mt7601u_dma_fw(struct mt7601u_dev *dev, struct usb_device *usb_dev,
 static int mt7601u_upload_firmware(struct mt7601u_dev *dev,
 				   const struct mt76_fw *fw)
 {
-	struct usb_device *usb_dev = mt7601u_to_usb_dev(dev);
 	struct mt7601u_dma_buf dma_buf;
 	void *ivb;
 	u32 ilm_len, dlm_len;
@@ -384,16 +382,14 @@ static int mt7601u_upload_firmware(struct mt7601u_dev *dev,
 	ilm_len = le32_to_cpu(fw->hdr.ilm_len) - sizeof(fw->ivb);
 	dev_dbg(dev->dev, "loading FW - ILM %u + IVB %u\n",
 		ilm_len, sizeof(fw->ivb));
-	ret = mt7601u_dma_fw(dev, usb_dev, dma_buf.urb, fw->ilm, ilm_len,
-			     dma_buf.buf, dma_buf.dma, sizeof(fw->ivb));
+	ret = mt7601u_dma_fw(dev, &dma_buf, fw->ilm, ilm_len, sizeof(fw->ivb));
 	if (ret)
 		goto error;
 
 	dlm_len = le32_to_cpu(fw->hdr.dlm_len);
 	dev_dbg(dev->dev, "loading FW - DLM %u\n", dlm_len);
-	ret = mt7601u_dma_fw(dev, usb_dev, dma_buf.urb,
-			     fw->ilm + ilm_len, dlm_len,
-			     dma_buf.buf, dma_buf.dma, MT_MCU_DLM_OFFSET);
+	ret = mt7601u_dma_fw(dev, &dma_buf, fw->ilm + ilm_len,
+			     dlm_len, MT_MCU_DLM_OFFSET);
 	if (ret)
 		goto error;
 
