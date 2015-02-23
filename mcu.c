@@ -25,6 +25,10 @@
 #include "usb.h"
 #include "trace.h"
 
+#define MCU_FW_URB_MAX_PAYLOAD		0x3800
+#define MCU_FW_URB_SIZE			(MCU_FW_URB_MAX_PAYLOAD + 12)
+#define MCU_RESP_URB_SIZE		1024
+
 static inline int firmware_running(struct mt7601u_dev *dev)
 {
 	return mt7601u_rr(dev, MT_MCU_COM_REG0) == 1;
@@ -271,12 +275,9 @@ struct mt76_fw {
 	u8 ilm[];
 };
 
-#define MCU_URB_MAX_PAYLOAD	0x3800
-#define MCU_URB_SIZE		0x3900 /* TODO change to calc */
-
-static int
-__mt7601u_dma_fw(struct mt7601u_dev *dev, const struct mt7601u_dma_buf *dma_buf,
-		 const void *data, u32 len, u32 dst_addr)
+static int __mt7601u_dma_fw(struct mt7601u_dev *dev,
+			    const struct mt7601u_dma_buf *dma_buf,
+			    const void *data, u32 len, u32 dst_addr)
 {
 	DECLARE_COMPLETION_ONSTACK(cmpl);
 	struct mt7601u_dma_buf buf = *dma_buf; /* we need to fake length */
@@ -284,7 +285,6 @@ __mt7601u_dma_fw(struct mt7601u_dev *dev, const struct mt7601u_dma_buf *dma_buf,
 	u32 val;
 	int ret;
 
-	/* TODO: make this skb so we can use common func */
 	reg = cpu_to_le32(MT76_SET(MT_TXD_INFO_TYPE, DMA_PACKET) |
 			  MT76_SET(MT_TXD_INFO_D_PORT, CPU_TX_PORT) |
 			  MT76_SET(MT_TXD_INFO_LEN, len));
@@ -310,8 +310,8 @@ __mt7601u_dma_fw(struct mt7601u_dev *dev, const struct mt7601u_dma_buf *dma_buf,
 		return ret;
 
 	if (!wait_for_completion_timeout(&cmpl, msecs_to_jiffies(1000))) {
+		dev_err(dev->dev, "Error: firmware upload timed out\n");
 		usb_kill_urb(buf.urb);
-		trace_printk("URB timeout\n");
 		return -ETIMEDOUT;
 	}
 
@@ -330,7 +330,7 @@ mt7601u_dma_fw(struct mt7601u_dev *dev, struct mt7601u_dma_buf *dma_buf,
 	int i, ret;
 
 	for (done = 0; done < len; done += size) {
-		size = min_t(u32, MCU_URB_MAX_PAYLOAD, len - done);
+		size = min_t(u32, MCU_FW_URB_MAX_PAYLOAD, len - done);
 
 		ret = __mt7601u_dma_fw(dev, dma_buf, data + done,
 				       size, dst_addr + done);
@@ -359,7 +359,7 @@ static int mt7601u_upload_firmware(struct mt7601u_dev *dev,
 	int i, ret;
 
 	ivb = kmemdup(fw->ivb, sizeof(fw->ivb), GFP_KERNEL);
-	if (!ivb || mt7601u_usb_alloc_buf(dev, MCU_URB_SIZE, &dma_buf)) {
+	if (!ivb || mt7601u_usb_alloc_buf(dev, MCU_FW_URB_SIZE, &dma_buf)) {
 		ret = -ENOMEM;
 		goto error;
 	}
@@ -392,7 +392,6 @@ static int mt7601u_upload_firmware(struct mt7601u_dev *dev,
 	}
 
 	dev_dbg(dev->dev, "Firmware running!\n");
-
 error:
 	kfree(ivb);
 	mt7601u_usb_free_buf(dev, &dma_buf);
@@ -433,12 +432,10 @@ static int mt7601u_load_firmware(struct mt7601u_dev *dev)
 		goto err_inv_fw;
 
 	val = le16_to_cpu(hdr->fw_ver);
-	printk("Firmware Version: %d.%d.%02d\n",
-	       (val >> 12) & 0xf, (val >> 8) & 0xf, val & 0xf);
-
-	val = le16_to_cpu(hdr->build_ver);
-	printk("Build: %x\n", val);
-	printk("Build Time: %16s\n", hdr->build_time);
+	dev_info(dev->dev,
+		 "Firmware Version: %d.%d.%02d Build: %x Build time: %.16s\n",
+		 (val >> 12) & 0xf, (val >> 8) & 0xf, val & 0xf,
+		 le16_to_cpu(hdr->build_ver), hdr->build_time);
 
 	len = le32_to_cpu(hdr->ilm_len);
 
@@ -462,19 +459,16 @@ static int mt7601u_load_firmware(struct mt7601u_dev *dev)
 
 	mt7601u_wr(dev, MT_USB_DMA_CFG, (MT_USB_DMA_CFG_RX_BULK_EN |
 					 MT_USB_DMA_CFG_TX_BULK_EN));
-	val = mt7601u_rmw(dev, MT_USB_DMA_CFG, 0, MT_USB_DMA_CFG_TX_CLR);
+	val = mt76_set(dev, MT_USB_DMA_CFG, MT_USB_DMA_CFG_TX_CLR);
 	val &= ~MT_USB_DMA_CFG_TX_CLR;
 	mt7601u_wr(dev, MT_USB_DMA_CFG, val);
 
 	/* FCE tx_fs_base_ptr */
 	mt7601u_wr(dev, MT_TX_CPU_FROM_FCE_BASE_PTR, 0x400230);
-
 	/* FCE tx_fs_max_cnt */
 	mt7601u_wr(dev, MT_TX_CPU_FROM_FCE_MAX_COUNT, 1);
-
 	/* FCE pdma enable */
 	mt7601u_wr(dev, MT_FCE_PDMA_GLOBAL_CONF, 0x44);
-
 	/* FCE skip_fs_en */
 	mt7601u_wr(dev, MT_FCE_SKIP_FS, 3);
 
@@ -485,7 +479,7 @@ static int mt7601u_load_firmware(struct mt7601u_dev *dev)
 	return ret;
 
 err_inv_fw:
-	printk("Invalid firmware\n");
+	dev_err(dev->dev, "Invalid firmware image\n");
 	release_firmware(fw);
 	return -ENOENT;
 }

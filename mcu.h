@@ -30,7 +30,6 @@
 #define MT_MCU_MEMMAP_BBP		0x40000000
 #define MT_MCU_MEMMAP_RF		0x80000000
 
-#define MCU_RESP_URB_SIZE		1024
 #define INBAND_PACKET_MAX_LEN		192
 
 enum mcu_cmd {
