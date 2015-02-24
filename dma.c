@@ -190,6 +190,95 @@ static void mt7601u_rx_tasklet(unsigned long data)
 	}
 }
 
+static void mt7601u_complete_tx(struct urb *urb)
+{
+	struct mt7601u_tx_queue *q = urb->context;
+	struct mt7601u_dev *dev = q->dev;
+	struct sk_buff *skb;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev->tx_lock, flags);
+
+	if (WARN_ON(q->e[q->start].urb != urb))
+		goto out;
+
+	if (mt7601u_urb_has_error(urb))
+		dev_err(dev->dev, "Error: TX urb failed %d\n", urb->status);
+
+	skb = q->e[q->start].skb;
+
+	trace_tx_dma_done(skb);
+
+	dma_unmap_single(dev->dev, q->e[q->start].dma, skb->len, DMA_TO_DEVICE);
+	mt7601u_tx_status(dev, skb);
+
+	if (q->entries <= q->used)
+		ieee80211_wake_queue(dev->hw, skb_get_queue_mapping(skb));
+
+	q->start = (q->start + 1) % q->entries;
+	q->used--;
+
+	if (urb->status)
+		goto out;
+
+	__set_bit(MT7601U_STATE_MORE_STATS, &dev->state);
+	if (!__test_and_set_bit(MT7601U_STATE_READING_STATS, &dev->state))
+		queue_delayed_work(dev->stat_wq, &dev->stat_work,
+				   msecs_to_jiffies(10));
+out:
+	spin_unlock_irqrestore(&dev->tx_lock, flags);
+}
+
+int usb_kick_out(struct mt7601u_dev *dev, struct sk_buff *skb, u8 ep)
+{
+	struct usb_device *usb_dev = mt7601u_to_usb_dev(dev);
+	unsigned snd_pipe = usb_sndbulkpipe(usb_dev, dev->out_eps[ep]);
+	struct mt7601u_tx_queue *q = &dev->tx_q[ep];
+	unsigned long flags;
+	int e, ret;
+
+	spin_lock_irqsave(&dev->tx_lock, flags);
+
+	if (WARN_ON(q->entries <= q->used)) {
+		ret = -ENOSPC;
+		goto out;
+	}
+
+	e = q->end;
+
+	q->e[e].skb = skb;
+	q->e[e].dma = dma_map_single(dev->dev, skb->data, skb->len,
+				     DMA_TO_DEVICE);
+	if (unlikely(dma_mapping_error(dev->dev, q->e[e].dma))) {
+		printk("Error: dma mapping\n");
+		ret = -1;
+		goto out;
+	}
+
+	usb_fill_bulk_urb(q->e[e].urb, usb_dev, snd_pipe, skb->data, skb->len,
+			  mt7601u_complete_tx, q);
+	q->e[e].urb->transfer_dma = q->e[e].dma;
+	q->e[e].urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+	ret = usb_submit_urb(q->e[e].urb, GFP_ATOMIC);
+	if (ret) {
+		if (ret == -ENODEV)
+			set_bit(MT7601U_STATE_REMOVED, &dev->state);
+		else
+			printk("Error: submit %d\n", ret);
+		goto out;
+	}
+
+	q->end = (q->end + 1) % q->entries;
+	q->used++;
+
+	if (q->entries <= q->used)
+		ieee80211_stop_queue(dev->hw, skb_get_queue_mapping(skb));
+out:
+	spin_unlock_irqrestore(&dev->tx_lock, flags);
+
+	return ret;
+}
+
 static void mt7601u_kill_rx(struct mt7601u_dev *dev)
 {
 	int i;
@@ -295,95 +384,6 @@ static int mt7601u_alloc_tx(struct mt7601u_dev *dev)
 			return -ENOMEM;
 
 	return 0;
-}
-
-static void mt7601u_complete_tx(struct urb *urb)
-{
-	struct mt7601u_tx_queue *q = urb->context;
-	struct mt7601u_dev *dev = q->dev;
-	struct sk_buff *skb;
-	unsigned long flags;
-
-	spin_lock_irqsave(&dev->tx_lock, flags);
-
-	if (WARN_ON(q->e[q->start].urb != urb))
-		goto out;
-
-	if (mt7601u_urb_has_error(urb))
-		dev_err(dev->dev, "Error: TX urb failed %d\n", urb->status);
-
-	skb = q->e[q->start].skb;
-
-	trace_tx_dma_done(skb);
-
-	dma_unmap_single(dev->dev, q->e[q->start].dma, skb->len, DMA_TO_DEVICE);
-	mt7601u_tx_status(dev, skb);
-
-	if (q->entries <= q->used)
-		ieee80211_wake_queue(dev->hw, skb_get_queue_mapping(skb));
-
-	q->start = (q->start + 1) % q->entries;
-	q->used--;
-
-	if (urb->status)
-		goto out;
-
-	__set_bit(MT7601U_STATE_MORE_STATS, &dev->state);
-	if (!__test_and_set_bit(MT7601U_STATE_READING_STATS, &dev->state))
-		queue_delayed_work(dev->stat_wq, &dev->stat_work,
-				   msecs_to_jiffies(10));
-out:
-	spin_unlock_irqrestore(&dev->tx_lock, flags);
-}
-
-int usb_kick_out(struct mt7601u_dev *dev, struct sk_buff *skb, u8 ep)
-{
-	struct usb_device *usb_dev = mt7601u_to_usb_dev(dev);
-	unsigned snd_pipe = usb_sndbulkpipe(usb_dev, dev->out_eps[ep]);
-	struct mt7601u_tx_queue *q = &dev->tx_q[ep];
-	unsigned long flags;
-	int e, ret;
-
-	spin_lock_irqsave(&dev->tx_lock, flags);
-
-	if (WARN_ON(q->entries <= q->used)) {
-		ret = -ENOSPC;
-		goto out;
-	}
-
-	e = q->end;
-
-	q->e[e].skb = skb;
-	q->e[e].dma = dma_map_single(dev->dev, skb->data, skb->len,
-				     DMA_TO_DEVICE);
-	if (unlikely(dma_mapping_error(dev->dev, q->e[e].dma))) {
-		printk("Error: dma mapping\n");
-		ret = -1;
-		goto out;
-	}
-
-	usb_fill_bulk_urb(q->e[e].urb, usb_dev, snd_pipe, skb->data, skb->len,
-			  mt7601u_complete_tx, q);
-	q->e[e].urb->transfer_dma = q->e[e].dma;
-	q->e[e].urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
-	ret = usb_submit_urb(q->e[e].urb, GFP_ATOMIC);
-	if (ret) {
-		if (ret == -ENODEV)
-			set_bit(MT7601U_STATE_REMOVED, &dev->state);
-		else
-			printk("Error: submit %d\n", ret);
-		goto out;
-	}
-
-	q->end = (q->end + 1) % q->entries;
-	q->used++;
-
-	if (q->entries <= q->used)
-		ieee80211_stop_queue(dev->hw, skb_get_queue_mapping(skb));
-out:
-	spin_unlock_irqrestore(&dev->tx_lock, flags);
-
-	return ret;
 }
 
 int mt7601u_dma_init(struct mt7601u_dev *dev)
