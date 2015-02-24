@@ -162,7 +162,9 @@ static void mt7601u_complete_rx(struct urb *urb)
 
 	spin_lock_irqsave(&dev->rx_lock, flags);
 
-	if (WARN_ONCE(q->e[q->end].urb != urb, "rx urb mismatch"))
+	if (mt7601u_urb_has_error(urb))
+		dev_err(dev->dev, "Error: RX urb failed:%d\n", urb->status);
+	if (WARN_ONCE(q->e[q->end].urb != urb, "RX urb mismatch"))
 		goto out;
 
 	q->end = (q->end + 1) % q->entries;
@@ -178,9 +180,6 @@ static void mt7601u_rx_tasklet(unsigned long data)
 	struct mt7601u_dma_buf *e;
 
 	while ((e = mt7601u_rx_get_pending_entry(dev))) {
-		if (mt7601u_urb_has_error(e->urb))
-			dev_err(dev->dev, "Error: RX urb failed:%d\n",
-				e->urb->status);
 		if (e->urb->status)
 			continue;
 
@@ -199,11 +198,10 @@ static void mt7601u_complete_tx(struct urb *urb)
 
 	spin_lock_irqsave(&dev->tx_lock, flags);
 
-	if (WARN_ON(q->e[q->start].urb != urb))
-		goto out;
-
 	if (mt7601u_urb_has_error(urb))
-		dev_err(dev->dev, "Error: TX urb failed %d\n", urb->status);
+		dev_err(dev->dev, "Error: TX urb failed:%d\n", urb->status);
+	if (WARN_ONCE(q->e[q->start].urb != urb, "TX urb mismatch"))
+		goto out;
 
 	skb = q->e[q->start].skb;
 
