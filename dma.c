@@ -18,21 +18,6 @@
 
 static void mt7601u_complete_rx(struct urb *urb);
 
-static u16 mt7601u_rx_next_seg_len(u8 *data, u32 data_len)
-{
-	u32 min_seg_len = MT_DMA_HDR_LEN + MT_RX_INFO_LEN +
-		sizeof(struct mt7601u_rxwi) + MT_FCE_INFO_LEN;
-	u16 dma_len = get_unaligned_le16(data);
-
-	if (data_len < min_seg_len ||
-	    WARN_ON(!dma_len) ||
-	    WARN_ON(dma_len + MT_DMA_HDRS > data_len) ||
-	    WARN_ON(dma_len & 0x3))
-		return 0;
-
-	return MT_DMA_HDRS + dma_len;
-}
-
 static unsigned int ieee80211_get_hdrlen_from_buf(const u8 *data, unsigned len)
 {
 	const struct ieee80211_hdr *hdr = (const struct ieee80211_hdr *)data;
@@ -81,6 +66,9 @@ mt7601u_rx_process_seg(struct mt7601u_dev *dev, u8 *data, u32 seg_len)
 	struct mt7601u_rxwi *rxwi;
 	u32 fce_info;
 
+	/* DMA_INFO field at the begining of the segment contains some of
+	 * the information, we need to read the FCE descriptor from the end.
+	 */
 	fce_info = get_unaligned_le32(data + seg_len - MT_FCE_INFO_LEN);
 	seg_len -= MT_FCE_INFO_LEN;
 
@@ -108,6 +96,21 @@ mt7601u_rx_process_seg(struct mt7601u_dev *dev, u8 *data, u32 seg_len)
 	}
 
 	ieee80211_rx_ni(dev->hw, skb);
+}
+
+static u16 mt7601u_rx_next_seg_len(u8 *data, u32 data_len)
+{
+	u32 min_seg_len = MT_DMA_HDR_LEN + MT_RX_INFO_LEN +
+		sizeof(struct mt7601u_rxwi) + MT_FCE_INFO_LEN;
+	u16 dma_len = get_unaligned_le16(data);
+
+	if (data_len < min_seg_len ||
+	    WARN_ON(!dma_len) ||
+	    WARN_ON(dma_len + MT_DMA_HDRS > data_len) ||
+	    WARN_ON(dma_len & 0x3))
+		return 0;
+
+	return MT_DMA_HDRS + dma_len;
 }
 
 static void
