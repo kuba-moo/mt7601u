@@ -363,20 +363,18 @@ TRACE_EVENT(mt_tx,
 		  le16_to_cpu(__entry->h.len_ctl))
 );
 
-TRACE_EVENT(rx_dma_aggr,
-	TP_PROTO(int cnt),
-
-	TP_ARGS(cnt),
-
+TRACE_EVENT(mt_rx_dma_aggr,
+	TP_PROTO(struct mt7601u_dev *dev, int cnt),
+	TP_ARGS(dev, cnt),
 	TP_STRUCT__entry(
+		DEV_ENTRY
 		__field(u8, cnt)
 	),
-
 	TP_fast_assign(
+		DEV_ASSIGN;
 		__entry->cnt = cnt;
 	),
-
-	TP_printk("%d", __entry->cnt)
+	TP_printk(DEV_PR_FMT "%d", DEV_PR_ARG, __entry->cnt)
 );
 
 #endif

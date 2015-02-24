@@ -132,7 +132,7 @@ mt7601u_rx_process_entry(struct mt7601u_dev *dev, struct mt7601u_dma_buf *e)
 	}
 
 	if (cnt > 1)
-		trace_rx_dma_aggr(cnt);
+		trace_mt_rx_dma_aggr(dev, cnt);
 }
 
 static struct mt7601u_dma_buf *
