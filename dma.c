@@ -209,7 +209,7 @@ static void mt7601u_complete_tx(struct urb *urb)
 	dma_unmap_single(dev->dev, q->e[q->start].dma, skb->len, DMA_TO_DEVICE);
 	mt7601u_tx_status(dev, skb);
 
-	if (q->entries <= q->used)
+	if (q->used == q->entries - q->entries/8)
 		ieee80211_wake_queue(dev->hw, skb_get_queue_mapping(skb));
 
 	q->start = (q->start + 1) % q->entries;
