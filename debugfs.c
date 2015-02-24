@@ -13,6 +13,7 @@
  */
 
 #include <linux/debugfs.h>
+
 #include "mt7601u.h"
 #include "eeprom.h"
 
@@ -38,12 +39,14 @@ DEFINE_SIMPLE_ATTRIBUTE(fops_regval, mt76_reg_get, mt76_reg_set, "0x%08llx\n");
 
 
 static int
-mt76_ampdu_stat_read(struct seq_file *file, void *data)
+mt7601u_ampdu_stat_read(struct seq_file *file, void *data)
 {
 	struct mt7601u_dev *dev = file->private;
 	int i, j;
 
-#define stat_printf(grp, off, name)  seq_printf(file, #name ":\t%llu\n", dev->stats.grp[off])
+#define stat_printf(grp, off, name)					\
+	seq_printf(file, #name ":\t%llu\n", dev->stats.grp[off])
+
 	stat_printf(rx_stat, 0, rx_crc_err);
 	stat_printf(rx_stat, 1, rx_phy_err);
 	stat_printf(rx_stat, 2, rx_false_cca);
@@ -80,13 +83,13 @@ mt76_ampdu_stat_read(struct seq_file *file, void *data)
 }
 
 static int
-mt76_ampdu_stat_open(struct inode *inode, struct file *f)
+mt7601u_ampdu_stat_open(struct inode *inode, struct file *f)
 {
-	return single_open(f, mt76_ampdu_stat_read, inode->i_private);
+	return single_open(f, mt7601u_ampdu_stat_read, inode->i_private);
 }
 
 static const struct file_operations fops_ampdu_stat = {
-	.open = mt76_ampdu_stat_open,
+	.open = mt7601u_ampdu_stat_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
@@ -161,7 +164,8 @@ void mt7601u_init_debugfs(struct mt7601u_dev *dev)
 	debugfs_create_u8("temperature", S_IRUSR, dir, &dev->b49_temp);
 
 	debugfs_create_u32("regidx", S_IRUSR | S_IWUSR, dir, &dev->debugfs_reg);
-	debugfs_create_file("regval", S_IRUSR | S_IWUSR, dir, dev, &fops_regval);
+	debugfs_create_file("regval", S_IRUSR | S_IWUSR, dir, dev,
+			    &fops_regval);
 	debugfs_create_file("ampdu_stat", S_IRUSR, dir, dev, &fops_ampdu_stat);
 	debugfs_create_file("eeprom_param", S_IRUSR, dir, dev,
 			    &fops_eeprom_param);
