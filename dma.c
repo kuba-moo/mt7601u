@@ -204,8 +204,7 @@ static void mt7601u_complete_tx(struct urb *urb)
 		goto out;
 
 	skb = q->e[q->start].skb;
-
-	trace_tx_dma_done(skb);
+	trace_mt_tx_dma_done(dev, skb);
 
 	dma_unmap_single(dev->dev, q->e[q->start].dma, skb->len, DMA_TO_DEVICE);
 	mt7601u_tx_status(dev, skb);

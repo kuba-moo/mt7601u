@@ -291,20 +291,18 @@ DEFINE_EVENT(dev_rf_reg_evt, rf_write,
 	TP_ARGS(bank, offset, value)
 );
 
-TRACE_EVENT(tx_dma_done,
-	TP_PROTO(struct sk_buff *skb),
-
-	TP_ARGS(skb),
-
+TRACE_EVENT(mt_tx_dma_done,
+	TP_PROTO(struct mt7601u_dev *dev, struct sk_buff *skb),
+	TP_ARGS(dev, skb),
 	TP_STRUCT__entry(
+		DEV_ENTRY
 		__field(struct sk_buff *, skb)
 	),
-
 	TP_fast_assign(
+		DEV_ASSIGN;
 		__entry->skb = skb;
 	),
-
-	TP_printk("%p", __entry->skb)
+	TP_printk(DEV_PR_FMT "%p", DEV_PR_ARG, __entry->skb)
 );
 
 TRACE_EVENT(mt_tx_status_cleaned,
