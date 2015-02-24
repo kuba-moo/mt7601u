@@ -24,16 +24,54 @@ static u16 mt7601u_rx_next_seg_len(u8 *data, u32 data_len)
 		sizeof(struct mt7601u_rxwi) + MT_FCE_INFO_LEN;
 	u16 dma_len = get_unaligned_le16(data);
 
-	if (data_len < min_seg_len)
-		return 0;
-	if (WARN_ON(!dma_len))
-		return 0;
-	if (WARN_ON(dma_len + MT_DMA_HDRS > data_len))
-		return 0;
-	if (WARN_ON(dma_len & 0x3))
+	if (data_len < min_seg_len ||
+	    WARN_ON(!dma_len) ||
+	    WARN_ON(dma_len + MT_DMA_HDRS > data_len) ||
+	    WARN_ON(dma_len & 0x3))
 		return 0;
 
 	return MT_DMA_HDRS + dma_len;
+}
+
+static unsigned int ieee80211_get_hdrlen_from_buf(const u8 *data, unsigned len)
+{
+	const struct ieee80211_hdr *hdr = (const struct ieee80211_hdr *)data;
+	unsigned int hdrlen;
+
+	if (unlikely(len < 10))
+		return 0;
+	hdrlen = ieee80211_hdrlen(hdr->frame_control);
+	if (unlikely(hdrlen > len))
+		return 0;
+	return hdrlen;
+}
+
+static struct sk_buff *
+mt7601u_rx_skb_from_seg(struct mt7601u_dev *dev, struct mt7601u_rxwi *rxwi,
+			u8 *data, u32 seg_len)
+{
+	struct sk_buff *skb;
+
+	if (rxwi->rxinfo & cpu_to_le32(MT_RXINFO_L2PAD))
+		seg_len -= 2;
+
+	skb = alloc_skb(seg_len, GFP_ATOMIC);
+	if (!skb)
+		return NULL;
+
+	memset(skb->cb, 0, sizeof(skb->cb));
+
+	if (rxwi->rxinfo & cpu_to_le32(MT_RXINFO_L2PAD)) {
+		int hdr_len = ieee80211_get_hdrlen_from_buf(data, seg_len);
+
+		memcpy(skb_put(skb, hdr_len), data, hdr_len);
+		data += hdr_len + 2;
+		seg_len -= hdr_len;
+	}
+
+	memcpy(skb_put(skb, seg_len), data, seg_len);
+
+	return skb;
 }
 
 static void
@@ -43,10 +81,7 @@ mt7601u_rx_process_seg(struct mt7601u_dev *dev, u8 *data, u32 seg_len)
 	struct mt7601u_rxwi *rxwi;
 	u32 fce_info;
 
-	/* TODO: drop this debug check */
 	fce_info = get_unaligned_le32(data + seg_len - MT_FCE_INFO_LEN);
-	if (seg_len - MT_DMA_HDRS != MT76_GET(MT_RXD_INFO_LEN, fce_info))
-		printk("Error: dma_len does not match fce_len\n");
 	seg_len -= MT_FCE_INFO_LEN;
 
 	data += MT_DMA_HDR_LEN;
@@ -56,23 +91,20 @@ mt7601u_rx_process_seg(struct mt7601u_dev *dev, u8 *data, u32 seg_len)
 	data += sizeof(struct mt7601u_rxwi);
 	seg_len -= sizeof(struct mt7601u_rxwi);
 
-	/* TODO: make sure zero fields are zero */
-	/* TODO: make sure it's a packet (fce->info_type == 0) */
+	if (unlikely(rxwi->zero[0] || rxwi->zero[1] || rxwi->zero[2]))
+		dev_err_once(dev->dev, "Error: RXWI zero fields are set\n");
+	if (unlikely(MT76_GET(MT_RXD_INFO_TYPE, fce_info)))
+		dev_err_once(dev->dev, "Error: RX path seen a non-pkt urb\n");
+
 	trace_mt_rx(rxwi, fce_info);
 
-	skb = alloc_skb(seg_len, GFP_ATOMIC);
-	if (!skb) {
-		printk("Error: rx failed to allocate skb\n");
+	skb = mt7601u_rx_skb_from_seg(dev, rxwi, data, seg_len);
+	if (!skb)
 		return;
-	}
 
-	/* TODO: copy in a clever way - to avoid later moves */
-	memcpy(skb_put(skb, seg_len), data, seg_len);
-
-	memset(skb->cb, 0, sizeof(skb->cb));
 	if (mt76_mac_process_rx(dev, skb, rxwi)) {
-	    dev_kfree_skb(skb);
-	    return;
+		dev_kfree_skb(skb);
+		return;
 	}
 
 	ieee80211_rx_ni(dev->hw, skb);

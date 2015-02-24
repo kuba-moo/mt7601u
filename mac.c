@@ -451,9 +451,6 @@ int mt76_mac_process_rx(struct mt7601u_dev *dev, struct sk_buff *skb, void *rxi)
 	u16 rate = le16_to_cpu(rxwi->rate);
 	int len, rssi;
 
-	if (rxwi->rxinfo & cpu_to_le32(MT_RXINFO_L2PAD))
-		mt76_remove_hdr_pad(skb);
-
 	if (rxwi->rxinfo & cpu_to_le32(MT_RXINFO_DECRYPT)) {
 		status->flag |= RX_FLAG_DECRYPTED;
 		status->flag |= RX_FLAG_IV_STRIPPED | RX_FLAG_MMIC_STRIPPED;

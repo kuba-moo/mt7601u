@@ -67,7 +67,7 @@ struct mt7601u_rxwi {
 
 	__le32 resv2;
 	__le32 expert_ant;
-} __packed;
+} __packed __aligned(4);
 
 #define MT_RXINFO_BA			BIT(0)
 #define MT_RXINFO_DATA			BIT(1)
