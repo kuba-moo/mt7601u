@@ -16,8 +16,6 @@
 #include "usb.h"
 #include "trace.h"
 
-static void mt7601u_complete_rx(struct urb *urb);
-
 static unsigned int ieee80211_get_hdrlen_from_buf(const u8 *data, unsigned len)
 {
 	const struct ieee80211_hdr *hdr = (const struct ieee80211_hdr *)data;
@@ -144,12 +142,8 @@ mt7601u_rx_get_pending_entry(struct mt7601u_dev *dev)
 
 	spin_lock_irqsave(&dev->rx_lock, flags);
 
-	if (!q->pending) {
-		if (q->start != q->end) /* TODO: remove this debug check */
-			printk("Error: rx queue corrupted %d/%d\n",
-			       q->start, q->end);
+	if (!q->pending)
 		goto out;
-	}
 
 	buf = &q->e[q->start];
 	q->pending--;
@@ -158,32 +152,6 @@ out:
 	spin_unlock_irqrestore(&dev->rx_lock, flags);
 
 	return buf;
-}
-
-static int mt7601u_rx_entry_check(struct mt7601u_dma_buf *e)
-{
-	if (!e->urb->status)
-		return 0;
-
-	if (mt7601u_urb_has_error(e->urb))
-		printk("Error: RX urb failed %d\n", e->urb->status);
-
-	return 1;
-}
-
-static void mt7601u_rx_tasklet(unsigned long data)
-{
-	struct mt7601u_dev *dev = (struct mt7601u_dev *) data;
-	struct mt7601u_dma_buf *e;
-
-	while ((e = mt7601u_rx_get_pending_entry(dev))) {
-		if (mt7601u_rx_entry_check(e))
-			continue;
-
-		mt7601u_rx_process_entry(dev, e);
-		mt7601u_usb_submit_buf(dev, USB_DIR_IN, MT_EP_IN_PKT_RX, e,
-				       GFP_ATOMIC, mt7601u_complete_rx, dev);
-	}
 }
 
 static void mt7601u_complete_rx(struct urb *urb)
@@ -202,6 +170,24 @@ static void mt7601u_complete_rx(struct urb *urb)
 	tasklet_schedule(&dev->rx_tasklet);
 out:
 	spin_unlock_irqrestore(&dev->rx_lock, flags);
+}
+
+static void mt7601u_rx_tasklet(unsigned long data)
+{
+	struct mt7601u_dev *dev = (struct mt7601u_dev *) data;
+	struct mt7601u_dma_buf *e;
+
+	while ((e = mt7601u_rx_get_pending_entry(dev))) {
+		if (mt7601u_urb_has_error(e->urb))
+			dev_err(dev->dev, "Error: RX urb failed:%d\n",
+				e->urb->status);
+		if (e->urb->status)
+			continue;
+
+		mt7601u_rx_process_entry(dev, e);
+		mt7601u_usb_submit_buf(dev, USB_DIR_IN, MT_EP_IN_PKT_RX, e,
+				       GFP_ATOMIC, mt7601u_complete_rx, dev);
+	}
 }
 
 static void mt7601u_kill_rx(struct mt7601u_dev *dev)
