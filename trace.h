@@ -234,24 +234,22 @@ TRACE_EVENT(bbp_write,
 );
 
 TRACE_EVENT(mt_rx,
-	TP_PROTO(struct mt7601u_rxwi *rxwi, u32 f),
-
-	TP_ARGS(rxwi, f),
-
+	TP_PROTO(struct mt7601u_dev *dev, struct mt7601u_rxwi *rxwi, u32 f),
+	TP_ARGS(dev, rxwi, f),
 	TP_STRUCT__entry(
+		DEV_ENTRY
 		__field_struct(struct mt7601u_rxwi, rxwi)
 		__field(u32, fce_info)
 	),
-
 	TP_fast_assign(
+		DEV_ASSIGN;
 		__entry->rxwi = *rxwi;
 		__entry->fce_info = f;
 	),
-
-	TP_printk("rxi:%08x ctl:%08x frag_sn:%04hx rate:%04hx "
+	TP_printk(DEV_PR_FMT "rxi:%08x ctl:%08x frag_sn:%04hx rate:%04hx "
 		  "uknw:%02hhx z:%02hhx%02hhx%02hhx snr:%02hhx "
 		  "ant:%02hhx gain:%02hhx freq_o:%02hhx "
-		  "r:%08x ea:%08x fce:%08x",
+		  "r:%08x ea:%08x fce:%08x", DEV_PR_ARG,
 		  le32_to_cpu(__entry->rxwi.rxinfo),
 		  le32_to_cpu(__entry->rxwi.ctl),
 		  le16_to_cpu(__entry->rxwi.frag_sn),

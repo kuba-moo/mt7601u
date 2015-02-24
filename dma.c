@@ -96,7 +96,7 @@ mt7601u_rx_process_seg(struct mt7601u_dev *dev, u8 *data, u32 seg_len)
 	if (unlikely(MT76_GET(MT_RXD_INFO_TYPE, fce_info)))
 		dev_err_once(dev->dev, "Error: RX path seen a non-pkt urb\n");
 
-	trace_mt_rx(rxwi, fce_info);
+	trace_mt_rx(dev, rxwi, fce_info);
 
 	skb = mt7601u_rx_skb_from_seg(dev, rxwi, data, seg_len);
 	if (!skb)
