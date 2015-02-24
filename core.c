@@ -35,17 +35,17 @@ bool mt76_poll(struct mt7601u_dev *dev, u32 offset, u32 mask, u32 val,
 
 	timeout /= 10;
 	do {
-		cur = mt76_rr(dev, offset) & mask;
-		if (cur == val)
-			return true;
-
 		if (test_bit(MT7601U_STATE_REMOVED, &dev->state))
 			return false;
+
+		cur = mt7601u_rr(dev, offset) & mask;
+		if (cur == val)
+			return true;
 
 		udelay(10);
 	} while (timeout-- > 0);
 
-	printk("Error: Time out with reg %08x\n", offset);
+	dev_err(dev->dev, "Error: Time out with reg %08x\n", offset);
 
 	return false;
 }
@@ -57,17 +57,17 @@ bool mt76_poll_msec(struct mt7601u_dev *dev, u32 offset, u32 mask, u32 val,
 
 	timeout /= 10;
 	do {
-		cur = mt76_rr(dev, offset) & mask;
-		if (cur == val)
-			return true;
-
 		if (test_bit(MT7601U_STATE_REMOVED, &dev->state))
 			return false;
+
+		cur = mt7601u_rr(dev, offset) & mask;
+		if (cur == val)
+			return true;
 
 		msleep(10);
 	} while (timeout-- > 0);
 
-	printk("Error: Time out with reg %08x\n", offset);
+	dev_err(dev->dev, "Error: Time out with reg %08x\n", offset);
 
 	return false;
 }
