@@ -225,7 +225,7 @@ void mt7601u_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 		dma_flags |= MT_TXD_PKT_INFO_WIV;
 	mt7601u_dma_skb_wrap_pkt(skb, ep2dmaq(ep), dma_flags);
 
-	if (usb_kick_out(dev, skb, ep)) {
+	if (mt7601u_dma_submit_tx(dev, skb, ep)) {
 		ieee80211_free_txskb(dev->hw, skb);
 		return;
 	}

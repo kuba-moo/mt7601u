@@ -226,7 +226,7 @@ out:
 	spin_unlock_irqrestore(&dev->tx_lock, flags);
 }
 
-int usb_kick_out(struct mt7601u_dev *dev, struct sk_buff *skb, u8 ep)
+int mt7601u_dma_submit_tx(struct mt7601u_dev *dev, struct sk_buff *skb, u8 ep)
 {
 	struct usb_device *usb_dev = mt7601u_to_usb_dev(dev);
 	unsigned snd_pipe = usb_sndbulkpipe(usb_dev, dev->out_eps[ep]);
