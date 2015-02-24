@@ -15,6 +15,10 @@
 #ifndef __MT76_DMA_H
 #define __MT76_DMA_H
 
+#include <asm/unaligned.h>
+
+#include "util.h"
+
 #define MT_DMA_HDR_LEN			4
 #define MT_RX_INFO_LEN			4
 #define MT_FCE_INFO_LEN			4

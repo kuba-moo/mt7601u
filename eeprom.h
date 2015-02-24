@@ -15,8 +15,7 @@
 #ifndef __MT7601U_EEPROM_H
 #define __MT7601U_EEPROM_H
 
-#include "mt7601u.h"
-#include "trace.h"
+struct mt7601u_dev;
 
 #define MT7601U_EE_MAX_VER			0x0c
 #define MT7601U_EEPROM_SIZE			256

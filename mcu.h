@@ -15,6 +15,8 @@
 #ifndef __MT7601U_MCU_H
 #define __MT7601U_MCU_H
 
+struct mt7601u_dev;
+
 /* Register definitions */
 #define MT_MCU_RESET_CTL		0x070C
 #define MT_MCU_INT_LEVEL		0x0718
