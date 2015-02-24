@@ -74,8 +74,9 @@ mt7601u_mcu_msg_alloc(struct mt7601u_dev *dev, const void *data, int len)
 
 static int mt7601u_mcu_wait_resp(struct mt7601u_dev *dev, u8 seq)
 {
+	struct urb *urb = dev->mcu.resp.urb;
 	u32 rxfce;
-	int ret, i = 5;
+	int urb_status, ret, i = 5;
 
 	while (i--) {
 		if (!wait_for_completion_timeout(&dev->mcu.resp_cmpl,
@@ -86,6 +87,7 @@ static int mt7601u_mcu_wait_resp(struct mt7601u_dev *dev, u8 seq)
 
 		/* Make copies of important data before reusing the urb */
 		rxfce = get_unaligned_le32(dev->mcu.resp.buf);
+		urb_status = urb->status * mt7601u_urb_has_error(urb);
 
 		ret = mt7601u_usb_submit_buf(dev, USB_DIR_IN, MT_EP_IN_CMD_RESP,
 					     &dev->mcu.resp, GFP_KERNEL,
@@ -93,6 +95,10 @@ static int mt7601u_mcu_wait_resp(struct mt7601u_dev *dev, u8 seq)
 					     &dev->mcu.resp_cmpl);
 		if (ret)
 			return ret;
+
+		if (urb_status)
+			dev_err(dev->dev, "Error: MCU resp urb failed:%d\n",
+				urb_status);
 
 		if (MT76_GET(MT_RXD_CMD_INFO_CMD_SEQ, rxfce) == seq &&
 		    MT76_GET(MT_RXD_CMD_INFO_EVT_TYPE, rxfce) == CMD_DONE)
@@ -313,6 +319,11 @@ static int __mt7601u_dma_fw(struct mt7601u_dev *dev,
 		dev_err(dev->dev, "Error: firmware upload timed out\n");
 		usb_kill_urb(buf.urb);
 		return -ETIMEDOUT;
+	}
+	if (mt7601u_urb_has_error(buf.urb)) {
+		dev_err(dev->dev, "Error: firmware upload urb failed:%d\n",
+			buf.urb->status);
+		return buf.urb->status;
 	}
 
 	val = mt7601u_rr(dev, MT_TX_CPU_FROM_FCE_CPU_DESC_IDX);

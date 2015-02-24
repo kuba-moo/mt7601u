@@ -18,17 +18,6 @@
 
 static void mt7601u_complete_rx(struct urb *urb);
 
-void mt7601u_complete_urb(struct urb *urb)
-{
-	struct completion *cmpl = urb->context;
-
-	/* TODO: handle errors */
-	if (mt7601u_urb_has_error(urb))
-		printk("Error: generic urb failed %d\n", urb->status);
-
-	complete(cmpl);
-}
-
 static u16 mt7601u_rx_next_seg_len(u8 *data, u32 data_len)
 {
 	u32 min_seg_len = MT_DMA_HDR_LEN + MT_RX_INFO_LEN +

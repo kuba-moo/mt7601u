@@ -71,6 +71,13 @@ int mt7601u_usb_submit_buf(struct mt7601u_dev *dev, int dir, int ep_idx,
 	return ret;
 }
 
+void mt7601u_complete_urb(struct urb *urb)
+{
+	struct completion *cmpl = urb->context;
+
+	complete(cmpl);
+}
+
 static int
 __mt7601u_vendor_request(struct mt7601u_dev *dev, const u8 req,
 			 const u8 direction, const u16 val, const u16 offset,
