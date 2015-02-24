@@ -230,9 +230,10 @@ int mt7601u_dma_submit_tx(struct mt7601u_dev *dev, struct sk_buff *skb, u8 ep)
 {
 	struct usb_device *usb_dev = mt7601u_to_usb_dev(dev);
 	unsigned snd_pipe = usb_sndbulkpipe(usb_dev, dev->out_eps[ep]);
+	struct mt7601u_dma_buf_tx *e;
 	struct mt7601u_tx_queue *q = &dev->tx_q[ep];
 	unsigned long flags;
-	int e, ret;
+	int ret;
 
 	spin_lock_irqsave(&dev->tx_lock, flags);
 
@@ -241,34 +242,36 @@ int mt7601u_dma_submit_tx(struct mt7601u_dev *dev, struct sk_buff *skb, u8 ep)
 		goto out;
 	}
 
-	e = q->end;
+	e = &q->e[q->end];
 
-	q->e[e].skb = skb;
-	q->e[e].dma = dma_map_single(dev->dev, skb->data, skb->len,
-				     DMA_TO_DEVICE);
-	if (unlikely(dma_mapping_error(dev->dev, q->e[e].dma))) {
-		printk("Error: dma mapping\n");
-		ret = -1;
+	e->skb = skb;
+	e->dma = dma_map_single(dev->dev, skb->data, skb->len, DMA_TO_DEVICE);
+	if (unlikely(ret = dma_mapping_error(dev->dev, e->dma))) {
+		dev_err(dev->dev, "Error: TX dma mapping failed:%d\n", ret);
 		goto out;
 	}
 
-	usb_fill_bulk_urb(q->e[e].urb, usb_dev, snd_pipe, skb->data, skb->len,
+	usb_fill_bulk_urb(e->urb, usb_dev, snd_pipe, skb->data, skb->len,
 			  mt7601u_complete_tx, q);
-	q->e[e].urb->transfer_dma = q->e[e].dma;
-	q->e[e].urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
-	ret = usb_submit_urb(q->e[e].urb, GFP_ATOMIC);
+	e->urb->transfer_dma = e->dma;
+	e->urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+	ret = usb_submit_urb(e->urb, GFP_ATOMIC);
 	if (ret) {
+		/* Special-handle ENODEV from TX urb submission because it will
+		 * often be the first ENODEV we see after device is removed.
+		 */
 		if (ret == -ENODEV)
 			set_bit(MT7601U_STATE_REMOVED, &dev->state);
 		else
-			printk("Error: submit %d\n", ret);
+			dev_err(dev->dev, "Error: TX urb submit failed:%d\n",
+				ret);
 		goto out;
 	}
 
 	q->end = (q->end + 1) % q->entries;
 	q->used++;
 
-	if (q->entries <= q->used)
+	if (q->used >= q->entries)
 		ieee80211_stop_queue(dev->hw, skb_get_queue_mapping(skb));
 out:
 	spin_unlock_irqrestore(&dev->tx_lock, flags);
