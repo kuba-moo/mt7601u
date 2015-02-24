@@ -132,7 +132,7 @@ mt7601u_mcu_msg_send(struct mt7601u_dev *dev, struct sk_buff *skb,
 		dev_err(dev->dev, "Error: MCU response pre-completed!\n");
 
 	trace_mt_mcu_msg_send_cs(dev, skb, wait_resp);
-	trace_submit_urb_sync(cmd_pipe, skb->len);
+	trace_mt_submit_urb_sync(dev, cmd_pipe, skb->len);
 	ret = usb_bulk_msg(usb_dev, cmd_pipe, skb->data, skb->len, &sent, 500);
 	if (ret) {
 		dev_err(dev->dev, "Error: send MCU cmd failed:%d\n", ret);

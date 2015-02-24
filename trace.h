@@ -61,22 +61,27 @@ DEFINE_EVENT(dev_reg_evt, reg_write,
 	TP_ARGS(dev, reg, val)
 );
 
-TRACE_EVENT(submit_urb,
-	TP_PROTO(struct urb *u),
-
-	TP_ARGS(u),
-
+TRACE_EVENT(mt_submit_urb,
+	TP_PROTO(struct mt7601u_dev *dev, struct urb *u),
+	TP_ARGS(dev, u),
 	TP_STRUCT__entry(
-		__field(unsigned, pipe) __field(u32, len)
+		DEV_ENTRY __field(unsigned, pipe) __field(u32, len)
 	),
-
 	TP_fast_assign(
+		DEV_ASSIGN;
 		__entry->pipe = u->pipe;
 		__entry->len = u->transfer_buffer_length;
 	),
-
-	TP_printk("p:%08x len:%u", __entry->pipe, __entry->len)
+	TP_printk(DEV_PR_FMT "p:%08x len:%u",
+		  DEV_PR_ARG, __entry->pipe, __entry->len)
 );
+
+#define trace_mt_submit_urb_sync(__dev, __pipe, __len) ({	\
+	struct urb u;					\
+	u.pipe = __pipe;				\
+	u.transfer_buffer_length = __len;		\
+	trace_mt_submit_urb(__dev, &u);			\
+})
 
 TRACE_EVENT(mt_mcu_msg_send,
 	TP_PROTO(struct mt7601u_dev *dev,
@@ -98,23 +103,18 @@ TRACE_EVENT(mt_mcu_msg_send,
 		  DEV_PR_ARG, __entry->info, __entry->csum, __entry->resp)
 );
 
-#define trace_submit_urb_sync(__pipe, __len) ({	\
-	struct urb u;				\
-	u.pipe = __pipe;			\
-	u.transfer_buffer_length = __len;	\
-	trace_submit_urb(&u);			\
-})
-
-TRACE_EVENT(vend_req,
-	TP_PROTO(unsigned pipe, u8 req, u8 req_type, u16 val, u16 offset, void *buf, size_t buflen, int ret),
-
-	TP_ARGS(pipe, req, req_type, val, offset, buf, buflen, ret),
-
+TRACE_EVENT(mt_vend_req,
+	TP_PROTO(struct mt7601u_dev *dev, unsigned pipe, u8 req, u8 req_type,
+		 u16 val, u16 offset, void *buf, size_t buflen, int ret),
+	TP_ARGS(dev, pipe, req, req_type, val, offset, buf, buflen, ret),
 	TP_STRUCT__entry(
-		__field(unsigned, pipe) __field(u8, req) __field(u8, req_type) __field(u16, val) __field(u16, offset) __field(void*, buf) __field(int, buflen) __field(int, ret)
+		DEV_ENTRY
+		__field(unsigned, pipe) __field(u8, req) __field(u8, req_type)
+		__field(u16, val) __field(u16, offset) __field(void*, buf)
+		__field(int, buflen) __field(int, ret)
 	),
-
 	TP_fast_assign(
+		DEV_ASSIGN;
 		__entry->pipe = pipe;
 		__entry->req = req;
 		__entry->req_type = req_type;
@@ -124,8 +124,11 @@ TRACE_EVENT(vend_req,
 		__entry->buflen = buflen;
 		__entry->ret = ret;
 	),
-
-	TP_printk("%d p:%08x req:%02hhx %02hhx val:%04hx %04hx buf:%d %d", __entry->ret, __entry->pipe, __entry->req, __entry->req_type, __entry->val, __entry->offset, !!__entry->buf, __entry->buflen)
+	TP_printk(DEV_PR_FMT
+		  "%d p:%08x req:%02hhx %02hhx val:%04hx %04hx buf:%d %d",
+		  DEV_PR_ARG, __entry->ret, __entry->pipe, __entry->req,
+		  __entry->req_type, __entry->val, __entry->offset,
+		  !!__entry->buf, __entry->buflen)
 );
 
 TRACE_EVENT(ee_read,

@@ -63,7 +63,7 @@ int mt7601u_usb_submit_buf(struct mt7601u_dev *dev, int dir, int ep_idx,
 	buf->urb->transfer_dma = buf->dma;
 	buf->urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
-	trace_submit_urb(buf->urb);
+	trace_mt_submit_urb(dev, buf->urb);
 	ret = usb_submit_urb(buf->urb, gfp);
 	if (ret)
 		dev_err(dev->dev, "Error: submit URB dir:%d ep:%d failed:%d\n",
@@ -86,8 +86,8 @@ __mt7601u_vendor_request(struct mt7601u_dev *dev, const u8 req,
 		ret = usb_control_msg(usb_dev, pipe, req, req_type,
 				      val, offset, buf, buflen,
 				      MT_VEND_REQ_TOUT_MS);
-		trace_vend_req(pipe, req, req_type, val, offset,
-			       buf, buflen, ret);
+		trace_mt_vend_req(dev, pipe, req, req_type, val, offset,
+				  buf, buflen, ret);
 
 		if (ret >= 0 || ret == -ENODEV)
 			return ret;
