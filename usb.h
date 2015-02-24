@@ -16,13 +16,18 @@
 
 #include "mt7601u.h"
 
-#define VEND_DEV_MODE_RESET		1
+#define MT7601U_FIRMWARE	"mt7601u.bin"
+
+#define MT_VEND_REQ_MAX_RETRY	10
+#define MT_VEND_REQ_TOUT_MS	300
+
+#define MT_VEND_DEV_MODE_RESET	1
 
 enum mt_vendor_req {
-	VEND_DEV_MODE = 1,
-	VEND_WRITE = 2,
-	VEND_MULTI_READ = 7,
-	VEND_WRITE_FCE = 0x42,
+	MT_VEND_DEV_MODE = 1,
+	MT_VEND_WRITE = 2,
+	MT_VEND_MULTI_READ = 7,
+	MT_VEND_WRITE_FCE = 0x42,
 };
 
 enum mt_usb_ep_in {
@@ -60,4 +65,12 @@ void mt7601u_usb_free_buf(struct mt7601u_dev *dev, struct mt7601u_dma_buf *buf);
 int mt7601u_usb_submit_buf(struct mt7601u_dev *dev, int dir, int ep_idx,
 			   struct mt7601u_dma_buf *buf, gfp_t gfp,
 			   usb_complete_t complete_fn, void *context);
+
+int mt7601u_vendor_request(struct mt7601u_dev *dev, const u8 req,
+			   const u8 direction, const u16 val, const u16 offset,
+			   void *buf, const size_t buflen);
+void mt7601u_vendor_reset(struct mt7601u_dev *dev);
+int mt7601u_vendor_single_wr(struct mt7601u_dev *dev, const u8 req,
+			     const u16 offset, const u32 val);
+
 #endif

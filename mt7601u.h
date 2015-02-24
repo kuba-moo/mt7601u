@@ -26,16 +26,11 @@
 #include "regs.h"
 #include "util.h"
 
-#define MT7601U_FIRMWARE	"mt7601u.bin"
-
 #define MT_CALIBRATE_INTERVAL		(4 * HZ)
 
 #define MT_FREQ_CAL_INIT_DELAY		(30 * HZ)
 #define MT_FREQ_CAL_CHECK_INTERVAL	(10 * HZ)
 #define MT_FREQ_CAL_ADJ_INTERVAL	(HZ / 2)
-
-#define MT7601U_VENDOR_REQ_MAX_RETRY	10
-#define MT7601U_VENDOR_REQ_TOUT_MS	300
 
 #define MT_BBP_REG_VERSION		0x00
 
@@ -193,8 +188,8 @@ struct mt7601u_dev {
 	/* TODO: Is this needed? dev->mutex should suffice */
 	struct mutex hw_atomic_mutex;
 
-	u8 *out_eps;
-	u8 *in_eps;
+	u8 out_eps[8];
+	u8 in_eps[8];
 	u16 out_max_packet;
 	u16 in_max_packet;
 #define RX_URB_SIZE		(12 * 2048)
@@ -291,13 +286,6 @@ static inline u32 mt76_clear(struct mt7601u_dev *dev, u32 offset, u32 val)
 	return mt76_rmw(dev, offset, val, 0);
 }
 
-/* USB */
-int mt7601u_vendor_request(struct mt7601u_dev *dev, const u8 req,
-			   const u8 direction, const u16 val, const u16 offset,
-			   void *buf, const size_t buflen);
-void mt7601u_vendor_reset(struct mt7601u_dev *dev);
-int mt7601u_vendor_single_wr(struct mt7601u_dev *dev, const u8 req,
-			     const u16 offset, const u32 val);
 int mt7601u_write_reg_pairs(struct mt7601u_dev *dev, u32 base,
 			    const struct mt76_reg_pair *data, int len);
 int mt7601u_burst_write_regs(struct mt7601u_dev *dev, u32 offset,

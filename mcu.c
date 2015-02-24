@@ -292,12 +292,12 @@ static int __mt7601u_dma_fw(struct mt7601u_dev *dev,
 	memcpy(buf.buf + sizeof(reg), data, len);
 	memset(buf.buf + sizeof(reg) + len, 0, 8);
 
-	ret = mt7601u_vendor_single_wr(dev, VEND_WRITE_FCE,
+	ret = mt7601u_vendor_single_wr(dev, MT_VEND_WRITE_FCE,
 				       MT_FCE_DMA_ADDR, dst_addr);
 	if (ret)
 		return ret;
 	len = roundup(len, 4);
-	ret = mt7601u_vendor_single_wr(dev, VEND_WRITE_FCE,
+	ret = mt7601u_vendor_single_wr(dev, MT_VEND_WRITE_FCE,
 				       MT_FCE_DMA_LEN, len << 16);
 	if (ret)
 		return ret;
@@ -370,7 +370,7 @@ mt7601u_upload_firmware(struct mt7601u_dev *dev, const struct mt76_fw *fw)
 	if (ret)
 		goto error;
 
-	ret = mt7601u_vendor_request(dev, VEND_DEV_MODE, USB_DIR_OUT,
+	ret = mt7601u_vendor_request(dev, MT_VEND_DEV_MODE, USB_DIR_OUT,
 				     0x12, 0, ivb, sizeof(fw->ivb));
 	if (ret < 0)
 		goto error;

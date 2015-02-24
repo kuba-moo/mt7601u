@@ -72,17 +72,20 @@ int mt7601u_usb_submit_buf(struct mt7601u_dev *dev, int dir, int ep_idx,
 }
 
 static int
-__mt7601u_vendor_request(struct usb_device *usb_dev, unsigned int pipe,
-			 const u8 req, const u8 direction, const u16 val,
-			 const u16 offset, void *buf, const size_t buflen)
+__mt7601u_vendor_request(struct mt7601u_dev *dev, const u8 req,
+			 const u8 direction, const u16 val, const u16 offset,
+			 void *buf, const size_t buflen)
 {
 	int i, ret;
+	struct usb_device *usb_dev = mt7601u_to_usb_dev(dev);
 	const u8 req_type = direction | USB_TYPE_VENDOR | USB_RECIP_DEVICE;
+	const unsigned int pipe = (direction == USB_DIR_IN) ?
+		usb_rcvctrlpipe(usb_dev, 0) : usb_sndctrlpipe(usb_dev, 0);
 
-	for (i = 0; i < MT7601U_VENDOR_REQ_MAX_RETRY; i++) {
+	for (i = 0; i < MT_VEND_REQ_MAX_RETRY; i++) {
 		ret = usb_control_msg(usb_dev, pipe, req, req_type,
 				      val, offset, buf, buflen,
-				      MT7601U_VENDOR_REQ_TOUT_MS);
+				      MT_VEND_REQ_TOUT_MS);
 		trace_vend_req(pipe, req, req_type, val, offset,
 			       buf, buflen, ret);
 
@@ -92,8 +95,8 @@ __mt7601u_vendor_request(struct usb_device *usb_dev, unsigned int pipe,
 		msleep(5);
 	}
 
-	printk("Vendor request failed: %d [req:0x%02x offset:0x%04x]\n",
-	       ret, req, offset);
+	dev_err(dev->dev, "Vendor request req:%02x off:x%04x failed:%d\n",
+		req, offset, ret);
 
 	return ret;
 }
@@ -103,15 +106,12 @@ mt7601u_vendor_request(struct mt7601u_dev *dev, const u8 req,
 		       const u8 direction, const u16 val, const u16 offset,
 		       void *buf, const size_t buflen)
 {
-	struct usb_device *usb_dev = mt7601u_to_usb_dev(dev);
-	unsigned int pipe = (direction == USB_DIR_IN) ?
-		usb_rcvctrlpipe(usb_dev, 0) : usb_sndctrlpipe(usb_dev, 0);
 	int ret;
 
 	mutex_lock(&dev->vendor_req_mutex);
 
-	ret = __mt7601u_vendor_request(usb_dev, pipe, req, direction,
-				       val, offset, buf, buflen);
+	ret = __mt7601u_vendor_request(dev, req, direction, val, offset,
+				       buf, buflen);
 	if (ret == -ENODEV)
 		set_bit(MT7601U_STATE_REMOVED, &dev->state);
 
@@ -122,8 +122,8 @@ mt7601u_vendor_request(struct mt7601u_dev *dev, const u8 req,
 
 void mt7601u_vendor_reset(struct mt7601u_dev *dev)
 {
-	mt7601u_vendor_request(dev, VEND_DEV_MODE, USB_DIR_OUT,
-			       VEND_DEV_MODE_RESET, 0, NULL, 0);
+	mt7601u_vendor_request(dev, MT_VEND_DEV_MODE, USB_DIR_OUT,
+			       MT_VEND_DEV_MODE_RESET, 0, NULL, 0);
 }
 
 u32 mt7601u_rr(struct mt7601u_dev *dev, u32 offset)
@@ -132,16 +132,14 @@ u32 mt7601u_rr(struct mt7601u_dev *dev, u32 offset)
 	__le32 reg;
 	u32 val;
 
-	if (offset > 0xffff)
-		printk("Error: high offset read: %08x\n", offset);
+	WARN_ONCE(offset > USHRT_MAX, "read high off:%08x", offset);
 
-	ret = mt7601u_vendor_request(dev, VEND_MULTI_READ, USB_DIR_IN,
+	ret = mt7601u_vendor_request(dev, MT_VEND_MULTI_READ, USB_DIR_IN,
 				     0, offset, &reg, sizeof(reg));
 	val = le32_to_cpu(reg);
-	if (ret != sizeof(reg)) {
-		/* TODO: rt2k handles partial reads, but legacy doesn't */
-		if (ret != -ENODEV)
-			printk("RR of %08x - wrong size  %d!!\n", offset, ret);
+	if (ret > 0 && ret != sizeof(reg)) {
+		dev_err(dev->dev, "Error: wrong size read:%d off:%08x\n",
+			ret, offset);
 		val = ~0;
 	}
 
@@ -153,8 +151,9 @@ int mt7601u_vendor_single_wr(struct mt7601u_dev *dev, const u8 req,
 			     const u16 offset, const u32 val)
 {
 	int ret;
+
 	ret = mt7601u_vendor_request(dev, req, USB_DIR_OUT,
-				     val & 0xFFFF, offset, NULL, 0);
+				     val & 0xffff, offset, NULL, 0);
 	if (ret)
 		return ret;
 	return mt7601u_vendor_request(dev, req, USB_DIR_OUT,
@@ -163,10 +162,9 @@ int mt7601u_vendor_single_wr(struct mt7601u_dev *dev, const u8 req,
 
 void mt7601u_wr(struct mt7601u_dev *dev, u32 offset, u32 val)
 {
-	if (offset > 0xffff)
-		printk("Error: high offset write: %08x\n", offset);
+	WARN_ONCE(offset > USHRT_MAX, "write high off:%08x", offset);
 
-	mt7601u_vendor_single_wr(dev, VEND_WRITE, offset, val);
+	mt7601u_vendor_single_wr(dev, MT_VEND_WRITE, offset, val);
 	trace_reg_write(dev, offset, val);
 }
 
@@ -189,7 +187,9 @@ u32 mt7601u_rmc(struct mt7601u_dev *dev, u32 offset, u32 mask, u32 val)
 void mt7601u_wr_copy(struct mt7601u_dev *dev, u32 offset,
 		     const void *data, int len)
 {
-	WARN_ON(len & 3);
+	WARN_ONCE(offset & 3, "unaligned write copy off:%08x", offset);
+	WARN_ONCE(len & 3, "short write copy off:%08x", offset);
+
 	mt7601u_burst_write_regs(dev, offset, data, len / 4);
 }
 
@@ -206,32 +206,30 @@ static int mt7601u_assign_pipes(struct usb_interface *usb_intf,
 	struct usb_host_interface *intf_desc = usb_intf->cur_altsetting;
 	unsigned i, ep_i = 0, ep_o = 0;
 
-	dev->in_eps = devm_kmalloc_array(dev->dev, __MT_EP_IN_MAX,
-					 sizeof(*dev->in_eps), GFP_KERNEL);
-	dev->out_eps = devm_kmalloc_array(dev->dev, __MT_EP_OUT_MAX,
-					  sizeof(*dev->out_eps), GFP_KERNEL);
+	BUILD_BUG_ON(sizeof(dev->in_eps) < __MT_EP_IN_MAX);
+	BUILD_BUG_ON(sizeof(dev->out_eps) < __MT_EP_OUT_MAX);
 
 	for (i = 0; i < intf_desc->desc.bNumEndpoints; i++) {
 		ep_desc = &intf_desc->endpoint[i].desc;
 
 		if (usb_endpoint_is_bulk_in(ep_desc) &&
 		    ep_i++ < __MT_EP_IN_MAX) {
-			/* EP0 - data in; EP1 - cmd resp */
 			dev->in_eps[ep_i - 1] = usb_endpoint_num(ep_desc);
-			/* TODO: drop the next line. */
-			dev->in_eps[ep_i - 1] |= USB_ENDPOINT_DIR_MASK;
 			dev->in_max_packet = usb_endpoint_maxp(ep_desc);
-		} else  if (usb_endpoint_is_bulk_out(ep_desc) &&
-			    ep_o++ < __MT_EP_OUT_MAX) {
-			/* There are 6 bulk out EP. EP6 highest priority. */
-			/* EP0 in-band cmd. EP1-4 is EDCA. EP5 is HCCA. */
+			/* Note: this is ignored by usb sub-system but vendor
+			 *	 code does it. We can drop this at some point.
+			 */
+			dev->in_eps[ep_i - 1] |= USB_DIR_IN;
+		} else if (usb_endpoint_is_bulk_out(ep_desc) &&
+			   ep_o++ < __MT_EP_OUT_MAX) {
 			dev->out_eps[ep_o - 1] = usb_endpoint_num(ep_desc);
 			dev->out_max_packet = usb_endpoint_maxp(ep_desc);
 		}
 	}
 
 	if (ep_i != __MT_EP_IN_MAX || ep_o != __MT_EP_OUT_MAX) {
-		printk("Error - wrong pipes!\n");
+		dev_err(dev->dev, "Error: wrong pipe number in:%d out:%d\n",
+			ep_i, ep_o);
 		return -EINVAL;
 	}
 
@@ -257,24 +255,22 @@ static int mt7601u_probe(struct usb_interface *usb_intf,
 	ret = mt7601u_assign_pipes(usb_intf, dev);
 	if (ret)
 		goto err;
-
 	ret = mt7601u_wait_asic_ready(dev);
 	if (ret)
 		goto err;
 
 	dev->rev = dev->asic_rev = mt7601u_rr(dev, MT_ASIC_VERSION);
 	dev->mac_rev = mt7601u_rr(dev, MT_MAC_CSR0);
-	dev_info(dev->dev, "ASIC revision: %08x  MAC revision: %08x\n",
+	dev_info(dev->dev, "ASIC revision: %08x MAC revision: %08x\n",
 		 dev->asic_rev, dev->mac_rev);
 
-	/* TODO: vendor driver skips this check for MT7601U */
+	/* Note: vendor driver skips this check for MT7601U */
 	if (!(mt7601u_rr(dev, MT_EFUSE_CTRL) & MT_EFUSE_CTRL_SEL))
-		printk("Error: eFUSE not present\n");
+		dev_warn(dev->dev, "Warning: eFUSE not present\n");
 
 	ret = mt7601u_init_hardware(dev);
 	if (ret)
 		goto err;
-
 	ret = mt7601u_register_device(dev);
 	if (ret)
 		goto err_hw;
