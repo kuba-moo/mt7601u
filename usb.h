@@ -65,6 +65,7 @@ void mt7601u_usb_free_buf(struct mt7601u_dev *dev, struct mt7601u_dma_buf *buf);
 int mt7601u_usb_submit_buf(struct mt7601u_dev *dev, int dir, int ep_idx,
 			   struct mt7601u_dma_buf *buf, gfp_t gfp,
 			   usb_complete_t complete_fn, void *context);
+void mt7601u_complete_urb(struct urb *urb);
 
 int mt7601u_vendor_request(struct mt7601u_dev *dev, const u8 req,
 			   const u8 direction, const u16 val, const u16 offset,

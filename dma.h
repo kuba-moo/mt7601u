@@ -12,10 +12,11 @@
  * GNU General Public License for more details.
  */
 
-#ifndef __MT76_DMA_H
-#define __MT76_DMA_H
+#ifndef __MT7601U_DMA_H
+#define __MT7601U_DMA_H
 
 #include <asm/unaligned.h>
+#include <linux/skbuff.h>
 
 #include "util.h"
 
@@ -24,24 +25,12 @@
 #define MT_FCE_INFO_LEN			4
 #define MT_DMA_HDRS			(MT_DMA_HDR_LEN + MT_RX_INFO_LEN)
 
-#define MT_DMA_CTL_SD_LEN1		GENMASK(13, 0)
-#define MT_DMA_CTL_LAST_SEC1		BIT(14)
-#define MT_DMA_CTL_BURST		BIT(15)
-#define MT_DMA_CTL_SD_LEN0		GENMASK(29, 16)
-#define MT_DMA_CTL_LAST_SEC0		BIT(30)
-#define MT_DMA_CTL_DMA_DONE		BIT(31)
-
-/* Common DMA descriptor fields */
+/* Common Tx DMA descriptor fields */
 #define MT_TXD_INFO_LEN			GENMASK(15, 0)
 #define MT_TXD_INFO_D_PORT		GENMASK(29, 27)
 #define MT_TXD_INFO_TYPE		GENMASK(31, 30)
 
-enum dma_info_type {
-	DMA_PACKET,
-	DMA_COMMAND,
-};
-
-enum dma_msg_port {
+enum mt76_msg_port {
 	WLAN_PORT,
 	CPU_RX_PORT,
 	CPU_TX_PORT,
@@ -51,7 +40,12 @@ enum dma_msg_port {
 	DISCARD,
 };
 
-/* DMA packet specific flags */
+enum mt76_info_type {
+	DMA_PACKET,
+	DMA_COMMAND,
+};
+
+/* Tx DMA packet specific flags */
 #define MT_TXD_PKT_INFO_NEXT_VLD	BIT(16)
 #define MT_TXD_PKT_INFO_TX_BURST	BIT(17)
 #define MT_TXD_PKT_INFO_80211		BIT(19)
@@ -67,22 +61,22 @@ enum mt76_qsel {
 	MT_QSEL_EDCA_2,
 };
 
-/* DMA MCU command specific flags */
-#define MT_TXD_PKT_INFO_SEQ		GENMASK(19, 16)
-#define MT_TXD_PKT_INFO_TYPE		GENMASK(26, 20)
+/* Tx DMA MCU command specific flags */
+#define MT_TXD_CMD_INFO_SEQ		GENMASK(19, 16)
+#define MT_TXD_CMD_INFO_TYPE		GENMASK(26, 20)
 
 static inline void mt7601u_dma_skb_wrap(struct sk_buff *skb,
-					enum dma_msg_port d_port,
-					enum dma_info_type type, u32 flags)
+					enum mt76_msg_port d_port,
+					enum mt76_info_type type, u32 flags)
 {
 	u32 info;
 	int pad_len;
 
 	/* Buffer layout:
-	 *	|    4B     |  xfer len  |  4B  |      pad       |
-	 *	| RX/TXINFO |  pkt/cmd   | zero | zero pad to 4B |
+	 *	|   4B   | xfer len |  4B  |      pad       |
+	 *	| TXINFO | pkt/cmd  | zero | zero pad to 4B |
 	 *
-	 * length field of *XINFO should be set to 'xfer len'.
+	 * length field of TXINFO should be set to 'xfer len'.
 	 */
 
 	info = flags |
@@ -102,17 +96,27 @@ static inline void mt7601u_dma_skb_wrap_pkt(struct sk_buff *skb,
 			     MT76_SET(MT_TXD_PKT_INFO_QSEL, qsel) | flags);
 }
 
-/* TODO: most of these are for FCE_INFO_CMD, rename them */
-#define MT_RX_FCE_INFO_LEN		GENMASK(13, 0)
-#define MT_RX_FCE_INFO_SELF_GEN		BIT(15)
-#define MT_RX_FCE_INFO_CMD_SEQ		GENMASK(19, 16)
-#define MT_RX_FCE_INFO_EVT_TYPE		GENMASK(23, 20)
-#define MT_RX_FCE_INFO_PCIE_INTR	BIT(24)
-#define MT_RX_FCE_INFO_QSEL		GENMASK(26, 25)
-#define MT_RX_FCE_INFO_D_PORT		GENMASK(29, 27)
-#define MT_RX_FCE_INFO_TYPE		GENMASK(31, 30)
+/* Common Rx DMA descriptor fields */
+#define MT_RXD_INFO_LEN			GENMASK(13, 0)
+#define MT_RXD_INFO_PCIE_INTR		BIT(24)
+#define MT_RXD_INFO_QSEL		GENMASK(26, 25)
+#define MT_RXD_INFO_PORT		GENMASK(29, 27)
+#define MT_RXD_INFO_TYPE		GENMASK(31, 30)
 
-enum mcu_evt_type {
+/* Rx DMA packet specific flags */
+#define MT_RXD_PKT_INFO_UDP_ERR		BIT(16)
+#define MT_RXD_PKT_INFO_TCP_ERR		BIT(17)
+#define MT_RXD_PKT_INFO_IP_ERR		BIT(18)
+#define MT_RXD_PKT_INFO_PKT_80211	BIT(19)
+#define MT_RXD_PKT_INFO_L3L4_DONE	BIT(20)
+#define MT_RXD_PKT_INFO_MAC_LEN		GENMASK(23, 21)
+
+/* Rx DMA MCU command specific flags */
+#define MT_RXD_CMD_INFO_SELF_GEN	BIT(15)
+#define MT_RXD_CMD_INFO_CMD_SEQ		GENMASK(19, 16)
+#define MT_RXD_CMD_INFO_EVT_TYPE	GENMASK(23, 20)
+
+enum mt76_evt_type {
 	CMD_DONE,
 	CMD_ERROR,
 	CMD_RETRY,
@@ -122,12 +126,6 @@ enum mcu_evt_type {
 	EVENT_DFS_DETECT_RSP,
 };
 
-#define MT_RX_FCE_INFO_UDP_ERR		BIT(16)
-#define MT_RX_FCE_INFO_TCP_ERR		BIT(17)
-#define MT_RX_FCE_INFO_IP_ERR		BIT(18)
-#define MT_RX_FCE_INFO_PKT_80211	BIT(19)
-#define MT_RX_FCE_INFO_L3L4_DONE	BIT(20)
-#define MT_RX_FCE_INFO_MAC_LEN		GENMASK(23, 21)
-#define MT_RX_FCE_INFO_S_PORT		GENMASK(29, 27)
+int usb_kick_out(struct mt7601u_dev *dev, struct sk_buff *skb, u8 ep);
 
 #endif

@@ -306,12 +306,6 @@ u8 mt7601u_bbp_rmc(struct mt7601u_dev *dev, u8 offset, u8 mask, u8 val);
 int mt7601u_mac_start(struct mt7601u_dev *dev);
 void mt7601u_mac_stop(struct mt7601u_dev *dev);
 
-/* DMA */
-void mt7601u_complete_urb(struct urb *urb);
-int usb_kick_out(struct mt7601u_dev *dev, struct sk_buff *skb, u8 ep);
-int mt7601u_dma_init(struct mt7601u_dev *dev);
-void mt7601u_dma_cleanup(struct mt7601u_dev *dev);
-
 /* PHY */
 int mt7601u_phy_init(struct mt7601u_dev *dev);
 void mt7601u_set_rx_path(struct mt7601u_dev *dev, u8 path);
@@ -359,5 +353,8 @@ static inline u32 mt7601u_mac_set_ctrlch(struct mt7601u_dev *dev, bool below)
 {
 	return mt7601u_rmc(dev, MT_TX_BAND_CFG, 1, below);
 }
+
+int mt7601u_dma_init(struct mt7601u_dev *dev);
+void mt7601u_dma_cleanup(struct mt7601u_dev *dev);
 
 #endif

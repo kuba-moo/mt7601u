@@ -56,7 +56,7 @@ mt7601u_rx_process_seg(struct mt7601u_dev *dev, u8 *data, u32 seg_len)
 
 	/* TODO: drop this debug check */
 	fce_info = get_unaligned_le32(data + seg_len - MT_FCE_INFO_LEN);
-	if (seg_len - MT_DMA_HDRS != MT76_GET(MT_RX_FCE_INFO_LEN, fce_info))
+	if (seg_len - MT_DMA_HDRS != MT76_GET(MT_RXD_INFO_LEN, fce_info))
 		printk("Error: dma_len does not match fce_len\n");
 	seg_len -= MT_FCE_INFO_LEN;
 
