@@ -357,7 +357,7 @@ mt7601u_upload_firmware(struct mt7601u_dev *dev, const struct mt76_fw *fw)
 	}
 
 	ilm_len = le32_to_cpu(fw->hdr.ilm_len) - sizeof(fw->ivb);
-	dev_dbg(dev->dev, "loading FW - ILM %u + IVB %u\n",
+	dev_dbg(dev->dev, "loading FW - ILM %u + IVB %lu\n",
 		ilm_len, sizeof(fw->ivb));
 	ret = mt7601u_dma_fw(dev, &dma_buf, fw->ilm, ilm_len, sizeof(fw->ivb));
 	if (ret)
