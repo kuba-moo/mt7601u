@@ -64,7 +64,7 @@ mt7601u_rx_process_seg(struct mt7601u_dev *dev, u8 *data, u32 seg_len)
 	struct mt7601u_rxwi *rxwi;
 	u32 fce_info;
 
-	/* DMA_INFO field at the begining of the segment contains some of
+	/* DMA_INFO field at the begining of the segment contains only some of
 	 * the information, we need to read the FCE descriptor from the end.
 	 */
 	fce_info = get_unaligned_le32(data + seg_len - MT_FCE_INFO_LEN);
