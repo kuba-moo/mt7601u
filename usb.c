@@ -22,6 +22,7 @@
 static struct usb_device_id mt7601u_device_table[] = {
 	{ USB_DEVICE(0x148f, 0x7601) },
 	{ USB_DEVICE(0x148f, 0x760b) },
+	{ USB_DEVICE(0x2717, 0x4106) },
 	{ 0, }
 };
 
