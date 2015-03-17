@@ -265,6 +265,7 @@ int mt7601u_dma_submit_tx(struct mt7601u_dev *dev, struct sk_buff *skb, u8 ep)
 		else
 			dev_err(dev->dev, "Error: TX urb submit failed:%d\n",
 				ret);
+		dma_unmap_single(dev->dev, e->dma, skb->len, DMA_TO_DEVICE);
 		goto out;
 	}
 
