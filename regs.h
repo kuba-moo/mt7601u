@@ -268,7 +268,6 @@
 #define MT_MAX_LEN_CFG			0x1018
 #define MT_MAX_LEN_CFG_AMPDU		GENMASK(13, 12)
 
-/* TODO: this may be a rtmp mac reg */
 #define MT_BBP_CSR_CFG			0x101c
 #define MT_BBP_CSR_CFG_VAL		GENMASK(7, 0)
 #define MT_BBP_CSR_CFG_REG_NUM		GENMASK(15, 8)
@@ -508,7 +507,14 @@
 #define MT_TX_STA_CNT1			0x1710
 #define MT_TX_STA_CNT2			0x1714
 
-/* 0000ff27 == valid pid:3 succ wicd:ff */
+/* Vendor driver defines content of the second word of STAT_FIFO as follows:
+ *	MT_TX_STAT_FIFO_RATE		GENMASK(26, 16)
+ *	MT_TX_STAT_FIFO_ETXBF		BIT(27)
+ *	MT_TX_STAT_FIFO_SND		BIT(28)
+ *	MT_TX_STAT_FIFO_ITXBF		BIT(29)
+ * However, tests show that b16-31 have the same layout as TXWI rate_ctl
+ * with rate set to rate at which frame was acked.
+ */
 #define MT_TX_STAT_FIFO			0x1718
 #define MT_TX_STAT_FIFO_VALID		BIT(0)
 #define MT_TX_STAT_FIFO_PID_TYPE	GENMASK(4, 1)
@@ -517,14 +523,6 @@
 #define MT_TX_STAT_FIFO_ACKREQ		BIT(7)
 #define MT_TX_STAT_FIFO_WCID		GENMASK(15, 8)
 #define MT_TX_STAT_FIFO_RATE		GENMASK(31, 16)
-/* NOTE: vendor driver STAT_FIFO content as follows:
-   #define MT_TX_STAT_FIFO_RATE		GENMASK(26, 16)
-   #define MT_TX_STAT_FIFO_ETXBF		BIT(27)
-   #define MT_TX_STAT_FIFO_SND		BIT(28)
-   #define MT_TX_STAT_FIFO_ITXBF		BIT(29)
-   However, tests show that b16-31 have the same layout as TXWI rate_ctl
-   with rate set to rate at which frame was acked.
-*/
 
 #define MT_TX_AGG_STAT			0x171c
 
@@ -615,24 +613,6 @@
 
 #define MT_TEMP_SENSOR			0x1d000
 #define MT_TEMP_SENSOR_VAL		GENMASK(6, 0)
-
-struct mt76_wcid_addr {
-	u8 macaddr[6];
-	__le16 ba_mask;
-} __packed __aligned(4);
-
-struct mt76_wcid_key {
-	u8 key[16];
-	u8 tx_mic[8];
-	u8 rx_mic[8];
-} __packed __aligned(4);
-
-struct mt76_queue_regs {
-	u32 desc_base;
-	u32 ring_size;
-	u32 cpu_idx;
-	u32 dma_idx;
-} __packed __aligned(4);
 
 enum mt76_cipher_type {
 	MT_CIPHER_NONE,
