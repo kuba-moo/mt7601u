@@ -206,7 +206,6 @@ static void mt7601u_complete_tx(struct urb *urb)
 	skb = q->e[q->start].skb;
 	trace_mt_tx_dma_done(dev, skb);
 
-	dma_unmap_single(dev->dev, q->e[q->start].dma, skb->len, DMA_TO_DEVICE);
 	mt7601u_tx_status(dev, skb);
 
 	if (q->used == q->entries - q->entries/8)
@@ -243,18 +242,9 @@ int mt7601u_dma_submit_tx(struct mt7601u_dev *dev, struct sk_buff *skb, u8 ep)
 	}
 
 	e = &q->e[q->end];
-
 	e->skb = skb;
-	e->dma = dma_map_single(dev->dev, skb->data, skb->len, DMA_TO_DEVICE);
-	if (unlikely(ret = dma_mapping_error(dev->dev, e->dma))) {
-		dev_err(dev->dev, "Error: TX dma mapping failed:%d\n", ret);
-		goto out;
-	}
-
 	usb_fill_bulk_urb(e->urb, usb_dev, snd_pipe, skb->data, skb->len,
 			  mt7601u_complete_tx, q);
-	e->urb->transfer_dma = e->dma;
-	e->urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 	ret = usb_submit_urb(e->urb, GFP_ATOMIC);
 	if (ret) {
 		/* Special-handle ENODEV from TX urb submission because it will
@@ -265,7 +255,6 @@ int mt7601u_dma_submit_tx(struct mt7601u_dev *dev, struct sk_buff *skb, u8 ep)
 		else
 			dev_err(dev->dev, "Error: TX urb submit failed:%d\n",
 				ret);
-		dma_unmap_single(dev->dev, e->dma, skb->len, DMA_TO_DEVICE);
 		goto out;
 	}
 

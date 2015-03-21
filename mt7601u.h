@@ -88,7 +88,6 @@ struct mt7601u_tx_queue {
 	struct mt7601u_dma_buf_tx {
 		struct urb *urb;
 		struct sk_buff *skb;
-		dma_addr_t dma;
 	} e[N_TX_ENTRIES];
 
 	unsigned int start;
