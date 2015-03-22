@@ -240,10 +240,6 @@ int mt7601u_mac_start(struct mt7601u_dev *dev)
 		       MT_WPDMA_GLO_CFG_RX_DMA_BUSY, 0, 50))
 		return -ETIMEDOUT;
 
-	if (!mt76_poll(dev, MT_WPDMA_GLO_CFG, MT_WPDMA_GLO_CFG_TX_DMA_BUSY |
-		       MT_WPDMA_GLO_CFG_RX_DMA_BUSY, 0, 50))
-		return -ETIMEDOUT;
-
 	return 0;
 }
 
