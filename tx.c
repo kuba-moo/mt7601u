@@ -312,6 +312,10 @@ int mt7601u_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	printk("%s %02hhx <- %04hx\n", __func__, hw_q, queue);
 
+	/* TODO: should we do funny things with the parameters?
+	 *	 See what mt7601u_set_default_edca() used to do in init.c.
+	 */
+
 	if (params->cw_min)
 		cw_min = fls(params->cw_min);
 	if (params->cw_max)

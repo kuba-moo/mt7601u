@@ -216,61 +216,6 @@ static void mt7601u_reset_counters(struct mt7601u_dev *dev)
 	mt7601u_rr(dev, MT_TX_STA_CNT2);
 }
 
-static void mt7601u_set_default_edca(struct mt7601u_dev *dev)
-{
-	static const struct edca_cfg {
-		u8 aifs;
-		u8 cw_min;
-		u8 cw_max;
-		u8 txop;
-	} params[4] = {
-		{ .aifs = 3,	.cw_min = 4,	.cw_max = 6,	.txop = 0 },
-		{ .aifs = 7,	.cw_min = 4,	.cw_max = 10,	.txop = 0 },
-		{ .aifs = 1,	.cw_min = 3,	.cw_max = 4,	.txop = 94 },
-		{ .aifs = 1,	.cw_min = 2,	.cw_max = 3,	.txop = 47 }
-	};
-	u32 val;
-	int i;
-
-	for (i = 0; i < 2; i++) {
-		val = MT76_SET(MT_EDCA_CFG_TXOP, params[i].txop) |
-			MT76_SET(MT_EDCA_CFG_AIFSN, params[i].aifs) |
-			MT76_SET(MT_EDCA_CFG_CWMIN, params[i].cw_min) |
-			MT76_SET(MT_EDCA_CFG_CWMAX, params[i].cw_max);
-		mt76_wr(dev, MT_EDCA_CFG_AC(i), val);
-	}
-
-	val = MT76_SET(MT_EDCA_CFG_TXOP, (params[2].txop * 6) / 10) |
-	      MT76_SET(MT_EDCA_CFG_AIFSN, params[2].aifs + 1) |
-	      MT76_SET(MT_EDCA_CFG_CWMIN, params[2].cw_min) |
-	      MT76_SET(MT_EDCA_CFG_CWMAX, params[2].cw_max);
-	mt76_wr(dev, MT_EDCA_CFG_AC(2), val);
-	val = MT76_SET(MT_EDCA_CFG_TXOP, params[3].txop) |
-		MT76_SET(MT_EDCA_CFG_AIFSN, params[3].aifs) |
-		MT76_SET(MT_EDCA_CFG_CWMIN, params[3].cw_min) |
-		MT76_SET(MT_EDCA_CFG_CWMAX, params[3].cw_max);
-	mt76_wr(dev, MT_EDCA_CFG_AC(3), val);
-
-	mt76_wr(dev, MT_WMM_TXOP(0), (u32)params[0].txop |
-		((u32)params[1].txop << 16));
-	mt76_wr(dev, MT_WMM_TXOP(2), ((u32)params[2].txop * 6) / 10 |
-		((u32)params[3].txop << 16));
-
-	val = 0;
-	for (i = 3; i >= 0 ; i--)
-		val = (val << 4) | params[i].cw_min;
-	val -= 0x1000;
-	mt76_wr(dev, MT_WMM_CWMIN, val);
-
-	val = 0;
-	for (i = 3; i >= 0 ; i--)
-		val = (val << 4) | params[i].cw_max;
-	mt76_wr(dev, MT_WMM_CWMAX, val);
-
-	val = 0x0293;
-	mt76_wr(dev, MT_WMM_AIFSN, val);
-}
-
 int mt7601u_mac_start(struct mt7601u_dev *dev)
 {
 	/* TODO: move counter clears here */
@@ -492,7 +437,6 @@ int mt7601u_init_hardware(struct mt7601u_dev *dev)
 	mt7601u_mac_set_ctrlch(dev, false);
 	mt7601u_bbp_set_ctrlch(dev, false); /* Note: *not* in vendor driver */
 	mt7601u_bbp_set_bw(dev, MT_BW_20);
-	mt7601u_set_default_edca(dev);
 
 	return 0;
 
