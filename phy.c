@@ -178,6 +178,91 @@ mt7601u_rf_clear(struct mt7601u_dev *dev, u8 bank, u8 offset, u8 mask)
 	return mt7601u_rf_rmw(dev, bank, offset, mask, 0);
 }
 
+
+u8 mt7601u_bbp_rr(struct mt7601u_dev *dev, u8 offset)
+{
+	u32 val;
+	u8 ret = 0xff;
+
+	if (!test_bit(MT7601U_STATE_WLAN_RUNNING, &dev->state)) {
+		printk("Error: %s wlan not enabled\n", __func__);
+		return 0xff;
+	}
+	if (test_bit(MT7601U_STATE_REMOVED, &dev->state))
+		return 0xff;
+
+	mutex_lock(&dev->reg_atomic_mutex);
+
+	if (!mt76_poll(dev, MT_BBP_CSR_CFG, MT_BBP_CSR_CFG_BUSY, 0, 1000)) {
+		printk("Error: BBP busy\n");
+		goto out;
+	}
+
+	val = MT76_SET(MT_BBP_CSR_CFG_REG_NUM, offset) |
+		MT_BBP_CSR_CFG_READ |
+		MT_BBP_CSR_CFG_RW_MODE |
+		MT_BBP_CSR_CFG_BUSY;
+	mt7601u_wr(dev, MT_BBP_CSR_CFG, val);
+
+	if (!mt76_poll(dev, MT_BBP_CSR_CFG, MT_BBP_CSR_CFG_BUSY, 0, 1000)) {
+		printk("Error: BBP busy after cmd\n");
+		goto out;
+	}
+
+	val = mt7601u_rr(dev, MT_BBP_CSR_CFG);
+	if (MT76_GET(MT_BBP_CSR_CFG_REG_NUM, val) != offset) {
+		printk("Error: BBP reg changed!?\n");
+		goto out;
+	}
+	ret = MT76_GET(MT_BBP_CSR_CFG_VAL, val);
+out:
+	mutex_unlock(&dev->reg_atomic_mutex);
+
+	trace_bbp_read(offset, ret);
+	return ret;
+}
+
+void mt7601u_bbp_wr(struct mt7601u_dev *dev, u8 offset, u8 val)
+{
+	if (!test_bit(MT7601U_STATE_WLAN_RUNNING, &dev->state)) {
+		printk("Error: %s wlan not enabled\n", __func__);
+		return;
+	}
+	if (test_bit(MT7601U_STATE_REMOVED, &dev->state))
+		return;
+
+	mutex_lock(&dev->reg_atomic_mutex);
+
+	if (!mt76_poll(dev, MT_BBP_CSR_CFG, MT_BBP_CSR_CFG_BUSY, 0, 1000)) {
+		printk("Error: BBP busy\n");
+		goto out;
+	}
+
+	mt7601u_wr(dev, MT_BBP_CSR_CFG,
+		   val | MT76_SET(MT_BBP_CSR_CFG_REG_NUM, offset) |
+		   MT_BBP_CSR_CFG_RW_MODE | MT_BBP_CSR_CFG_BUSY);
+out:
+	mutex_unlock(&dev->reg_atomic_mutex);
+	trace_bbp_write(offset, val);
+}
+
+u8 mt7601u_bbp_rmw(struct mt7601u_dev *dev, u8 offset, u8 mask, u8 val)
+{
+	u8 reg = mt7601u_bbp_rr(dev, offset);
+	val |= reg & ~mask;
+	mt7601u_bbp_wr(dev, offset, val);
+	return val;
+}
+
+u8 mt7601u_bbp_rmc(struct mt7601u_dev *dev, u8 offset, u8 mask, u8 val)
+{
+	u8 reg = mt7601u_bbp_rr(dev, offset);
+	val |= reg & ~mask;
+	if (reg != val)
+		mt7601u_bbp_wr(dev, offset, val);
+	return val;
+}
+
 int mt7601u_phy_get_rssi(struct mt7601u_dev *dev,
 			 struct mt7601u_rxwi *rxwi, u16 rate)
 {
