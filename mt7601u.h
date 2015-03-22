@@ -177,8 +177,6 @@ struct mt7601u_dev {
 
 	/***** Mine *****/
 	unsigned long state;
-	u32 asic_rev;
-	u32 mac_rev;
 
 	u32 n_cows;
 

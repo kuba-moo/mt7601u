@@ -252,6 +252,7 @@ static int mt7601u_probe(struct usb_interface *usb_intf,
 {
 	struct usb_device *usb_dev = interface_to_usbdev(usb_intf);
 	struct mt7601u_dev *dev;
+	u32 asic_rev, mac_rev;
 	int ret;
 
 	dev = mt7601u_alloc_device(&usb_intf->dev);
@@ -270,10 +271,10 @@ static int mt7601u_probe(struct usb_interface *usb_intf,
 	if (ret)
 		goto err;
 
-	dev->rev = dev->asic_rev = mt7601u_rr(dev, MT_ASIC_VERSION);
-	dev->mac_rev = mt7601u_rr(dev, MT_MAC_CSR0);
+	asic_rev = mt7601u_rr(dev, MT_ASIC_VERSION);
+	mac_rev = mt7601u_rr(dev, MT_MAC_CSR0);
 	dev_info(dev->dev, "ASIC revision: %08x MAC revision: %08x\n",
-		 dev->asic_rev, dev->mac_rev);
+		 asic_rev, mac_rev);
 
 	/* Note: vendor driver skips this check for MT7601U */
 	if (!(mt7601u_rr(dev, MT_EFUSE_CTRL) & MT_EFUSE_CTRL_SEL))
