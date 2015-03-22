@@ -319,7 +319,7 @@ static int mt7601u_alloc_rx(struct mt7601u_dev *dev)
 	dev->rx_q.entries = N_RX_ENTRIES;
 
 	for (i = 0; i < N_RX_ENTRIES; i++)
-		if (mt7601u_usb_alloc_buf(dev, RX_URB_SIZE, &dev->rx_q.e[i]))
+		if (mt7601u_usb_alloc_buf(dev, MT_RX_URB_SIZE, &dev->rx_q.e[i]))
 			return -ENOMEM;
 
 	return 0;

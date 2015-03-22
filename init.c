@@ -353,9 +353,10 @@ int mt7601u_init_hardware(struct mt7601u_dev *dev)
 
 	mt7601u_reset_csr_bbp(dev);
 
-	val = MT76_SET(MT_USB_DMA_CFG_RX_BULK_AGG_TOUT, 0x80) | /* TODO: val */
-		MT76_SET(MT_USB_DMA_CFG_RX_BULK_AGG_LMT, 21) |  /* TODO: val */
-		MT_USB_DMA_CFG_RX_BULK_EN | MT_USB_DMA_CFG_TX_BULK_EN;
+	val = MT76_SET(MT_USB_DMA_CFG_RX_BULK_AGG_TOUT, MT_USB_AGGR_TIMEOUT) |
+	      MT76_SET(MT_USB_DMA_CFG_RX_BULK_AGG_LMT, MT_USB_AGGR_SIZE_LIMIT) |
+	      MT_USB_DMA_CFG_RX_BULK_EN |
+	      MT_USB_DMA_CFG_TX_BULK_EN;
 	if (dev->in_max_packet == 512)
 		val |= MT_USB_DMA_CFG_RX_BULK_AGG_EN;
 	mt7601u_wr(dev, MT_USB_DMA_CFG, val);

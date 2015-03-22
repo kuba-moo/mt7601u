@@ -34,6 +34,10 @@
 
 #define MT_BBP_REG_VERSION		0x00
 
+#define MT_USB_AGGR_SIZE_LIMIT		21 /* * 1024B */
+#define MT_USB_AGGR_TIMEOUT		0x80 /* * 33ns */
+#define MT_RX_URB_SIZE			(24 * 1024)
+
 struct mt7601u_dma_buf {
 	struct urb *urb;
 	void *buf;
@@ -190,7 +194,7 @@ struct mt7601u_dev {
 	u8 in_eps[8];
 	u16 out_max_packet;
 	u16 in_max_packet;
-#define RX_URB_SIZE		(12 * 2048)
+
 	struct mt7601u_dma_buf fake_rx;
 
 #define MT7601_E2_TEMPERATURE_SLOPE		39
