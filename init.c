@@ -158,21 +158,22 @@ static int mt7601u_write_mac_initvals(struct mt7601u_dev *dev)
 	return 0;
 }
 
-/* TODO: this is embarrassingly dumb code. */
 static int mt7601u_init_wcid_mem(struct mt7601u_dev *dev)
 {
 	u32 *vals;
 	int i, ret;
 
-	vals = kmalloc(sizeof(*vals) * 128 * 2, GFP_KERNEL);
+	vals = kmalloc(sizeof(*vals) * N_WCIDS * 2, GFP_KERNEL);
+	if (!vals)
+		return -ENOMEM;
 
-	for (i = 0; i < 128; i++)  {
+	for (i = 0; i < N_WCIDS; i++)  {
 		vals[i * 2] = 0xffffffff;
 		vals[i * 2 + 1] = 0x00ffffff;
 	}
 
-	ret = mt7601u_burst_write_regs(dev, MT_WCID_ADDR_BASE, vals, 128 * 2);
-
+	ret = mt7601u_burst_write_regs(dev, MT_WCID_ADDR_BASE,
+				       vals, N_WCIDS * 2);
 	kfree(vals);
 
 	return ret;
@@ -191,13 +192,15 @@ static int mt7601u_init_wcid_attr_mem(struct mt7601u_dev *dev)
 	u32 *vals;
 	int i, ret;
 
-	vals = kmalloc(sizeof(*vals) * 256, GFP_KERNEL);
+	vals = kmalloc(sizeof(*vals) * N_WCIDS * 2, GFP_KERNEL);
+	if (!vals)
+		return -ENOMEM;
 
-	for (i = 0; i < 256; i++)
+	for (i = 0; i < N_WCIDS * 2; i++)
 		vals[i] = 1;
 
-	ret = mt7601u_burst_write_regs(dev, MT_WCID_ATTR_BASE, vals, 128 * 2);
-
+	ret = mt7601u_burst_write_regs(dev, MT_WCID_ATTR_BASE,
+				       vals, N_WCIDS * 2);
 	kfree(vals);
 
 	return ret;
