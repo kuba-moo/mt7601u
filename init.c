@@ -455,15 +455,9 @@ int mt7601u_init_hardware(struct mt7601u_dev *dev)
 	if (ret)
 		goto err_rx;
 
-	/* TODO: this is set to sth else in initvals */
-	mt76_set(dev, MT_MAX_LEN_CFG, 0x3fff);
-
 	ret = mt7601u_init_wcid_mem(dev);
 	if (ret)
 		goto err_rx;
-
-	/* TODO: we will just do it again few lines below... */
-	mt7601u_reset_counters(dev);
 
 	ret = mt7601u_init_key_mem(dev);
 	if (ret)
