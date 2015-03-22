@@ -140,7 +140,6 @@ static void mt7601u_reset_csr_bbp(struct mt7601u_dev *dev)
 
 static int mt7601u_write_mac_initvals(struct mt7601u_dev *dev)
 {
-#define MAX_AGGREGATION_SIZE    3840 /* TODO: drop this */
 	static const struct mt76_reg_pair vals[] = {
 		{ MT_LEGACY_BASIC_RATE,		0x0000013f },
 		{ MT_HT_BASIC_RATE,		0x00008003 },
@@ -151,7 +150,7 @@ static int mt7601u_write_mac_initvals(struct mt7601u_dev *dev)
 		{ MT_TX_SW_CFG1,		0x00080606 },
 		{ MT_TX_LINK_CFG,		0x00001020 },
 		{ MT_TX_TIMEOUT_CFG,		0x000a2090 },
-		{ MT_MAX_LEN_CFG,		MAX_AGGREGATION_SIZE | 0x00001000 },
+		{ MT_MAX_LEN_CFG,		0x00001f00 },
 		{ MT_PBF_TX_MAX_PCNT,		0x1fbf1f1f },
 		{ MT_PBF_RX_MAX_PCNT,		0x0000009f },
 		{ MT_TX_RETRY_CFG,		0x47d01f0f },
