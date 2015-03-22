@@ -195,8 +195,6 @@ struct mt7601u_dev {
 	u16 out_max_packet;
 	u16 in_max_packet;
 
-	struct mt7601u_dma_buf fake_rx;
-
 #define MT7601_E2_TEMPERATURE_SLOPE		39
 	s8 b49_temp;
 	int curr_temp;
