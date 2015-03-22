@@ -402,7 +402,8 @@ int mt7601u_init_hardware(struct mt7601u_dev *dev)
 
 	mt7601u_rmw(dev, MT_US_CYC_CFG, MT_US_CYC_CNT, 0x1e);
 
-	mt7601u_wr(dev, MT_TXOP_CTRL_CFG, 0x583f);
+	mt7601u_wr(dev, MT_TXOP_CTRL_CFG, MT76_SET(MT_TXOP_TRUN_EN, 0x3f) |
+					  MT76_SET(MT_TXOP_EXT_CCA_DLY, 0x58));
 
 	ret = mt7601u_eeprom_init(dev);
 	if (ret)
