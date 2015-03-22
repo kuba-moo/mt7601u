@@ -417,7 +417,7 @@ int mt7601u_init_hardware(struct mt7601u_dev *dev)
 	mt7601u_set_tx_dac(dev, 0);
 
 	mt7601u_mac_set_ctrlch(dev, false);
-	mt7601u_bbp_set_ctrlch(dev, false); /* Note: *not* in vendor driver */
+	mt7601u_bbp_set_ctrlch(dev, false);
 	mt7601u_bbp_set_bw(dev, MT_BW_20);
 
 	return 0;
