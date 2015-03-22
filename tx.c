@@ -295,11 +295,11 @@ void mt7601u_tx_stat(struct work_struct *work)
 	if (cleaned)
 		queue_delayed_work(dev->stat_wq, &dev->stat_work,
 				   msecs_to_jiffies(10));
-	else if (__test_and_clear_bit(MT7601U_STATE_MORE_STATS, &dev->state))
+	else if (test_and_clear_bit(MT7601U_STATE_MORE_STATS, &dev->state))
 		queue_delayed_work(dev->stat_wq, &dev->stat_work,
 				   msecs_to_jiffies(20));
 	else
-		__clear_bit(MT7601U_STATE_READING_STATS, &dev->state);
+		clear_bit(MT7601U_STATE_READING_STATS, &dev->state);
 	spin_unlock_irqrestore(&dev->tx_lock, flags);
 }
 
