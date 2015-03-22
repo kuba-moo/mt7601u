@@ -218,8 +218,6 @@ static void mt7601u_reset_counters(struct mt7601u_dev *dev)
 
 int mt7601u_mac_start(struct mt7601u_dev *dev)
 {
-	/* TODO: move counter clears here */
-
 	mt7601u_wr(dev, MT_MAC_SYS_CTRL, MT_MAC_SYS_CTRL_ENABLE_TX);
 
 	if (!mt76_poll(dev, MT_WPDMA_GLO_CFG, MT_WPDMA_GLO_CFG_TX_DMA_BUSY |
@@ -237,9 +235,6 @@ int mt7601u_mac_start(struct mt7601u_dev *dev)
 
 	mt7601u_wr(dev, MT_MAC_SYS_CTRL,
 		   MT_MAC_SYS_CTRL_ENABLE_TX | MT_MAC_SYS_CTRL_ENABLE_RX);
-
-	/* TODO: drop this, IRQs are not there any more. */
-	mt7601u_rr(dev, MT_EDCA_CFG_BASE);
 
 	if (!mt76_poll(dev, MT_WPDMA_GLO_CFG, MT_WPDMA_GLO_CFG_TX_DMA_BUSY |
 		       MT_WPDMA_GLO_CFG_RX_DMA_BUSY, 0, 50))
