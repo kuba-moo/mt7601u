@@ -140,70 +140,20 @@ mt76_init_beacon_offsets(struct mt7601u_dev *dev)
 
 static int mt7601u_write_mac_initvals(struct mt7601u_dev *dev)
 {
-	static const struct mt76_reg_pair vals[] = {
-		{ MT_LEGACY_BASIC_RATE,		0x0000013f },
-		{ MT_HT_BASIC_RATE,		0x00008003 },
-		{ MT_MAC_SYS_CTRL,		0x00000000 },
-		{ MT_RX_FILTR_CFG,		0x00017f97 },
-		{ MT_BKOFF_SLOT_CFG,		0x00000209 },
-		{ MT_TX_SW_CFG0,		0x00000000 },
-		{ MT_TX_SW_CFG1,		0x00080606 },
-		{ MT_TX_LINK_CFG,		0x00001020 },
-		{ MT_TX_TIMEOUT_CFG,		0x000a2090 },
-		{ MT_MAX_LEN_CFG,		0x00001f00 },
-		{ MT_PBF_TX_MAX_PCNT,		0x1fbf1f1f },
-		{ MT_PBF_RX_MAX_PCNT,		0x0000009f },
-		{ MT_TX_RETRY_CFG,		0x47d01f0f },
-		{ MT_AUTO_RSP_CFG,		0x00000013 },
-		{ MT_CCK_PROT_CFG,		0x05740003 },
-		{ MT_OFDM_PROT_CFG,		0x05740003 },
-		{ MT_MM40_PROT_CFG,		0x03f44084 },
-		{ MT_GF20_PROT_CFG,		0x01744004 },
-		{ MT_GF40_PROT_CFG,		0x03f44084 },
-		{ MT_MM20_PROT_CFG,		0x01744004 },
-		{ MT_TXOP_CTRL_CFG,		0x0000583f },
-		{ MT_TX_RTS_CFG,		0x01092b20 },
-		{ MT_EXP_ACK_TIME,		0x002400ca },
-		{ MT_TXOP_HLDR_ET, 		0x00000002 },
-		{ MT_XIFS_TIME_CFG,		0x33a41010 },
-		{ MT_PWR_PIN_CFG,		0x00000000 },
-	};
-
-	return mt7601u_write_reg_pairs(dev, MT_MCU_MEMMAP_WLAN,
-				       vals, ARRAY_SIZE(vals));
-}
-
-static int mt7601u_write_chip_mac_initvals(struct mt7601u_dev *dev)
-{
 	int ret;
-	static const struct mt76_reg_pair vals[] = {
-		{ MT_TSO_CTRL, 			0x00006050 },
-		{ MT_BCN_OFFSET(0),		0x18100800 }, /*< TODO: did I */
-		{ MT_BCN_OFFSET(1),		0x38302820 }, /*<  not just   */
-		{ MT_PBF_SYS_CTRL,		0x00080c00 }, /*   init that? */
-		{ MT_PBF_CFG,			0x7f723c1f },
-		{ MT_FCE_PSE_CTRL,		0x00000001 },
-		{ MT_PAUSE_ENABLE_CONTROL1,	0x00000000 },
-		{ MT_TX0_RF_GAIN_CORR,		0x003b0005 },
-		{ MT_TX0_RF_GAIN_ATTEN,		0x00006900 },
-		{ MT_TX0_BB_GAIN_ATTEN,		0x00000400 },
-		{ MT_TX_ALC_VGA3,		0x00060006 },
-		{ MT_TX_SW_CFG0,		0x00000402 },
-		{ MT_TX_SW_CFG1,		0x00000000 },
-		{ MT_TX_SW_CFG2,		0x00000000 },
-		{ MT_HEADER_TRANS_CTRL_REG,	0x00000000 },
-		{ MT_FCE_CSO,			0x0000030f },
-		{ MT_FCE_PARAMETERS,		0x00256f0f },
-	};
 
-	ret = mt7601u_write_reg_pairs(dev, MT_MCU_MEMMAP_WLAN,
-				      vals, ARRAY_SIZE(vals));
+	ret = mt7601u_write_reg_pairs(dev, MT_MCU_MEMMAP_WLAN, mac_common_vals,
+				      ARRAY_SIZE(mac_common_vals));
 	if (ret)
 		return ret;
 
-	/* TODO: redundant - initvals already released the reset. */
-	mt76_clear(dev, MT_MAC_SYS_CTRL, (MT_MAC_SYS_CTRL_RESET_CSR |
-					  MT_MAC_SYS_CTRL_RESET_BBP));
+	mt76_init_beacon_offsets(dev);
+
+	ret = mt7601u_write_reg_pairs(dev, MT_MCU_MEMMAP_WLAN,
+				      mac_chip_vals, ARRAY_SIZE(mac_chip_vals));
+	if (ret)
+		return ret;
+
 	mt7601u_wr(dev, MT_AUX_CLK_CFG, 0);
 
 	return 0;
@@ -490,12 +440,6 @@ int mt7601u_init_hardware(struct mt7601u_dev *dev)
 		goto err_mcu;
 
 	ret = mt7601u_write_mac_initvals(dev);
-	if (ret)
-		goto err_rx;
-
-	mt76_init_beacon_offsets(dev);
-
-	ret = mt7601u_write_chip_mac_initvals(dev);
 	if (ret)
 		goto err_rx;
 
