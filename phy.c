@@ -179,7 +179,7 @@ mt7601u_rf_clear(struct mt7601u_dev *dev, u8 bank, u8 offset, u8 mask)
 }
 
 
-u8 mt7601u_bbp_rr(struct mt7601u_dev *dev, u8 offset)
+static u8 mt7601u_bbp_rr(struct mt7601u_dev *dev, u8 offset)
 {
 	u32 val;
 	u8 ret = 0xff;
@@ -246,7 +246,7 @@ out:
 	trace_bbp_write(offset, val);
 }
 
-u8 mt7601u_bbp_rmw(struct mt7601u_dev *dev, u8 offset, u8 mask, u8 val)
+static u8 mt7601u_bbp_rmw(struct mt7601u_dev *dev, u8 offset, u8 mask, u8 val)
 {
 	u8 reg = mt7601u_bbp_rr(dev, offset);
 	val |= reg & ~mask;
@@ -254,13 +254,37 @@ u8 mt7601u_bbp_rmw(struct mt7601u_dev *dev, u8 offset, u8 mask, u8 val)
 	return val;
 }
 
-u8 mt7601u_bbp_rmc(struct mt7601u_dev *dev, u8 offset, u8 mask, u8 val)
+static u8 mt7601u_bbp_rmc(struct mt7601u_dev *dev, u8 offset, u8 mask, u8 val)
 {
 	u8 reg = mt7601u_bbp_rr(dev, offset);
 	val |= reg & ~mask;
 	if (reg != val)
 		mt7601u_bbp_wr(dev, offset, val);
 	return val;
+}
+
+int mt7601u_wait_bbp_ready(struct mt7601u_dev *dev)
+{
+	int i = 20;
+	u8 val;
+
+	do {
+		val = mt7601u_bbp_rr(dev, MT_BBP_REG_VERSION);
+		if (val && ~val)
+			break;
+	} while (--i);
+
+	if (!i) {
+		dev_err(dev->dev, "Error: BBP is not ready\n");
+		return -EIO;
+	}
+
+	return 0;
+}
+
+u32 mt7601u_bbp_set_ctrlch(struct mt7601u_dev *dev, bool below)
+{
+	return mt7601u_bbp_rmc(dev, 3, 0x20, below ? 0x20 : 0);
 }
 
 int mt7601u_phy_get_rssi(struct mt7601u_dev *dev,

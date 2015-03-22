@@ -62,12 +62,6 @@ mt7601u_set_wlan_state(struct mt7601u_dev *dev, u32 val, bool enable)
 		dev_err(dev->dev, "Error: PLL and XTAL check failed!\n");
 }
 
-static inline int bbp_ready(struct mt7601u_dev *dev)
-{
-	const u8 val = mt7601u_bbp_rr(dev, MT_BBP_REG_VERSION);
-	return val && ~val;
-}
-
 static void mt7601u_chip_onoff(struct mt7601u_dev *dev, bool enable, bool reset)
 {
 	u32 val;
@@ -202,14 +196,11 @@ static int mt7601u_init_bbp(struct mt7601u_dev *dev)
 		{ 105,	0x05 },
 		{ 106,	0x35 },
 	};
-	int i;
+	int i, ret;
 
-	for (i = 20; i && !bbp_ready(dev); i--)
-		;
-	if (!i) {
-		printk("Error: BBP is not ready\n");
-		return -EIO;
-	}
+	ret = mt7601u_wait_bbp_ready(dev);
+	if (ret)
+		return ret;
 
 	for (i = 0; i < ARRAY_SIZE(vals); i++)
 		mt7601u_bbp_wr(dev, vals[i].reg, vals[i].value);

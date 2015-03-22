@@ -296,10 +296,8 @@ int mt7601u_init_hardware(struct mt7601u_dev *dev);
 int mt7601u_register_device(struct mt7601u_dev *dev);
 void mt7601u_cleanup(struct mt7601u_dev *dev);
 
-u8 mt7601u_bbp_rr(struct mt7601u_dev *dev, u8 offset);
 void mt7601u_bbp_wr(struct mt7601u_dev *dev, u8 offset, u8 val);
-u8 mt7601u_bbp_rmw(struct mt7601u_dev *dev, u8 offset, u8 mask, u8 val);
-u8 mt7601u_bbp_rmc(struct mt7601u_dev *dev, u8 offset, u8 mask, u8 val);
+int mt7601u_wait_bbp_ready(struct mt7601u_dev *dev);
 
 int mt7601u_mac_start(struct mt7601u_dev *dev);
 void mt7601u_mac_stop(struct mt7601u_dev *dev);
@@ -342,10 +340,7 @@ void mt7601u_tx_stat(struct work_struct *work);
 void mt76_remove_hdr_pad(struct sk_buff *skb);
 int mt76_insert_hdr_pad(struct sk_buff *skb);
 
-static inline u32 mt7601u_bbp_set_ctrlch(struct mt7601u_dev *dev, bool below)
-{
-	return mt7601u_bbp_rmc(dev, 3, 0x20, below ? 0x20 : 0);
-}
+u32 mt7601u_bbp_set_ctrlch(struct mt7601u_dev *dev, bool below);
 
 static inline u32 mt7601u_mac_set_ctrlch(struct mt7601u_dev *dev, bool below)
 {
