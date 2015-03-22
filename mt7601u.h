@@ -164,7 +164,6 @@ struct mt7601u_dev {
 	u32 mac_rev;
 
 	u32 n_cows;
-	u32 wlan_ctrl;
 
 	struct mac_stats stats;
 

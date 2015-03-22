@@ -92,7 +92,7 @@ mt7601u_rf_wr(struct mt7601u_dev *dev, u8 bank, u8 offset, u8 value)
 {
 	int ret = 0;
 
-	WARN_ON(!(dev->wlan_ctrl & MT_WLAN_FUN_CTRL_WLAN_EN));
+	WARN_ON(!test_bit(MT7601U_STATE_WLAN_RUNNING, &dev->state));
 	WARN_ON(offset >= 63);
 
 	if (test_bit(MT7601U_STATE_REMOVED, &dev->state))
@@ -123,7 +123,7 @@ mt7601u_rf_rr(struct mt7601u_dev *dev, u8 bank, u8 offset)
 	int ret = -ETIMEDOUT;
 	u32 val;
 
-	WARN_ON(!(dev->wlan_ctrl & MT_WLAN_FUN_CTRL_WLAN_EN));
+	WARN_ON(!test_bit(MT7601U_STATE_WLAN_RUNNING, &dev->state));
 	WARN_ON(offset >= 63);
 
 	if (test_bit(MT7601U_STATE_REMOVED, &dev->state))

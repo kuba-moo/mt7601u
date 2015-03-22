@@ -23,12 +23,10 @@ mt7601u_set_wlan_state(struct mt7601u_dev *dev, u32 val, bool enable)
 {
 	int i;
 
-	/* TODO: we don't turn off WLAN_CLK because that makes the device
-	 *	 not respond properly to the probe path.
+	/* Note: we don't turn off WLAN_CLK because that makes the device
+	 *	 not respond properly on the probe path.
 	 *	 In case anyone (PSM?) wants to use this function we can
 	 *	 bring the clock stuff back and fixup the probe path.
-	 *
-	 *	 MT_WLAN_FUN_CTRL_WLAN_CLK_EN | MT_WLAN_FUN_CTRL_PCIE_CLK_REQ
 	 */
 
 	if (enable)
@@ -40,10 +38,12 @@ mt7601u_set_wlan_state(struct mt7601u_dev *dev, u32 val, bool enable)
 	mt7601u_wr(dev, MT_WLAN_FUN_CTRL, val);
 	udelay(20);
 
-	dev->wlan_ctrl = val;
-
-	if (!enable)
+	if (enable) {
+		set_bit(MT7601U_STATE_WLAN_RUNNING, &dev->state);
+	} else {
+		clear_bit(MT7601U_STATE_WLAN_RUNNING, &dev->state);
 		return;
+	}
 
 	for (i = 200; i; i--) {
 		val = mt7601u_rr(dev, MT_CMB_CTRL);
@@ -59,7 +59,7 @@ mt7601u_set_wlan_state(struct mt7601u_dev *dev, u32 val, bool enable)
 	 *       triggered, so don't bother.
 	 */
 	if (!i)
-		printk("Error: PLL and XTAL check failed!\n");
+		dev_err(dev->dev, "Error: PLL and XTAL check failed!\n");
 }
 
 static void mt7601u_chip_onoff(struct mt7601u_dev *dev, bool enable, bool reset)
@@ -98,7 +98,7 @@ u8 mt7601u_bbp_rr(struct mt7601u_dev *dev, u8 offset)
 	u32 val;
 	u8 ret = 0xff;
 
-	if (!(dev->wlan_ctrl & MT_WLAN_FUN_CTRL_WLAN_EN)) {
+	if (!test_bit(MT7601U_STATE_WLAN_RUNNING, &dev->state)) {
 		printk("Error: %s wlan not enabled\n", __func__);
 		return 0xff;
 	}
@@ -138,7 +138,7 @@ out:
 
 void mt7601u_bbp_wr(struct mt7601u_dev *dev, u8 offset, u8 val)
 {
-	if (!(dev->wlan_ctrl & MT_WLAN_FUN_CTRL_WLAN_EN)) {
+	if (!test_bit(MT7601U_STATE_WLAN_RUNNING, &dev->state)) {
 		printk("Error: %s wlan not enabled\n", __func__);
 		return;
 	}
