@@ -255,7 +255,7 @@ static void mt7601u_mac_stop_hw(struct mt7601u_dev *dev)
 		   MT_BEACON_TIME_CFG_BEACON_TX);
 
 	if (!mt76_poll(dev, MT_USB_DMA_CFG, MT_USB_DMA_CFG_TX_BUSY, 0, 1000))
-		printk("Error: TX DMA did not stop!\n");
+		dev_warn(dev->dev, "Warning: TX DMA did not stop!\n");
 
 	/* Page count on TxQ */
 	i = 200;
@@ -265,9 +265,8 @@ static void mt7601u_mac_stop_hw(struct mt7601u_dev *dev)
 		msleep(10);
 
 	if (!mt76_poll(dev, MT_MAC_STATUS, MT_MAC_STATUS_TX, 0, 1000))
-		printk("Error: MAC TX did not stop!\n");
+		dev_warn(dev->dev, "Warning: MAC TX did not stop!\n");
 
-	/* TODO: don't disable TX when going into PSM. */
 	mt76_clear(dev, MT_MAC_SYS_CTRL, MT_MAC_SYS_CTRL_ENABLE_RX |
 					 MT_MAC_SYS_CTRL_ENABLE_TX);
 
@@ -283,16 +282,13 @@ static void mt7601u_mac_stop_hw(struct mt7601u_dev *dev)
 			break;
 
 		msleep(1);
-		/* TODO: vendor does rx and cmd processing here. */
 	}
 
 	if (!mt76_poll(dev, MT_MAC_STATUS, MT_MAC_STATUS_RX, 0, 1000))
-		printk("Error: MAC RX did not stop!\n");
-
-	/* TODO: drain RX queue */
+		dev_warn(dev->dev, "Warning: MAC RX did not stop!\n");
 
 	if (!mt76_poll(dev, MT_USB_DMA_CFG, MT_USB_DMA_CFG_RX_BUSY, 0, 1000))
-		printk("Error: RX DMA did not stop!\n");
+		dev_warn(dev->dev, "Warning: RX DMA did not stop!\n");
 }
 
 void mt7601u_mac_stop(struct mt7601u_dev *dev)
