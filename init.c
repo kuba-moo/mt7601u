@@ -581,7 +581,6 @@ int mt7601u_register_device(struct mt7601u_dev *dev)
 	struct wiphy *wiphy = hw->wiphy;
 	int ret;
 
-	/* TODO: this should disappear after WCID clean up */
 	/* Reserve WCID 0 for mcast - thanks to this APs WCID will go to
 	 * entry no. 1 like in the vendor driver.
 	 */
@@ -612,12 +611,10 @@ int mt7601u_register_device(struct mt7601u_dev *dev)
 
 	hw->sta_data_size = sizeof(struct mt76_sta);
 	hw->vif_data_size = sizeof(struct mt76_vif);
-	//hw->txq_data_size = sizeof(struct mt76_txq);
 
 	SET_IEEE80211_PERM_ADDR(hw, dev->macaddr);
 
 	wiphy->features |= NL80211_FEATURE_ACTIVE_MONITOR;
-
 	wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
 
 	ret = mt76_init_sband_2g(dev);
