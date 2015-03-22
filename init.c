@@ -95,6 +95,15 @@ static void mt7601u_chip_onoff(struct mt7601u_dev *dev, bool enable, bool reset)
 	mutex_unlock(&dev->hw_atomic_mutex);
 }
 
+static void mt7601u_reset_csr_bbp(struct mt7601u_dev *dev)
+{
+	mt7601u_wr(dev, MT_MAC_SYS_CTRL, (MT_MAC_SYS_CTRL_RESET_CSR |
+					  MT_MAC_SYS_CTRL_RESET_BBP));
+	mt7601u_wr(dev, MT_USB_DMA_CFG, 0);
+	msleep(1);
+	mt7601u_wr(dev, MT_MAC_SYS_CTRL, 0);
+}
+
 static int mt7601u_init_bbp(struct mt7601u_dev *dev)
 {
 	int ret;
@@ -127,15 +136,6 @@ mt76_init_beacon_offsets(struct mt7601u_dev *dev)
 
 	for (i = 0; i < 4; i++)
 		mt7601u_wr(dev, MT_BCN_OFFSET(i), regs[i]);
-}
-
-static void mt7601u_reset_csr_bbp(struct mt7601u_dev *dev)
-{
-	mt7601u_wr(dev, MT_MAC_SYS_CTRL, (MT_MAC_SYS_CTRL_RESET_CSR |
-					  MT_MAC_SYS_CTRL_RESET_BBP));
-	mt7601u_wr(dev, MT_USB_DMA_CFG, 0);
-	msleep(1);
-	mt7601u_wr(dev, MT_MAC_SYS_CTRL, 0);
 }
 
 static int mt7601u_write_mac_initvals(struct mt7601u_dev *dev)
