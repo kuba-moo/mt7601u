@@ -104,6 +104,24 @@ static void mt7601u_reset_csr_bbp(struct mt7601u_dev *dev)
 	mt7601u_wr(dev, MT_MAC_SYS_CTRL, 0);
 }
 
+static void mt7601u_init_usb_dma(struct mt7601u_dev *dev)
+{
+	u32 val;
+
+	val = MT76_SET(MT_USB_DMA_CFG_RX_BULK_AGG_TOUT, MT_USB_AGGR_TIMEOUT) |
+	      MT76_SET(MT_USB_DMA_CFG_RX_BULK_AGG_LMT, MT_USB_AGGR_SIZE_LIMIT) |
+	      MT_USB_DMA_CFG_RX_BULK_EN |
+	      MT_USB_DMA_CFG_TX_BULK_EN;
+	if (dev->in_max_packet == 512)
+		val |= MT_USB_DMA_CFG_RX_BULK_AGG_EN;
+	mt7601u_wr(dev, MT_USB_DMA_CFG, val);
+
+	val |= MT_USB_DMA_CFG_UDMA_RX_WL_DROP;
+	mt7601u_wr(dev, MT_USB_DMA_CFG, val);
+	val &= ~MT_USB_DMA_CFG_UDMA_RX_WL_DROP;
+	mt7601u_wr(dev, MT_USB_DMA_CFG, val);
+}
+
 static int mt7601u_init_bbp(struct mt7601u_dev *dev)
 {
 	int ret;
@@ -325,7 +343,6 @@ int mt7601u_init_hardware(struct mt7601u_dev *dev)
 		0xde00
 	};
 	int ret;
-	u32 val;
 
 	dev->beacon_offsets = beacon_offsets;
 
@@ -352,19 +369,7 @@ int mt7601u_init_hardware(struct mt7601u_dev *dev)
 		goto err;
 
 	mt7601u_reset_csr_bbp(dev);
-
-	val = MT76_SET(MT_USB_DMA_CFG_RX_BULK_AGG_TOUT, MT_USB_AGGR_TIMEOUT) |
-	      MT76_SET(MT_USB_DMA_CFG_RX_BULK_AGG_LMT, MT_USB_AGGR_SIZE_LIMIT) |
-	      MT_USB_DMA_CFG_RX_BULK_EN |
-	      MT_USB_DMA_CFG_TX_BULK_EN;
-	if (dev->in_max_packet == 512)
-		val |= MT_USB_DMA_CFG_RX_BULK_AGG_EN;
-	mt7601u_wr(dev, MT_USB_DMA_CFG, val);
-
-	val |= MT_USB_DMA_CFG_UDMA_RX_WL_DROP;
-	mt7601u_wr(dev, MT_USB_DMA_CFG, val);
-	val &= ~MT_USB_DMA_CFG_UDMA_RX_WL_DROP;
-	mt7601u_wr(dev, MT_USB_DMA_CFG, val);
+	mt7601u_init_usb_dma(dev);
 
 	ret = mt7601u_mcu_cmd_init(dev);
 	if (ret)
