@@ -222,7 +222,7 @@ out:
 	return ret;
 }
 
-void mt7601u_bbp_wr(struct mt7601u_dev *dev, u8 offset, u8 val)
+static void mt7601u_bbp_wr(struct mt7601u_dev *dev, u8 offset, u8 val)
 {
 	if (!test_bit(MT7601U_STATE_WLAN_RUNNING, &dev->state)) {
 		printk("Error: %s wlan not enabled\n", __func__);

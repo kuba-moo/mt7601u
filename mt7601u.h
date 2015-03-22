@@ -296,14 +296,12 @@ int mt7601u_init_hardware(struct mt7601u_dev *dev);
 int mt7601u_register_device(struct mt7601u_dev *dev);
 void mt7601u_cleanup(struct mt7601u_dev *dev);
 
-void mt7601u_bbp_wr(struct mt7601u_dev *dev, u8 offset, u8 val);
-int mt7601u_wait_bbp_ready(struct mt7601u_dev *dev);
-
 int mt7601u_mac_start(struct mt7601u_dev *dev);
 void mt7601u_mac_stop(struct mt7601u_dev *dev);
 
 /* PHY */
 int mt7601u_phy_init(struct mt7601u_dev *dev);
+int mt7601u_wait_bbp_ready(struct mt7601u_dev *dev);
 void mt7601u_set_rx_path(struct mt7601u_dev *dev, u8 path);
 void mt7601u_set_tx_dac(struct mt7601u_dev *dev, u8 path);
 int mt7601u_bbp_set_bw(struct mt7601u_dev *dev, int bw);
