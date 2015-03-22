@@ -142,8 +142,8 @@ static const struct mt76_reg_pair mac_common_vals[] = {
 
 static const struct mt76_reg_pair mac_chip_vals[] = {
 	{ MT_TSO_CTRL,			0x00006050 },
-	{ MT_BCN_OFFSET(0),		0x18100800 }, /*< TODO: did I not */
-	{ MT_BCN_OFFSET(1),		0x38302820 }, /*<  just init that? */
+	{ MT_BCN_OFFSET(0),		0x18100800 },
+	{ MT_BCN_OFFSET(1),		0x38302820 },
 	{ MT_PBF_SYS_CTRL,		0x00080c00 },
 	{ MT_PBF_CFG,			0x7f723c1f },
 	{ MT_FCE_PSE_CTRL,		0x00000001 },

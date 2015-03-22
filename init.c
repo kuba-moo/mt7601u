@@ -146,13 +146,12 @@ static int mt7601u_write_mac_initvals(struct mt7601u_dev *dev)
 				      ARRAY_SIZE(mac_common_vals));
 	if (ret)
 		return ret;
-
-	mt76_init_beacon_offsets(dev);
-
 	ret = mt7601u_write_reg_pairs(dev, MT_MCU_MEMMAP_WLAN,
 				      mac_chip_vals, ARRAY_SIZE(mac_chip_vals));
 	if (ret)
 		return ret;
+
+	mt76_init_beacon_offsets(dev);
 
 	mt7601u_wr(dev, MT_AUX_CLK_CFG, 0);
 
