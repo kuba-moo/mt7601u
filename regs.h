@@ -165,7 +165,8 @@
 #define MT_TSO_CTRL			0x0250
 #define MT_HEADER_TRANS_CTRL_REG	0x0260
 
-#define MT_USB_CYC_CFG			0x02a4
+#define MT_US_CYC_CFG			0x02a4
+#define MT_US_CYC_CNT			GENMASK(7, 0)
 
 #define MT_TX_RING_BASE			0x0300
 #define MT_RX_RING_BASE			0x03c0

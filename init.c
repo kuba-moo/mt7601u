@@ -400,7 +400,7 @@ int mt7601u_init_hardware(struct mt7601u_dev *dev)
 
 	mt7601u_reset_counters(dev);
 
-	mt7601u_rmw(dev, MT_USB_CYC_CFG, 0xffffff00, 0x1e);
+	mt7601u_rmw(dev, MT_US_CYC_CFG, MT_US_CYC_CNT, 0x1e);
 
 	mt7601u_wr(dev, MT_TXOP_CTRL_CFG, 0x583f);
 
