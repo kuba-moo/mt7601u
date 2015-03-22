@@ -106,6 +106,19 @@ struct mt7601u_tx_queue {
 
 struct mt7601u_eeprom_params;
 
+/**
+ * struct mt7601u_dev - adapter structure
+ * @lock:		protects @wcid->tx_rate.
+ * @tx_lock:		protects @tx_q and changes of MT7601U_STATE_*_STATS
+			flags in @state.
+ * @rx_lock:		protects @rx_q.
+ * @mutex:		ensures exclusive access from mac80211 callbacks.
+ * @vendor_req_mutex:	ensures atomicity of vendor requests.
+ * @reg_atomic_mutex:	ensures atomicity of indirect register accesses
+ *			(accesses to RF and BBP).
+ * @hw_atomic_mutex:	ensures exclusive access to HW during critical
+ *			operations (power management, channel switch).
+ */
 struct mt7601u_dev {
 	struct ieee80211_hw *hw;
 	struct device *dev;
