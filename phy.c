@@ -397,7 +397,7 @@ static int mt7601u_bbp_temp(struct mt7601u_dev *dev, int mode, const char *name)
 		return 0;
 
 	dev->temp_mode = mode;
-	dev_dbg(dev->dev, "Switching to %s temp\n", name);
+	trace_temp_mode(dev, mode);
 
 	t = mt7601u_bbp_mode_table[dev->temp_mode];
 	ret = mt7601u_write_reg_pairs(dev, MT_MCU_MEMMAP_BBP,

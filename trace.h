@@ -206,6 +206,27 @@ DEFINE_EVENT(dev_bbp_reg_evt, bbp_write,
 	TP_ARGS(dev, reg, val)
 );
 
+DECLARE_EVENT_CLASS(dev_simple_evt,
+	TP_PROTO(struct mt7601u_dev *dev, u8 val),
+	TP_ARGS(dev, val),
+	TP_STRUCT__entry(
+		DEV_ENTRY
+		__field(u8, val)
+	),
+	TP_fast_assign(
+		DEV_ASSIGN;
+		__entry->val = val;
+	),
+	TP_printk(
+		DEV_PR_FMT "%02hhx", DEV_PR_ARG, __entry->val
+	)
+);
+
+DEFINE_EVENT(dev_simple_evt, temp_mode,
+	TP_PROTO(struct mt7601u_dev *dev, u8 val),
+	TP_ARGS(dev, val)
+);
+
 TRACE_EVENT(read_temp,
 	TP_PROTO(u8 temp),
 

@@ -162,6 +162,7 @@ void mt7601u_init_debugfs(struct mt7601u_dev *dev)
 		return;
 
 	debugfs_create_u8("temperature", S_IRUSR, dir, &dev->b49_temp);
+	debugfs_create_u32("temp_mode", S_IRUSR, dir, &dev->temp_mode);
 
 	debugfs_create_u32("regidx", S_IRUSR | S_IWUSR, dir, &dev->debugfs_reg);
 	debugfs_create_file("regval", S_IRUSR | S_IWUSR, dir, dev,
