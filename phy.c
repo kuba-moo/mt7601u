@@ -332,7 +332,6 @@ int mt7601u_phy_get_rssi(struct mt7601u_dev *dev,
 
 static void mt7601u_vco_cal(struct mt7601u_dev *dev)
 {
-	/* TODO: these two can be combined in an andes write */
 	mt7601u_rf_wr(dev, 0, 4, 0x0a);
 	mt7601u_rf_wr(dev, 0, 5, 0x20);
 	mt7601u_rf_set(dev, 0, 4, BIT(7));
