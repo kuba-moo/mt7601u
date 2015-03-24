@@ -227,20 +227,9 @@ DEFINE_EVENT(dev_simple_evt, temp_mode,
 	TP_ARGS(dev, val)
 );
 
-TRACE_EVENT(read_temp,
-	TP_PROTO(u8 temp),
-
-	TP_ARGS(temp),
-
-	TP_STRUCT__entry(
-		__field(u8, temp)
-	),
-
-	TP_fast_assign(
-		__entry->temp = temp;
-	),
-
-	TP_printk("%02hhx", __entry->temp)
+DEFINE_EVENT(dev_simple_evt, read_temp,
+	TP_PROTO(struct mt7601u_dev *dev, u8 val),
+	TP_ARGS(dev, val)
 );
 
 TRACE_EVENT(freq_cal_offset,

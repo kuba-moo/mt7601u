@@ -633,7 +633,7 @@ static s8 mt7601u_read_temp(struct mt7601u_dev *dev)
 
 	temp = mt7601u_bbp_r47_get(dev, val, BBP_R47_F_TEMP);
 
-	trace_read_temp(temp);
+	trace_read_temp(dev, temp);
 	return temp;
 }
 
