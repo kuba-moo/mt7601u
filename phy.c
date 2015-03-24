@@ -92,9 +92,9 @@ mt7601u_rf_wr(struct mt7601u_dev *dev, u8 bank, u8 offset, u8 value)
 {
 	int ret = 0;
 
-	WARN_ON(!test_bit(MT7601U_STATE_WLAN_RUNNING, &dev->state));
-	WARN_ON(offset >= 63);
-
+	if (WARN_ON(!test_bit(MT7601U_STATE_WLAN_RUNNING, &dev->state)) ||
+	    WARN_ON(offset > 63))
+		return -EINVAL;
 	if (test_bit(MT7601U_STATE_REMOVED, &dev->state))
 		return 0;
 
@@ -110,10 +110,14 @@ mt7601u_rf_wr(struct mt7601u_dev *dev, u8 bank, u8 offset, u8 value)
 				       MT76_SET(MT_RF_CSR_CFG_REG_ID, offset) |
 				       MT_RF_CSR_CFG_WR |
 				       MT_RF_CSR_CFG_KICK);
+	trace_rf_write(bank, offset, value);
 out:
 	mutex_unlock(&dev->reg_atomic_mutex);
 
-	trace_rf_write(bank, offset, value);
+	if (ret < 0)
+		dev_err(dev->dev, "Error: RF write %02hhx:%02hhx failed:%d!!\n",
+			bank, offset, ret);
+
 	return ret;
 }
 
@@ -123,9 +127,9 @@ mt7601u_rf_rr(struct mt7601u_dev *dev, u8 bank, u8 offset)
 	int ret = -ETIMEDOUT;
 	u32 val;
 
-	WARN_ON(!test_bit(MT7601U_STATE_WLAN_RUNNING, &dev->state));
-	WARN_ON(offset >= 63);
-
+	if (WARN_ON(!test_bit(MT7601U_STATE_WLAN_RUNNING, &dev->state)) ||
+	    WARN_ON(offset > 63))
+		return -EINVAL;
 	if (test_bit(MT7601U_STATE_REMOVED, &dev->state))
 		return 0xff;
 
@@ -143,31 +147,38 @@ mt7601u_rf_rr(struct mt7601u_dev *dev, u8 bank, u8 offset)
 
 	val = mt7601u_rr(dev, MT_RF_CSR_CFG);
 	if (MT76_GET(MT_RF_CSR_CFG_REG_ID, val) == offset &&
-	    MT76_GET(MT_RF_CSR_CFG_REG_BANK, val) == bank)
+	    MT76_GET(MT_RF_CSR_CFG_REG_BANK, val) == bank) {
 		ret = MT76_GET(MT_RF_CSR_CFG_DATA, val);
+		trace_rf_read(bank, offset, ret);
+	}
 out:
 	mutex_unlock(&dev->reg_atomic_mutex);
 
 	if (ret < 0)
-		printk("Error: the reg rf read failed %d!!\n", ret);
+		dev_err(dev->dev, "Error: RF read %02hhx:%02hhx failed:%d!!\n",
+			bank, offset, ret);
 
-	trace_rf_read(bank, offset, ret);
 	return ret;
 }
-/* TODO: dunno about the ret val. */
+
 static int
 mt7601u_rf_rmw(struct mt7601u_dev *dev, u8 bank, u8 offset, u8 mask, u8 val)
 {
 	int ret;
+
 	ret = mt7601u_rf_rr(dev, bank, offset);
 	if (ret < 0)
 		return ret;
 	val |= ret & ~mask;
-	mt7601u_rf_wr(dev, bank, offset, val);
+	ret = mt7601u_rf_wr(dev, bank, offset, val);
+	if (ret)
+		return ret;
+
 	return val;
 }
 
-static int mt7601u_rf_set(struct mt7601u_dev *dev, u8 bank, u8 offset, u8 val)
+static int
+mt7601u_rf_set(struct mt7601u_dev *dev, u8 bank, u8 offset, u8 val)
 {
 	return mt7601u_rf_rmw(dev, bank, offset, 0, val);
 }
@@ -177,7 +188,6 @@ mt7601u_rf_clear(struct mt7601u_dev *dev, u8 bank, u8 offset, u8 mask)
 {
 	return mt7601u_rf_rmw(dev, bank, offset, mask, 0);
 }
-
 
 static u8 mt7601u_bbp_rr(struct mt7601u_dev *dev, u8 offset)
 {
