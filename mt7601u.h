@@ -106,6 +106,12 @@ struct mt7601u_tx_queue {
 
 struct mt7601u_eeprom_params;
 
+enum mt_temp_mode {
+	MT_TEMP_MODE_NORMAL,
+	MT_TEMP_MODE_HIGH,
+	MT_TEMP_MODE_LOW,
+};
+
 /**
  * struct mt7601u_dev - adapter structure
  * @lock:		protects @wcid->tx_rate.
@@ -225,10 +231,7 @@ struct mt7601u_dev {
 	/* PA mode */
 	u32 rf_pa_mode[2];
 
-#define MT_TEMP_MODE_NORMAL			0
-#define MT_TEMP_MODE_HIGH			1
-#define MT_TEMP_MODE_LOW			2
-	u8 temp_mode;
+	enum mt_temp_mode temp_mode;
 };
 
 struct mt7601u_tssi_params {

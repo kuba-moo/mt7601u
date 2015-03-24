@@ -25,7 +25,7 @@
 static const struct mt76_reg_pair mt7601u_high_temp[] = {
 	{  75, 0x60 },
 	{  92, 0x02 },
-	{ 178, 0xff },		// For CCK CH14 OBW
+	{ 178, 0xff }, /* For CCK CH14 OBW */
 	{ 195, 0x88 }, { 196, 0x60 },
 }, mt7601u_high_temp_bw20[] = {
 	{  69, 0x12 },
@@ -42,7 +42,7 @@ static const struct mt76_reg_pair mt7601u_high_temp[] = {
 	{ 195, 0x81 }, { 196, 0x15 },
 	{ 195, 0x83 }, { 196, 0x16 },
 }, mt7601u_low_temp[] = {
-	{ 178, 0xff },		// For CCK CH14 OBW
+	{ 178, 0xff }, /* For CCK CH14 OBW */
 }, mt7601u_low_temp_bw20[] = {
 	{  69, 0x12 },
 	{  75, 0x5e },
@@ -66,7 +66,7 @@ static const struct mt76_reg_pair mt7601u_high_temp[] = {
 }, mt7601u_normal_temp[] = {
 	{  75, 0x60 },
 	{  92, 0x02 },
-	{ 178, 0xff },		// For CCK CH14 OBW
+	{ 178, 0xff }, /* For CCK CH14 OBW */
 	{ 195, 0x88 }, { 196, 0x60 },
 }, mt7601u_normal_temp_bw20[] = {
 	{  69, 0x12 },
@@ -84,6 +84,26 @@ static const struct mt76_reg_pair mt7601u_high_temp[] = {
 	{ 195, 0x83 }, { 196, 0x16 },
 };
 
+#define BBP_TABLE(arr) { arr, ARRAY_SIZE(arr), }
+
+static const struct reg_table {
+	const struct mt76_reg_pair *regs;
+	size_t n;
+} mt7601u_bbp_mode_table[3][3] = {
+	{
+		BBP_TABLE(mt7601u_normal_temp_bw20),
+		BBP_TABLE(mt7601u_normal_temp_bw40),
+		BBP_TABLE(mt7601u_normal_temp),
+	}, {
+		BBP_TABLE(mt7601u_high_temp_bw20),
+		BBP_TABLE(mt7601u_high_temp_bw40),
+		BBP_TABLE(mt7601u_high_temp),
+	}, {
+		BBP_TABLE(mt7601u_low_temp_bw20),
+		BBP_TABLE(mt7601u_low_temp_bw40),
+		BBP_TABLE(mt7601u_low_temp),
+	}
+};
 
 static void mt7601u_agc_reset(struct mt7601u_dev *dev);
 
@@ -356,51 +376,37 @@ static int mt7601u_set_bw_filter(struct mt7601u_dev *dev, bool cal)
 	return mt7601u_mcu_calibrate(dev, MCU_CAL_BW, filter);
 }
 
-static int mt7601u_update_bbp_temp_table_after_set_bw(struct mt7601u_dev *dev)
+static int mt7601u_load_bbp_temp_table_bw(struct mt7601u_dev *dev)
 {
-	const struct mt76_reg_pair *t;
-	int n;
+	const struct reg_table *t;
 
-	/* TODO: only do this when bw really changed */
-	/* TODO: these tables are a huge mess, clean this up */
-	switch (dev->temp_mode) {
-	case MT_TEMP_MODE_LOW:
-		if (dev->bw == MT_BW_20) {
-			t = mt7601u_low_temp_bw20;
-			n = ARRAY_SIZE(mt7601u_low_temp_bw20);
-		} else {
-			t = mt7601u_low_temp_bw40;
-			n = ARRAY_SIZE(mt7601u_low_temp_bw40);
-		}
-		break;
-
-	case MT_TEMP_MODE_NORMAL:
-		if (dev->bw == MT_BW_20) {
-			t = mt7601u_normal_temp_bw20;
-			n = ARRAY_SIZE(mt7601u_normal_temp_bw20);
-		} else {
-			t = mt7601u_normal_temp_bw40;
-			n = ARRAY_SIZE(mt7601u_normal_temp_bw40);
-		}
-		break;
-
-	case MT_TEMP_MODE_HIGH:
-		if (dev->bw == MT_BW_20) {
-			t = mt7601u_high_temp_bw20;
-			n = ARRAY_SIZE(mt7601u_high_temp_bw20);
-		} else {
-			t = mt7601u_high_temp_bw40;
-			n = ARRAY_SIZE(mt7601u_high_temp_bw40);
-		}
-		break;
-
-	default:
-		/* TODO: turn TEMP_MODE into enum and drop this */
-		printk("Error: %s detected invalid state\n", __func__);
+	if (WARN_ON(dev->temp_mode > MT_TEMP_MODE_LOW))
 		return -EINVAL;
-	}
 
-	return mt7601u_write_reg_pairs(dev, MT_MCU_MEMMAP_BBP, t, n);
+	t = &mt7601u_bbp_mode_table[dev->temp_mode][dev->bw];
+
+	return mt7601u_write_reg_pairs(dev, MT_MCU_MEMMAP_BBP, t->regs, t->n);
+}
+
+static int mt7601u_bbp_temp(struct mt7601u_dev *dev, int mode, const char *name)
+{
+	const struct reg_table *t;
+	int ret;
+
+	if (dev->temp_mode == mode)
+		return 0;
+
+	dev->temp_mode = mode;
+	dev_dbg(dev->dev, "Switching to %s temp\n", name);
+
+	t = mt7601u_bbp_mode_table[dev->temp_mode];
+	ret = mt7601u_write_reg_pairs(dev, MT_MCU_MEMMAP_BBP,
+				      t[2].regs, t[2].n);
+	if (ret)
+		return ret;
+
+	return mt7601u_write_reg_pairs(dev, MT_MCU_MEMMAP_BBP,
+				       t[dev->bw].regs, t[dev->bw].n);
 }
 
 static int __mt7601u_phy_set_channel(struct mt7601u_dev *dev,
@@ -487,7 +493,7 @@ static int __mt7601u_phy_set_channel(struct mt7601u_dev *dev,
 	mt7601u_bbp_set_bw(dev, bw);
 
 	/* TODO: move this to set BW, no? */
-	ret = mt7601u_update_bbp_temp_table_after_set_bw(dev);
+	ret = mt7601u_load_bbp_temp_table_bw(dev);
 	if (ret)
 		return ret;
 
@@ -807,33 +813,6 @@ static void mt7601u_tssi_dc_gain_cal(struct mt7601u_dev *dev)
 	mt7601u_set_initial_tssi(dev, tssi_init_db, tssi_init_hvga_db);
 }
 
-static int mt7601u_bbp_temp(struct mt7601u_dev *dev,
-			    int mode, const char *name,
-			    const struct mt76_reg_pair *common, int n_common,
-			    const struct mt76_reg_pair *bw20, int n_bw20,
-			    const struct mt76_reg_pair *bw40, int n_bw40)
-{
-	int ret;
-
-	if (dev->temp_mode == mode)
-		return 0;
-
-	dev->temp_mode = mode;
-	trace_printk("Switching to %s temp\n", name);
-
-	ret = mt7601u_write_reg_pairs(dev, MT_MCU_MEMMAP_BBP,
-				      common, n_common);
-	if (ret)
-		return ret;
-
-	if (dev->bw == MT_BW_20)
-		return mt7601u_write_reg_pairs(dev, MT_MCU_MEMMAP_BBP,
-					       bw20, n_bw20);
-	else
-		return mt7601u_write_reg_pairs(dev, MT_MCU_MEMMAP_BBP,
-					       bw40, n_bw40);
-}
-
 static int mt7601u_temp_comp(struct mt7601u_dev *dev, bool on)
 {
 	int ret, temp, hi_temp = 400, lo_temp = -200;
@@ -884,29 +863,11 @@ static int mt7601u_temp_comp(struct mt7601u_dev *dev, bool on)
 
 	/* BBP CR for H, L, N temperature */
 	if (temp > hi_temp)
-		return mt7601u_bbp_temp(dev, MT_TEMP_MODE_HIGH, "high",
-					mt7601u_high_temp,
-					ARRAY_SIZE(mt7601u_high_temp),
-					mt7601u_high_temp_bw20,
-					ARRAY_SIZE(mt7601u_high_temp_bw20),
-					mt7601u_high_temp_bw40,
-					ARRAY_SIZE(mt7601u_high_temp_bw40));
+		return mt7601u_bbp_temp(dev, MT_TEMP_MODE_HIGH, "high");
 	else if (temp > lo_temp)
-		return mt7601u_bbp_temp(dev, MT_TEMP_MODE_NORMAL, "normal",
-					mt7601u_normal_temp,
-					ARRAY_SIZE(mt7601u_normal_temp),
-					mt7601u_normal_temp_bw20,
-					ARRAY_SIZE(mt7601u_normal_temp_bw20),
-					mt7601u_normal_temp_bw40,
-					ARRAY_SIZE(mt7601u_normal_temp_bw40));
+		return mt7601u_bbp_temp(dev, MT_TEMP_MODE_NORMAL, "normal");
 	else
-		return mt7601u_bbp_temp(dev, MT_TEMP_MODE_LOW, "low",
-					mt7601u_low_temp,
-					ARRAY_SIZE(mt7601u_low_temp),
-					mt7601u_low_temp_bw20,
-					ARRAY_SIZE(mt7601u_low_temp_bw20),
-					mt7601u_low_temp_bw40,
-					ARRAY_SIZE(mt7601u_low_temp_bw40));
+		return mt7601u_bbp_temp(dev, MT_TEMP_MODE_LOW, "low");
 }
 
 /* TODO: If this is used only with HVGA we can just use trgt_pwr directly. */
