@@ -561,9 +561,9 @@ int mt7601u_phy_set_channel(struct mt7601u_dev *dev,
 #define BBP_R47_F_TEMP		4
 /**
  * mt7601u_bbp_r47_get - read value through BBP R47/R49 pair
- * @dev: adapter structure
- * @reg: value of BBP R47 before the operation
- * @flag: one of the BBP_R47_F_* flags
+ * @dev:	pointer to adapter structure
+ * @reg:	value of BBP R47 before the operation
+ * @flag:	one of the BBP_R47_F_* flags
  *
  * Convenience helper for reading values through BBP R47/R49 pair.
  * Takes old value of BBP R47 as @reg, because callers usually have it
@@ -1287,8 +1287,8 @@ int mt7601u_bbp_set_bw(struct mt7601u_dev *dev, int bw)
 
 /**
  * mt7601u_set_rx_path - set rx path in BBP
- * @dev: pointer to device
- * @path: rx path to set values are 0-based
+ * @dev:	pointer to adapter structure
+ * @path:	rx path to set values are 0-based
  */
 void mt7601u_set_rx_path(struct mt7601u_dev *dev, u8 path)
 {
@@ -1297,8 +1297,8 @@ void mt7601u_set_rx_path(struct mt7601u_dev *dev, u8 path)
 
 /**
  * mt7601u_set_tx_dac - set which tx DAC to use
- * @dev: pointer to device
- * @path: DAC index, values are 0-based
+ * @dev:	pointer to adapter structure
+ * @path:	DAC index, values are 0-based
  */
 void mt7601u_set_tx_dac(struct mt7601u_dev *dev, u8 dac)
 {
