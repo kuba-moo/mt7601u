@@ -492,11 +492,6 @@ static int __mt7601u_phy_set_channel(struct mt7601u_dev *dev,
 	/* TODO: already did this above */
 	mt7601u_bbp_set_bw(dev, bw);
 
-	/* TODO: move this to set BW, no? */
-	ret = mt7601u_load_bbp_temp_table_bw(dev);
-	if (ret)
-		return ret;
-
 	ret = mt7601u_set_bw_filter(dev, false);
 	if (ret)
 		return ret;
@@ -1266,32 +1261,28 @@ static int mt7601u_init_cal(struct mt7601u_dev *dev)
 
 int mt7601u_bbp_set_bw(struct mt7601u_dev *dev, int bw)
 {
-	/* TODO: save-and-restore MAC_SYS_CTRL rather than blind disable enable
-	 */
-	if (bw != dev->bw) {
-		mt76_clear(dev, MT_MAC_SYS_CTRL, MT_MAC_SYS_CTRL_ENABLE_TX |
-			   MT_MAC_SYS_CTRL_ENABLE_RX);
-		mt76_poll(dev, MT_MAC_STATUS,
-			  MT_MAC_STATUS_TX | MT_MAC_STATUS_RX, 0, 500000);
-	}
+	u32 val, old;
 
-	switch (bw) {
-	case MT_BW_20:
-		mt7601u_bbp_rmc(dev, 4, 0x18, 0);
-		break;
-	case MT_BW_40:
-		mt7601u_bbp_rmc(dev, 4, 0x18, 0x10);
-		break;
-	default:
-		printk("Error: Wrong BW!\n");
-	}
+	if (bw == dev->bw) {
+		/* Vendor driver does the rmc even when no change is needed. */
+		mt7601u_bbp_rmc(dev, 4, 0x18, bw == MT_BW_20 ? 0 : 0x10);
 
-	if (bw != dev->bw)
-		mt76_set(dev, MT_MAC_SYS_CTRL, MT_MAC_SYS_CTRL_ENABLE_TX |
-			 MT_MAC_SYS_CTRL_ENABLE_RX);
+		return 0;
+	}
 	dev->bw = bw;
 
-	return 0;
+	/* Stop MAC for the time of bw change */
+	old = mt7601u_rr(dev, MT_MAC_SYS_CTRL);
+	val = old & ~(MT_MAC_SYS_CTRL_ENABLE_TX | MT_MAC_SYS_CTRL_ENABLE_RX);
+	mt7601u_wr(dev, MT_MAC_SYS_CTRL, val);
+	mt76_poll(dev, MT_MAC_STATUS, MT_MAC_STATUS_TX | MT_MAC_STATUS_RX,
+		  0, 500000);
+
+	mt7601u_bbp_rmc(dev, 4, 0x18, bw == MT_BW_20 ? 0 : 0x10);
+
+	mt7601u_wr(dev, MT_MAC_SYS_CTRL, old);
+
+	return mt7601u_load_bbp_temp_table_bw(dev);
 }
 
 /**
