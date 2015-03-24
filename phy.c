@@ -130,7 +130,7 @@ mt7601u_rf_wr(struct mt7601u_dev *dev, u8 bank, u8 offset, u8 value)
 				       MT76_SET(MT_RF_CSR_CFG_REG_ID, offset) |
 				       MT_RF_CSR_CFG_WR |
 				       MT_RF_CSR_CFG_KICK);
-	trace_rf_write(bank, offset, value);
+	trace_rf_write(dev, bank, offset, value);
 out:
 	mutex_unlock(&dev->reg_atomic_mutex);
 
@@ -169,7 +169,7 @@ mt7601u_rf_rr(struct mt7601u_dev *dev, u8 bank, u8 offset)
 	if (MT76_GET(MT_RF_CSR_CFG_REG_ID, val) == offset &&
 	    MT76_GET(MT_RF_CSR_CFG_REG_BANK, val) == bank) {
 		ret = MT76_GET(MT_RF_CSR_CFG_DATA, val);
-		trace_rf_read(bank, offset, ret);
+		trace_rf_read(dev, bank, offset, ret);
 	}
 out:
 	mutex_unlock(&dev->reg_atomic_mutex);
@@ -226,7 +226,7 @@ static void mt7601u_bbp_wr(struct mt7601u_dev *dev, u8 offset, u8 val)
 		   MT76_SET(MT_BBP_CSR_CFG_VAL, val) |
 		   MT76_SET(MT_BBP_CSR_CFG_REG_NUM, offset) |
 		   MT_BBP_CSR_CFG_RW_MODE | MT_BBP_CSR_CFG_BUSY);
-	trace_bbp_write(offset, val);
+	trace_bbp_write(dev, offset, val);
 out:
 	mutex_unlock(&dev->reg_atomic_mutex);
 }
@@ -257,7 +257,7 @@ static int mt7601u_bbp_rr(struct mt7601u_dev *dev, u8 offset)
 	val = mt7601u_rr(dev, MT_BBP_CSR_CFG);
 	if (MT76_GET(MT_BBP_CSR_CFG_REG_NUM, val) == offset) {
 		ret = MT76_GET(MT_BBP_CSR_CFG_VAL, val);
-		trace_bbp_read(offset, ret);
+		trace_bbp_read(dev, offset, ret);
 	}
 out:
 	mutex_unlock(&dev->reg_atomic_mutex);

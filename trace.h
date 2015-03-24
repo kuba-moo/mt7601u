@@ -148,6 +148,64 @@ TRACE_EVENT(ee_read,
 	TP_printk("%04x=%04x", __entry->o, __entry->v)
 );
 
+DECLARE_EVENT_CLASS(dev_rf_reg_evt,
+	TP_PROTO(struct mt7601u_dev *dev, u8 bank, u8 reg, u8 val),
+	TP_ARGS(dev, bank, reg, val),
+	TP_STRUCT__entry(
+		DEV_ENTRY
+		__field(u8, bank)
+		__field(u8, reg)
+		__field(u8, val)
+	),
+	TP_fast_assign(
+		DEV_ASSIGN;
+		REG_ASSIGN;
+		__entry->bank = bank;
+	),
+	TP_printk(
+		DEV_PR_FMT "%02hhx:%02hhx=%02hhx",
+		DEV_PR_ARG, __entry->bank, __entry->reg, __entry->val
+	)
+);
+
+DEFINE_EVENT(dev_rf_reg_evt, rf_read,
+	TP_PROTO(struct mt7601u_dev *dev, u8 bank, u8 reg, u8 val),
+	TP_ARGS(dev, bank, reg, val)
+);
+
+DEFINE_EVENT(dev_rf_reg_evt, rf_write,
+	TP_PROTO(struct mt7601u_dev *dev, u8 bank, u8 reg, u8 val),
+	TP_ARGS(dev, bank, reg, val)
+);
+
+DECLARE_EVENT_CLASS(dev_bbp_reg_evt,
+	TP_PROTO(struct mt7601u_dev *dev, u8 reg, u8 val),
+	TP_ARGS(dev, reg, val),
+	TP_STRUCT__entry(
+		DEV_ENTRY
+		__field(u8, reg)
+		__field(u8, val)
+	),
+	TP_fast_assign(
+		DEV_ASSIGN;
+		REG_ASSIGN;
+	),
+	TP_printk(
+		DEV_PR_FMT "%02hhx=%02hhx",
+		DEV_PR_ARG, __entry->reg, __entry->val
+	)
+);
+
+DEFINE_EVENT(dev_bbp_reg_evt, bbp_read,
+	TP_PROTO(struct mt7601u_dev *dev, u8 reg, u8 val),
+	TP_ARGS(dev, reg, val)
+);
+
+DEFINE_EVENT(dev_bbp_reg_evt, bbp_write,
+	TP_PROTO(struct mt7601u_dev *dev, u8 reg, u8 val),
+	TP_ARGS(dev, reg, val)
+);
+
 TRACE_EVENT(read_temp,
 	TP_PROTO(u8 temp),
 
@@ -199,40 +257,6 @@ TRACE_EVENT(freq_cal_adjust,
 	TP_printk("%02hhx", __entry->freq_off)
 );
 
-TRACE_EVENT(bbp_read,
-	TP_PROTO(u8 offset, u8 value),
-
-	TP_ARGS(offset, value),
-
-	TP_STRUCT__entry(
-		__field(u8, offset)	__field(u8, value)
-	),
-
-	TP_fast_assign(
-		__entry->offset = offset;
-		__entry->value = value;
-	),
-
-	TP_printk("%02hhx=%02hhx", __entry->offset, __entry->value)
-);
-
-TRACE_EVENT(bbp_write,
-	TP_PROTO(u8 offset, u8 value),
-
-	TP_ARGS(offset, value),
-
-	TP_STRUCT__entry(
-		__field(u8, offset)	__field(u8, value)
-	),
-
-	TP_fast_assign(
-		__entry->offset = offset;
-		__entry->value = value;
-	),
-
-	TP_printk("%02hhx=%02hhx", __entry->offset, __entry->value)
-);
-
 TRACE_EVENT(mt_rx,
 	TP_PROTO(struct mt7601u_dev *dev, struct mt7601u_rxwi *rxwi, u32 f),
 	TP_ARGS(dev, rxwi, f),
@@ -261,34 +285,6 @@ TRACE_EVENT(mt_rx,
 		  __entry->rxwi.gain, __entry->rxwi.freq_off,
 		  __entry->rxwi.resv2, __entry->rxwi.expert_ant,
 		  __entry->fce_info)
-);
-
-DECLARE_EVENT_CLASS(dev_rf_reg_evt,
-	TP_PROTO(u8 bank, u8 offset, u8 value),
-	TP_ARGS(bank, offset, value),
-	TP_STRUCT__entry(
-		__field(u8, bank)
-		__field(u8, offset)
-		__field(u8, value)
-	),
-	TP_fast_assign(
-		__entry->bank = bank;
-		__entry->offset = offset;
-		__entry->value = value;
-	),
-	TP_printk(
-		"%02hhx:%02hhx=%02hhx", __entry->bank, __entry->offset, __entry->value
-	)
-);
-
-DEFINE_EVENT(dev_rf_reg_evt, rf_read,
-	TP_PROTO(u8 bank, u8 offset, u8 value),
-	TP_ARGS(bank, offset, value)
-);
-
-DEFINE_EVENT(dev_rf_reg_evt, rf_write,
-	TP_PROTO(u8 bank, u8 offset, u8 value),
-	TP_ARGS(bank, offset, value)
 );
 
 TRACE_EVENT(mt_tx_dma_done,
