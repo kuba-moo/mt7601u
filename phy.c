@@ -189,87 +189,90 @@ mt7601u_rf_clear(struct mt7601u_dev *dev, u8 bank, u8 offset, u8 mask)
 	return mt7601u_rf_rmw(dev, bank, offset, mask, 0);
 }
 
-static u8 mt7601u_bbp_rr(struct mt7601u_dev *dev, u8 offset)
-{
-	u32 val;
-	u8 ret = 0xff;
-
-	if (!test_bit(MT7601U_STATE_WLAN_RUNNING, &dev->state)) {
-		printk("Error: %s wlan not enabled\n", __func__);
-		return 0xff;
-	}
-	if (test_bit(MT7601U_STATE_REMOVED, &dev->state))
-		return 0xff;
-
-	mutex_lock(&dev->reg_atomic_mutex);
-
-	if (!mt76_poll(dev, MT_BBP_CSR_CFG, MT_BBP_CSR_CFG_BUSY, 0, 1000)) {
-		printk("Error: BBP busy\n");
-		goto out;
-	}
-
-	val = MT76_SET(MT_BBP_CSR_CFG_REG_NUM, offset) |
-		MT_BBP_CSR_CFG_READ |
-		MT_BBP_CSR_CFG_RW_MODE |
-		MT_BBP_CSR_CFG_BUSY;
-	mt7601u_wr(dev, MT_BBP_CSR_CFG, val);
-
-	if (!mt76_poll(dev, MT_BBP_CSR_CFG, MT_BBP_CSR_CFG_BUSY, 0, 1000)) {
-		printk("Error: BBP busy after cmd\n");
-		goto out;
-	}
-
-	val = mt7601u_rr(dev, MT_BBP_CSR_CFG);
-	if (MT76_GET(MT_BBP_CSR_CFG_REG_NUM, val) != offset) {
-		printk("Error: BBP reg changed!?\n");
-		goto out;
-	}
-	ret = MT76_GET(MT_BBP_CSR_CFG_VAL, val);
-out:
-	mutex_unlock(&dev->reg_atomic_mutex);
-
-	trace_bbp_read(offset, ret);
-	return ret;
-}
-
 static void mt7601u_bbp_wr(struct mt7601u_dev *dev, u8 offset, u8 val)
 {
-	if (!test_bit(MT7601U_STATE_WLAN_RUNNING, &dev->state)) {
-		printk("Error: %s wlan not enabled\n", __func__);
-		return;
-	}
-	if (test_bit(MT7601U_STATE_REMOVED, &dev->state))
+	if (WARN_ON(!test_bit(MT7601U_STATE_WLAN_RUNNING, &dev->state)) ||
+	    test_bit(MT7601U_STATE_REMOVED, &dev->state))
 		return;
 
 	mutex_lock(&dev->reg_atomic_mutex);
 
 	if (!mt76_poll(dev, MT_BBP_CSR_CFG, MT_BBP_CSR_CFG_BUSY, 0, 1000)) {
-		printk("Error: BBP busy\n");
+		dev_err(dev->dev, "Error: BBP write %02hhx failed!!\n", offset);
 		goto out;
 	}
 
 	mt7601u_wr(dev, MT_BBP_CSR_CFG,
-		   val | MT76_SET(MT_BBP_CSR_CFG_REG_NUM, offset) |
+		   MT76_SET(MT_BBP_CSR_CFG_VAL, val) |
+		   MT76_SET(MT_BBP_CSR_CFG_REG_NUM, offset) |
 		   MT_BBP_CSR_CFG_RW_MODE | MT_BBP_CSR_CFG_BUSY);
+	trace_bbp_write(offset, val);
 out:
 	mutex_unlock(&dev->reg_atomic_mutex);
-	trace_bbp_write(offset, val);
 }
 
-static u8 mt7601u_bbp_rmw(struct mt7601u_dev *dev, u8 offset, u8 mask, u8 val)
+static int mt7601u_bbp_rr(struct mt7601u_dev *dev, u8 offset)
 {
-	u8 reg = mt7601u_bbp_rr(dev, offset);
-	val |= reg & ~mask;
+	u32 val;
+	int ret = -ETIMEDOUT;
+
+	if (WARN_ON(!test_bit(MT7601U_STATE_WLAN_RUNNING, &dev->state)))
+		return -EINVAL;
+	if (test_bit(MT7601U_STATE_REMOVED, &dev->state))
+		return 0xff;
+
+	mutex_lock(&dev->reg_atomic_mutex);
+
+	if (!mt76_poll(dev, MT_BBP_CSR_CFG, MT_BBP_CSR_CFG_BUSY, 0, 1000))
+		goto out;
+
+	mt7601u_wr(dev, MT_BBP_CSR_CFG,
+		   MT76_SET(MT_BBP_CSR_CFG_REG_NUM, offset) |
+		   MT_BBP_CSR_CFG_RW_MODE | MT_BBP_CSR_CFG_BUSY |
+		   MT_BBP_CSR_CFG_READ);
+
+	if (!mt76_poll(dev, MT_BBP_CSR_CFG, MT_BBP_CSR_CFG_BUSY, 0, 1000))
+		goto out;
+
+	val = mt7601u_rr(dev, MT_BBP_CSR_CFG);
+	if (MT76_GET(MT_BBP_CSR_CFG_REG_NUM, val) == offset) {
+		ret = MT76_GET(MT_BBP_CSR_CFG_VAL, val);
+		trace_bbp_read(offset, ret);
+	}
+out:
+	mutex_unlock(&dev->reg_atomic_mutex);
+
+	if (ret < 0)
+		dev_err(dev->dev, "Error: BBP read %02hhx failed:%d!!\n",
+			offset, ret);
+
+	return ret;
+}
+
+static int mt7601u_bbp_rmw(struct mt7601u_dev *dev, u8 offset, u8 mask, u8 val)
+{
+	int ret;
+
+	ret = mt7601u_bbp_rr(dev, offset);
+	if (ret < 0)
+		return ret;
+	val |= ret & ~mask;
 	mt7601u_bbp_wr(dev, offset, val);
+
 	return val;
 }
 
 static u8 mt7601u_bbp_rmc(struct mt7601u_dev *dev, u8 offset, u8 mask, u8 val)
 {
-	u8 reg = mt7601u_bbp_rr(dev, offset);
-	val |= reg & ~mask;
-	if (reg != val)
+	int ret;
+
+	ret = mt7601u_bbp_rr(dev, offset);
+	if (ret < 0)
+		return ret;
+	val |= ret & ~mask;
+	if (ret != val)
 		mt7601u_bbp_wr(dev, offset, val);
+
 	return val;
 }
 
