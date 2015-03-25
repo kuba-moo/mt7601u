@@ -17,8 +17,7 @@
 
 #include <linux/tracepoint.h>
 #include "mt7601u.h"
-
-#include "mac.h" /* for txwi */ /* TODO: remove me */
+#include "mac.h"
 
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM mt7601u
@@ -132,20 +131,18 @@ TRACE_EVENT(mt_vend_req,
 );
 
 TRACE_EVENT(ee_read,
-	TP_PROTO(int offset, u16 val),
-
-	TP_ARGS(offset, val),
-
+	TP_PROTO(struct mt7601u_dev *dev, int offset, u16 val),
+	TP_ARGS(dev, offset, val),
 	TP_STRUCT__entry(
+		DEV_ENTRY
 		__field(int, o) __field(u16, v)
 	),
-
 	TP_fast_assign(
+		DEV_ASSIGN;
 		__entry->o = offset;
 		__entry->v = val;
 	),
-
-	TP_printk("%04x=%04x", __entry->o, __entry->v)
+	TP_printk(DEV_PR_FMT "%04x=%04x", DEV_PR_ARG, __entry->o, __entry->v)
 );
 
 DECLARE_EVENT_CLASS(dev_rf_reg_evt,
@@ -232,39 +229,26 @@ DEFINE_EVENT(dev_simple_evt, read_temp,
 	TP_ARGS(dev, val)
 );
 
+DEFINE_EVENT(dev_simple_evt, freq_cal_adjust,
+	TP_PROTO(struct mt7601u_dev *dev, u8 val),
+	TP_ARGS(dev, val)
+);
+
 TRACE_EVENT(freq_cal_offset,
-	TP_PROTO(u8 phy_mode, s8 freq_off),
-
-	TP_ARGS(phy_mode, freq_off),
-
+	TP_PROTO(struct mt7601u_dev *dev, u8 phy_mode, s8 freq_off),
+	TP_ARGS(dev, phy_mode, freq_off),
 	TP_STRUCT__entry(
+		DEV_ENTRY
 		__field(u8, phy_mode)
 		__field(s8, freq_off)
 	),
-
 	TP_fast_assign(
+		DEV_ASSIGN;
 		__entry->phy_mode = phy_mode;
 		__entry->freq_off = freq_off;
 	),
-
-	TP_printk("phy:%02hhx off:%02hhx",
-		  __entry->phy_mode, __entry->freq_off)
-);
-
-TRACE_EVENT(freq_cal_adjust,
-	TP_PROTO(u8 freq_off),
-
-	TP_ARGS(freq_off),
-
-	TP_STRUCT__entry(
-		__field(u8, freq_off)
-	),
-
-	TP_fast_assign(
-		__entry->freq_off = freq_off;
-	),
-
-	TP_printk("%02hhx", __entry->freq_off)
+	TP_printk(DEV_PR_FMT "phy:%02hhx off:%02hhx",
+		  DEV_PR_ARG, __entry->phy_mode, __entry->freq_off)
 );
 
 TRACE_EVENT(mt_rx,

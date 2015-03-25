@@ -1095,7 +1095,7 @@ __mt7601u_phy_freq_cal(struct mt7601u_dev *dev, s8 last_offset, u8 phy_mode)
 {
 	u8 activate_threshold, deactivate_threshold;
 
-	trace_freq_cal_offset(phy_mode, last_offset);
+	trace_freq_cal_offset(dev, phy_mode, last_offset);
 
 	/* No beacons received - reschedule soon */
 	if (last_offset == MT_FREQ_OFFSET_INVALID)
@@ -1140,7 +1140,7 @@ __mt7601u_phy_freq_cal(struct mt7601u_dev *dev, s8 last_offset, u8 phy_mode)
 			dev->freq_cal.adjusting = false;
 	}
 
-	trace_freq_cal_adjust(dev->freq_cal.freq);
+	trace_freq_cal_adjust(dev, dev->freq_cal.freq);
 	mt7601u_rf_wr(dev, 0, 12, dev->freq_cal.freq);
 	mt7601u_vco_cal(dev);
 
