@@ -154,50 +154,26 @@ static int mt7601u_skb_rooms(struct mt7601u_dev *dev, struct sk_buff *skb)
 	return skb_cow(skb, need_head);
 }
 
-void mt7601u_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
-		struct sk_buff *skb)
+static struct mt76_txwi *
+mt7601u_push_txwi(struct mt7601u_dev *dev, struct sk_buff *skb,
+		  struct ieee80211_sta *sta, struct mt76_wcid *wcid,
+		  int pkt_len)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	struct ieee80211_tx_rate *rate;
-	struct mt7601u_dev *dev = hw->priv;
-	struct ieee80211_vif *vif = info->control.vif;
-	struct ieee80211_sta *sta = control->sta;
-	struct mt76_sta *msta = NULL;
-	struct mt76_wcid *wcid = dev->mon_wcid;
+	struct ieee80211_tx_rate *rate = &info->control.rates[0];
 	struct mt76_txwi *txwi;
-	int pkt_len = skb->len;
-	int hw_q = skb2q(skb);
-	u32 dma_flags, pkt_id;
-	u16 rate_ctl;
-	u8 ep = q2ep(hw_q), nss;
 	unsigned long flags;
 	bool is_probe;
+	u32 pkt_id;
+	u16 rate_ctl;
+	u8 nss;
 
-	BUILD_BUG_ON(ARRAY_SIZE(info->status.status_driver_data) < 1);
-	info->status.status_driver_data[0] = (void *)(unsigned long)pkt_len;
-
-	/* TODO: should pkt_len include hdr_pad? */
-	if (mt7601u_skb_rooms(dev, skb) || mt76_insert_hdr_pad(skb)) {
-		ieee80211_free_txskb(dev->hw, skb);
-		return;
-	}
-
-	if (sta) {
-		msta = (struct mt76_sta *) sta->drv_priv;
-		wcid = &msta->wcid;
-	} else if (vif) {
-		struct mt76_vif *mvif = (struct mt76_vif *)vif->drv_priv;
-		wcid = &mvif->group_wcid;
-	}
-
-	if (!wcid->tx_rate_set)
-		ieee80211_get_tx_rates(info->control.vif, control->sta, skb,
-				       info->control.rates, 1);
-	rate = &info->control.rates[0];
-
-	/* TODO: this is unaligned */
 	txwi = (struct mt76_txwi *)skb_push(skb, sizeof(struct mt76_txwi));
 	memset(txwi, 0, sizeof(*txwi));
+
+	if (!wcid->tx_rate_set)
+		ieee80211_get_tx_rates(info->control.vif, sta, skb,
+				       info->control.rates, 1);
 
 	spin_lock_irqsave(&dev->lock, flags);
 	if (rate->idx < 0 || !rate->count)
@@ -212,8 +188,10 @@ void mt7601u_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 	if (info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ)
 		txwi->ack_ctl |= MT_TXWI_ACK_CTL_NSEQ;
 	txwi->ack_ctl |= MT76_SET(MT_TXWI_ACK_CTL_BA_WINDOW, 7);
+
 	if ((info->flags & IEEE80211_TX_CTL_AMPDU) && sta) {
 		u8 ba_size = IEEE80211_MIN_AMPDU_BUF;
+
 		ba_size <<= sta->ht_cap.ampdu_factor;
 		ba_size = min_t(int, 63, ba_size);
 		if (info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE)
@@ -226,12 +204,49 @@ void mt7601u_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 		if (info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE)
 			txwi->flags = 0;
 	}
+
 	txwi->wcid = wcid->idx;
 
 	is_probe = !!(info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE);
 	pkt_id = mt7601u_tx_pktid_enc(dev, rate_ctl & 0x7, is_probe);
 	pkt_len |= MT76_SET(MT_TXWI_LEN_PKTID, pkt_id);
 	txwi->len_ctl = cpu_to_le16(pkt_len);
+
+	return txwi;
+}
+
+void mt7601u_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
+		struct sk_buff *skb)
+{
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct mt7601u_dev *dev = hw->priv;
+	struct ieee80211_vif *vif = info->control.vif;
+	struct ieee80211_sta *sta = control->sta;
+	struct mt76_sta *msta = NULL;
+	struct mt76_wcid *wcid = dev->mon_wcid;
+	struct mt76_txwi *txwi;
+	int pkt_len = skb->len;
+	int hw_q = skb2q(skb);
+	u32 dma_flags;
+	u8 ep = q2ep(hw_q);
+
+	BUILD_BUG_ON(ARRAY_SIZE(info->status.status_driver_data) < 1);
+	info->status.status_driver_data[0] = (void *)(unsigned long)pkt_len;
+
+	if (mt7601u_skb_rooms(dev, skb) || mt76_insert_hdr_pad(skb)) {
+		ieee80211_free_txskb(dev->hw, skb);
+		return;
+	}
+
+	if (sta) {
+		msta = (struct mt76_sta *) sta->drv_priv;
+		wcid = &msta->wcid;
+	} else if (vif) {
+		struct mt76_vif *mvif = (struct mt76_vif *)vif->drv_priv;
+		wcid = &mvif->group_wcid;
+	}
+
+	txwi = mt7601u_push_txwi(dev, skb, sta, wcid, pkt_len);
 
 	dma_flags = MT_TXD_PKT_INFO_80211;
 	if (wcid->hw_key_idx == 0xff)
