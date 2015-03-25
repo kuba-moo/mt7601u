@@ -13,10 +13,10 @@
  */
 
 #include "mt7601u.h"
-#include "dma.h" /* TODO: take the dma code out of here! */
+#include "dma.h"
 #include "trace.h"
 
-enum mt76_txq_id { /* TODO: is this mapping correct? */
+enum mt76_txq_id {
 	MT_TXQ_VO = IEEE80211_AC_VO,
 	MT_TXQ_VI = IEEE80211_AC_VI,
 	MT_TXQ_BE = IEEE80211_AC_BE,
@@ -26,6 +26,56 @@ enum mt76_txq_id { /* TODO: is this mapping correct? */
 	__MT_TXQ_MAX
 };
 
+/* Hardware uses mirrored order of queues with Q0 having the highest priority */
+static u8 q2hwq(u8 q)
+{
+	return q ^ 0x3;
+}
+
+/* Take mac80211 Q id from the skb and translate it to hardware Q id */
+static u8 skb2q(struct sk_buff *skb)
+{
+	int qid = skb_get_queue_mapping(skb);
+
+	if (WARN_ON(qid >= MT_TXQ_PSD)) {
+		qid = MT_TXQ_BE;
+		skb_set_queue_mapping(skb, qid);
+	}
+
+	return q2hwq(qid);
+}
+
+/* Map hardware Q to USB endpoint number */
+static u8 q2ep(u8 qid)
+{
+	/* TODO: take management packets to queue 5 */
+	return qid + 1;
+}
+
+/* Map USB endpoint number to Q id in the DMA engine */
+static enum mt76_qsel ep2dmaq(u8 ep)
+{
+	if (ep == 5)
+		return MT_QSEL_MGMT;
+	return MT_QSEL_EDCA;
+}
+
+/* Note: TX retry reporting is a bit broken.
+ *	 Retries are reported only once per AMPDU and often come a frame early
+ *	 i.e. they are reported in the last status preceding the AMPDU. Apart
+ *	 from the fact that it's hard to know the length of the AMPDU (which is
+ *	 required to know to how many consecutive frames retries should be
+ *	 applied), if status comes early on full FIFO it gets lost and retries
+ *	 of the whole AMPDU become invisible.
+ *	 As a work-around encode the desired rate in PKT_ID of TX descriptor
+ *	 and based on that guess the retries (every rate is tried once).
+ *	 Only downside here is that for MCS0 we have to rely solely on
+ *	 transmission failures as no retries can ever be reported.
+ *	 Not having to read EXT_FIFO has a nice effect of doubling the number
+ *	 of reports which can be fetched.
+ *	 Also the vendor driver never uses the EXT_FIFO register so it may be
+ *	 undertested.
+ */
 static u8 mt7601u_tx_pktid_enc(struct mt7601u_dev *dev, u8 rate, bool is_probe)
 {
 	u8 encoded = (rate + 1) + is_probe *  8;
@@ -39,6 +89,26 @@ static u8 mt7601u_tx_pktid_enc(struct mt7601u_dev *dev, u8 rate, bool is_probe)
 		return encoded - 7;
 
 	return encoded;
+}
+
+static void
+mt7601u_tx_pktid_dec(struct mt7601u_dev *dev, struct mt76_tx_status *stat)
+{
+	u8 req_rate = stat->pktid;
+	u8 eff_rate = stat->rate & 0x7;
+
+	req_rate -= 1;
+
+	if (req_rate > 7) {
+		stat->is_probe = true;
+		req_rate -= 8;
+
+		/* Decide between MCS0 and MCS7 which share pktid 9 */
+		if (!req_rate && eff_rate)
+			req_rate = 7;
+	}
+
+	stat->retry = req_rate - eff_rate;
 }
 
 static void mt7601u_tx_skb_remove_dma_overhead(struct sk_buff *skb,
@@ -91,37 +161,6 @@ static int mt7601u_skb_rooms(struct mt7601u_dev *dev, struct sk_buff *skb)
 	}
 
 	return 0;
-}
-
-static u8 q2hwq(u8 q)
-{
-	return q ^ 0x3;
-}
-
-/* mac80211 qid to hardware queue idx */
-static u8 skb2q(struct sk_buff *skb)
-{
-	int qid = skb_get_queue_mapping(skb);
-
-	if (WARN_ON(qid >= MT_TXQ_PSD)) {
-		qid = MT_TXQ_BE;
-		skb_set_queue_mapping(skb, qid);
-	}
-
-	return q2hwq(qid);
-}
-
-static u8 q2ep(u8 qid)
-{
-	/* TODO: we will not get mgmt in separate q... */
-	return qid + 1;
-}
-
-static enum mt76_qsel ep2dmaq(u8 ep)
-{
-	if (ep == 5)
-		return MT_QSEL_MGMT;
-	return MT_QSEL_EDCA;
 }
 
 void mt7601u_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
@@ -198,23 +237,6 @@ void mt7601u_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 	}
 	txwi->wcid = wcid->idx;
 
-	/* Note: TX retry reporting is a bit broken.
-	 *	 Retries are reported only once per AMPDU and often come
-	 *	 a frame early i.e. they are reported in the last status
-	 *	 preceding the AMPDU. Apart from the fact that it's hard
-	 *	 to know length of the AMPDU (to how many consecutive frames
-	 *	 retries should be applied), if status comes early on full
-	 *	 fifo it gets lost and retries of the whole AMPDU become
-	 *	 invisible.
-	 *	 As a work-around encode the desired rate in PKT_ID and based
-	 *	 on that guess the retries (every rate is tried once).
-	 *	 Only downside here is that for MCS0 we have to rely solely on
-	 *	 transmission failures as no retries can ever be reported.
-	 *	 Not having to read EXT_FIFO has a nice effect of doubling
-	 *	 the number of reports which can be fetched.
-	 *	 Also the vendor driver never uses the EXT_FIFO register
-	 *	 so it may be untested.
-	 */
 	is_probe = !!(info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE);
 	pkt_id = mt7601u_tx_pktid_enc(dev, rate_ctl & 0x7, is_probe);
 	pkt_len |= MT76_SET(MT_TXWI_LEN_PKTID, pkt_id);
@@ -231,26 +253,6 @@ void mt7601u_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 	}
 
 	trace_mt_tx(skb, msta, txwi);
-}
-
-static void mt7601u_tx_pktid_dec(struct mt7601u_dev *dev,
-				 struct mt76_tx_status *stat)
-{
-	u8 req_rate = stat->pktid;
-	u8 eff_rate = stat->rate & 0x7;
-
-	req_rate -= 1;
-
-	if (req_rate > 7) {
-		stat->is_probe = true;
-		req_rate -= 8;
-
-		/* Decide between MCS0 and MCS7 which share pktid 9 */
-		if (!req_rate && eff_rate)
-			req_rate = 7;
-	}
-
-	stat->retry = req_rate - eff_rate;
 }
 
 void mt7601u_tx_stat(struct work_struct *work)
