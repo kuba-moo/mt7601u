@@ -115,6 +115,11 @@ enum mt_temp_mode {
 	MT_TEMP_MODE_LOW,
 };
 
+enum mt_bw {
+	MT_BW_20,
+	MT_BW_40,
+};
+
 /**
  * struct mt7601u_dev - adapter structure
  * @lock:		protects @wcid->tx_rate.
@@ -141,6 +146,7 @@ struct mt7601u_dev {
 	struct ieee80211_supported_band *sband_2g;
 
 	struct mt7601u_mcu mcu;
+	struct mt7601u_eeprom_params *ee;
 
 	struct delayed_work cal_work;
 	struct delayed_work mac_work;
@@ -151,22 +157,36 @@ struct mt7601u_dev {
 	struct mt76_wcid *mon_wcid;
 	struct mt76_wcid __rcu *wcid[N_WCIDS];
 
+	const u16 *beacon_offsets;
+
 	spinlock_t lock;
 
-	u32 rev;
-	u32 rxfilter;
+	struct mutex vendor_req_mutex;
+	struct mutex reg_atomic_mutex;
+	struct mutex hw_atomic_mutex;
 
+	unsigned long state;
+
+	u32 rxfilter;
 	u32 debugfs_reg;
+
+	u8 out_eps[8];
+	u8 in_eps[8];
+	u16 out_max_packet;
+	u16 in_max_packet;
 
 	/* TX */
 	spinlock_t tx_lock;
 	struct mt7601u_tx_queue *tx_q;
 
+	atomic_t avg_ampdu_len;
+
 	/* RX */
 	spinlock_t rx_lock;
 	struct tasklet_struct rx_tasklet;
 	struct mt7601u_rx_queue rx_q;
-	atomic_t avg_ampdu_len;
+
+	struct mac_stats stats;
 
 	/* Beacon monitoring stuff */
 	u8 bssid[ETH_ALEN];
@@ -183,16 +203,7 @@ struct mt7601u_dev {
 		struct delayed_work work;
 	} freq_cal;
 
-	/***** Mine *****/
-	unsigned long state;
-
 	u32 n_cows;
-
-	struct mac_stats stats;
-
-	s8 avg_rssi;
-
-	struct mt7601u_eeprom_params *ee;
 
 	s8 tssi_init;
 	s8 tssi_init_hvga;
@@ -202,37 +213,21 @@ struct mt7601u_dev {
 
 	bool tssi_read_trig;
 
-	const u16 *beacon_offsets;
+	s8 avg_rssi;
 
-	struct mutex vendor_req_mutex;
-	struct mutex reg_atomic_mutex;
-	/* TODO: Is this needed? dev->mutex should suffice */
-	struct mutex hw_atomic_mutex;
-
-	u8 out_eps[8];
-	u8 in_eps[8];
-	u16 out_max_packet;
-	u16 in_max_packet;
-
-	s8 raw_temp;
+	enum mt_temp_mode temp_mode;
 	int curr_temp;
 	int dpd_temp;
-
 	bool pll_lock_protect;
+	s8 raw_temp;
 
 	u8 agc_save;
 
-	/* TODO: use nl80211 enums for this */
-#define MT_BW_20				0
-#define MT_BW_40				1
-#define MT_BW_80				2
 	u8 bw;
 	bool chan_ext_below;
 
 	/* PA mode */
 	u32 rf_pa_mode[2];
-
-	enum mt_temp_mode temp_mode;
 };
 
 struct mt7601u_tssi_params {
