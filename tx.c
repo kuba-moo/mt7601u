@@ -147,8 +147,6 @@ static int mt7601u_skb_rooms(struct mt7601u_dev *dev, struct sk_buff *skb)
 	if (hdr_len % 4)
 		need_head += 2;
 
-	if (skb_headroom(skb) < need_head && dev->n_cows++ > 100)
-		printk("Warning: TX skb needs more head - will COW!\n");
 	if (skb_tailroom(skb) < need_tail) {
 		printk("Error: TX skb needs more tail - fail!!\n");
 		return -ENOMEM;

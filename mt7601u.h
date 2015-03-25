@@ -203,8 +203,6 @@ struct mt7601u_dev {
 		struct delayed_work work;
 	} freq_cal;
 
-	u32 n_cows;
-
 	s8 tssi_init;
 	s8 tssi_init_hvga;
 	s16 tssi_init_hvga_offset_db;
