@@ -625,9 +625,7 @@ static s8 mt7601u_read_temp(struct mt7601u_dev *dev)
 
 	val = mt7601u_bbp_rmw(dev, 47, 0x7f, 0x10);
 
-	/* TODO: this will never succeed. We can try to kick it off and try
-	 *       to read the value in the later iterations like tssi_cal does.
-	 */
+	/* Note: this rarely succeeds, temp can change even if it fails. */
 	for (i = 100; i && (val & 0x10); i--)
 		val = mt7601u_bbp_rr(dev, 47);
 
