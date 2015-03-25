@@ -600,7 +600,7 @@ static s8 mt7601u_read_bootup_temp(struct mt7601u_dev *dev)
 		bbp_val = mt7601u_bbp_rr(dev, 47);
 
 	temp = mt7601u_bbp_r47_get(dev, bbp_val, BBP_R47_F_TEMP);
-	trace_printk("I recon boot up temp is %02hhx\n", temp);
+	trace_read_temp(dev, temp);
 
 	mt7601u_bbp_wr(dev, 22, 0);
 
