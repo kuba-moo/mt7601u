@@ -358,4 +358,7 @@ static inline u32 mt7601u_mac_set_ctrlch(struct mt7601u_dev *dev, bool below)
 int mt7601u_dma_init(struct mt7601u_dev *dev);
 void mt7601u_dma_cleanup(struct mt7601u_dev *dev);
 
+int mt7601u_dma_enqueue_tx(struct mt7601u_dev *dev, struct sk_buff *skb,
+			   struct mt76_wcid *wcid, int hw_q);
+
 #endif

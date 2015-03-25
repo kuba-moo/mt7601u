@@ -126,6 +126,4 @@ enum mt76_evt_type {
 	EVENT_DFS_DETECT_RSP,
 };
 
-int mt7601u_dma_submit_tx(struct mt7601u_dev *dev, struct sk_buff *skb, u8 ep);
-
 #endif

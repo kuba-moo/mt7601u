@@ -225,7 +225,8 @@ out:
 	spin_unlock_irqrestore(&dev->tx_lock, flags);
 }
 
-int mt7601u_dma_submit_tx(struct mt7601u_dev *dev, struct sk_buff *skb, u8 ep)
+static int mt7601u_dma_submit_tx(struct mt7601u_dev *dev,
+				 struct sk_buff *skb, u8 ep)
 {
 	struct usb_device *usb_dev = mt7601u_to_usb_dev(dev);
 	unsigned snd_pipe = usb_sndbulkpipe(usb_dev, dev->out_eps[ep]);
@@ -267,6 +268,35 @@ out:
 	spin_unlock_irqrestore(&dev->tx_lock, flags);
 
 	return ret;
+}
+
+/* Map hardware Q to USB endpoint number */
+static u8 q2ep(u8 qid)
+{
+	/* TODO: take management packets to queue 5 */
+	return qid + 1;
+}
+
+/* Map USB endpoint number to Q id in the DMA engine */
+static enum mt76_qsel ep2dmaq(u8 ep)
+{
+	if (ep == 5)
+		return MT_QSEL_MGMT;
+	return MT_QSEL_EDCA;
+}
+
+int mt7601u_dma_enqueue_tx(struct mt7601u_dev *dev, struct sk_buff *skb,
+			   struct mt76_wcid *wcid, int hw_q)
+{
+	u8 ep = q2ep(hw_q);
+	u32 dma_flags;
+
+	dma_flags = MT_TXD_PKT_INFO_80211;
+	if (wcid->hw_key_idx == 0xff)
+		dma_flags |= MT_TXD_PKT_INFO_WIV;
+	mt7601u_dma_skb_wrap_pkt(skb, ep2dmaq(ep), dma_flags);
+
+	return mt7601u_dma_submit_tx(dev, skb, ep);
 }
 
 static void mt7601u_kill_rx(struct mt7601u_dev *dev)

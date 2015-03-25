@@ -13,7 +13,6 @@
  */
 
 #include "mt7601u.h"
-#include "dma.h"
 #include "trace.h"
 
 enum mt76_txq_id {
@@ -43,21 +42,6 @@ static u8 skb2q(struct sk_buff *skb)
 	}
 
 	return q2hwq(qid);
-}
-
-/* Map hardware Q to USB endpoint number */
-static u8 q2ep(u8 qid)
-{
-	/* TODO: take management packets to queue 5 */
-	return qid + 1;
-}
-
-/* Map USB endpoint number to Q id in the DMA engine */
-static enum mt76_qsel ep2dmaq(u8 ep)
-{
-	if (ep == 5)
-		return MT_QSEL_MGMT;
-	return MT_QSEL_EDCA;
 }
 
 /* Note: TX retry reporting is a bit broken.
@@ -227,8 +211,6 @@ void mt7601u_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 	struct mt76_txwi *txwi;
 	int pkt_len = skb->len;
 	int hw_q = skb2q(skb);
-	u32 dma_flags;
-	u8 ep = q2ep(hw_q);
 
 	BUILD_BUG_ON(ARRAY_SIZE(info->status.status_driver_data) < 1);
 	info->status.status_driver_data[0] = (void *)(unsigned long)pkt_len;
@@ -248,12 +230,7 @@ void mt7601u_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 
 	txwi = mt7601u_push_txwi(dev, skb, sta, wcid, pkt_len);
 
-	dma_flags = MT_TXD_PKT_INFO_80211;
-	if (wcid->hw_key_idx == 0xff)
-		dma_flags |= MT_TXD_PKT_INFO_WIV;
-	mt7601u_dma_skb_wrap_pkt(skb, ep2dmaq(ep), dma_flags);
-
-	if (mt7601u_dma_submit_tx(dev, skb, ep)) {
+	if (mt7601u_dma_enqueue_tx(dev, skb, wcid, hw_q)) {
 		ieee80211_free_txskb(dev->hw, skb);
 		return;
 	}
