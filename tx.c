@@ -250,14 +250,9 @@ void mt7601u_tx_stat(struct work_struct *work)
 {
 	struct mt7601u_dev *dev = container_of(work, struct mt7601u_dev,
 					       stat_work.work);
-
 	struct mt76_tx_status stat;
-	struct ieee80211_tx_info info = {};
-	struct ieee80211_sta *sta = NULL;
-	struct mt76_wcid *wcid = NULL;
-	void *msta;
-	int cleaned = 0;
 	unsigned long flags;
+	int cleaned = 0;
 
 	while (!test_bit(MT7601U_STATE_REMOVED, &dev->state)) {
 		stat = mt7601u_mac_fetch_tx_status(dev);
@@ -265,20 +260,7 @@ void mt7601u_tx_stat(struct work_struct *work)
 			break;
 
 		mt7601u_tx_pktid_dec(dev, &stat);
-
-		rcu_read_lock();
-		if (stat.wcid < ARRAY_SIZE(dev->wcid))
-			wcid = rcu_dereference(dev->wcid[stat.wcid]);
-
-		if (wcid) {
-			msta = container_of(wcid, struct mt76_sta, wcid);
-			sta = container_of(msta, struct ieee80211_sta,
-					   drv_priv);
-		}
-
-		mt76_mac_fill_tx_status(dev, &info, &stat);
-		ieee80211_tx_status_noskb(dev->hw, sta, &info);
-		rcu_read_unlock();
+		mt76_send_tx_status(dev, &stat);
 
 		cleaned++;
 	}

@@ -69,7 +69,7 @@ mt76_mac_process_tx_rate(struct ieee80211_tx_rate *txrate, u16 rate,
 		txrate->flags |= IEEE80211_TX_RC_SHORT_GI;
 }
 
-void
+static void
 mt76_mac_fill_tx_status(struct mt7601u_dev *dev, struct ieee80211_tx_info *info,
 			struct mt76_tx_status *st)
 {
@@ -182,6 +182,28 @@ mt7601u_mac_fetch_tx_status(struct mt7601u_dev *dev)
 	stat.rate = MT76_GET(MT_TX_STAT_FIFO_RATE, val);
 
 	return stat;
+}
+
+void mt76_send_tx_status(struct mt7601u_dev *dev, struct mt76_tx_status *stat)
+{
+	struct ieee80211_tx_info info = {};
+	struct ieee80211_sta *sta = NULL;
+	struct mt76_wcid *wcid = NULL;
+	void *msta;
+
+	rcu_read_lock();
+	if (stat->wcid < ARRAY_SIZE(dev->wcid))
+		wcid = rcu_dereference(dev->wcid[stat->wcid]);
+
+	if (wcid) {
+		msta = container_of(wcid, struct mt76_sta, wcid);
+		sta = container_of(msta, struct ieee80211_sta,
+				   drv_priv);
+	}
+
+	mt76_mac_fill_tx_status(dev, &info, stat);
+	ieee80211_tx_status_noskb(dev->hw, sta, &info);
+	rcu_read_unlock();
 }
 
 void mt7601u_mac_set_protection(struct mt7601u_dev *dev, bool legacy_prot,
