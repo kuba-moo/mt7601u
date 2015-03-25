@@ -297,6 +297,31 @@ TRACE_EVENT(mt_rx,
 		  __entry->fce_info)
 );
 
+TRACE_EVENT(mt_tx,
+	TP_PROTO(struct mt7601u_dev *dev, struct sk_buff *skb,
+		 struct mt76_sta *sta, struct mt76_txwi *h),
+	TP_ARGS(dev, skb, sta, h),
+	TP_STRUCT__entry(
+		DEV_ENTRY
+		__field_struct(struct mt76_txwi, h)
+		__field(struct sk_buff *, skb)
+		__field(struct mt76_sta *, sta)
+	),
+	TP_fast_assign(
+		DEV_ASSIGN;
+		__entry->h = *h;
+		__entry->skb = skb;
+		__entry->sta = sta;
+	),
+	TP_printk(DEV_PR_FMT "skb:%p sta:%p  flg:%04hx rate_ctl:%04hx "
+		  "ack:%02hhx wcid:%02hhx len_ctl:%05hx", DEV_PR_ARG,
+		  __entry->skb, __entry->sta,
+		  le16_to_cpu(__entry->h.flags),
+		  le16_to_cpu(__entry->h.rate_ctl),
+		  __entry->h.ack_ctl, __entry->h.wcid,
+		  le16_to_cpu(__entry->h.len_ctl))
+);
+
 TRACE_EVENT(mt_tx_dma_done,
 	TP_PROTO(struct mt7601u_dev *dev, struct sk_buff *skb),
 	TP_ARGS(dev, skb),
@@ -339,32 +364,6 @@ TRACE_EVENT(mt_tx_status,
 	),
 	TP_printk(DEV_PR_FMT "%08x %08x",
 		  DEV_PR_ARG, __entry->stat1, __entry->stat2)
-);
-
-TRACE_EVENT(mt_tx,
-	TP_PROTO(struct sk_buff *skb, struct mt76_sta *sta, struct mt76_txwi *h),
-
-	TP_ARGS(skb, sta, h),
-
-	TP_STRUCT__entry(
-		__field_struct(struct mt76_txwi, h)
-		__field(struct sk_buff *, skb)
-		__field(struct mt76_sta *, sta)
-	),
-
-	TP_fast_assign(
-		__entry->h = *h;
-		__entry->skb = skb;
-		__entry->sta = sta;
-	),
-
-	TP_printk("skb:%p sta:%p  flg:%04hx rate_ctl:%04hx ack:%02hhx "
-		  "wcid:%02hhx len_ctl:%05hx",
-		  __entry->skb, __entry->sta,
-		  le16_to_cpu(__entry->h.flags),
-		  le16_to_cpu(__entry->h.rate_ctl),
-		  __entry->h.ack_ctl, __entry->h.wcid,
-		  le16_to_cpu(__entry->h.len_ctl))
 );
 
 TRACE_EVENT(mt_rx_dma_aggr,

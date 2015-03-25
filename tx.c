@@ -243,7 +243,7 @@ void mt7601u_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 		return;
 	}
 
-	trace_mt_tx(skb, msta, txwi);
+	trace_mt_tx(dev, skb, msta, txwi);
 }
 
 void mt7601u_tx_stat(struct work_struct *work)
