@@ -600,7 +600,6 @@ static s8 mt7601u_read_bootup_temp(struct mt7601u_dev *dev)
 		bbp_val = mt7601u_bbp_rr(dev, 47);
 
 	temp = mt7601u_bbp_r47_get(dev, bbp_val, BBP_R47_F_TEMP);
-	trace_read_temp(dev, temp);
 
 	mt7601u_bbp_wr(dev, 22, 0);
 
@@ -614,6 +613,7 @@ static s8 mt7601u_read_bootup_temp(struct mt7601u_dev *dev)
 	mt7601u_wr(dev, MT_RF_SETTING_0, rf_set);
 	mt7601u_wr(dev, MT_RF_BYPASS_0, rf_bp);
 
+	trace_read_temp(dev, temp);
 	return temp;
 }
 
