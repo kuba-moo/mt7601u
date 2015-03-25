@@ -810,7 +810,7 @@ static int mt7601u_temp_comp(struct mt7601u_dev *dev, bool on)
 {
 	int ret, temp, hi_temp = 400, lo_temp = -200;
 
-	temp = (dev->b49_temp - dev->ee->ref_temp) *
+	temp = (dev->raw_temp - dev->ee->ref_temp) *
 		MT7601_E2_TEMPERATURE_SLOPE;
 	dev->curr_temp = temp;
 
@@ -908,7 +908,7 @@ mt7601u_tssi_params_get(struct mt7601u_dev *dev)
 	bbp_r47 = mt7601u_bbp_rr(dev, 47);
 
 	p.tssi0 = mt7601u_bbp_r47_get(dev, bbp_r47, BBP_R47_F_TSSI);
-	dev->b49_temp = mt7601u_bbp_r47_get(dev, bbp_r47, BBP_R47_F_TEMP);
+	dev->raw_temp = mt7601u_bbp_r47_get(dev, bbp_r47, BBP_R47_F_TEMP);
 	pkt_type = mt7601u_bbp_r47_get(dev, bbp_r47, BBP_R47_F_PKT_T);
 
 	p.trgt_power = mt7601u_current_tx_power(dev);
@@ -956,7 +956,7 @@ mt7601u_tssi_params_get(struct mt7601u_dev *dev)
 	p.trgt_power += dev->ee->tssi_data.tx0_delta_offset;
 
 	trace_printk("tssi:%02hhx t_power:%08x temp:%02hhx pkt_type:%02hhx\n",
-		     p.tssi0, p.trgt_power, dev->b49_temp, pkt_type);
+		     p.tssi0, p.trgt_power, dev->raw_temp, pkt_type);
 
 	return p;
 }
@@ -1090,7 +1090,7 @@ static void mt7601u_phy_calibrate(struct work_struct *work)
 	mt7601u_tssi_cal(dev);
 	/* If TSSI calibration was run it already updated temperature. */
 	if (!dev->ee->tssi_enabled)
-		dev->b49_temp = mt7601u_read_temp(dev);
+		dev->raw_temp = mt7601u_read_temp(dev);
 	mt7601u_temp_comp(dev, true); /* TODO: find right value for @on */
 
 	ieee80211_queue_delayed_work(dev->hw, &dev->cal_work,
@@ -1204,8 +1204,8 @@ static int mt7601u_init_cal(struct mt7601u_dev *dev)
 	u32 mac_ctrl;
 	int ret;
 
-	dev->b49_temp = mt7601u_read_bootup_temp(dev);
-	dev->curr_temp = (dev->b49_temp - dev->ee->ref_temp) *
+	dev->raw_temp = mt7601u_read_bootup_temp(dev);
+	dev->curr_temp = (dev->raw_temp - dev->ee->ref_temp) *
 		MT7601_E2_TEMPERATURE_SLOPE;
 	dev->dpd_temp = dev->curr_temp;
 

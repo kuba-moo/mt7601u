@@ -213,7 +213,7 @@ struct mt7601u_dev {
 	u16 in_max_packet;
 
 #define MT7601_E2_TEMPERATURE_SLOPE		39
-	s8 b49_temp;
+	s8 raw_temp;
 	int curr_temp;
 	int dpd_temp;
 
