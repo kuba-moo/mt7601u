@@ -285,8 +285,6 @@ int mt7601u_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	u8 cw_min = 5, cw_max = 10, hw_q = q2hwq(queue);
 	u32 val;
 
-	printk("%s %02hhx <- %04hx\n", __func__, hw_q, queue);
-
 	/* TODO: should we do funny things with the parameters?
 	 *	 See what mt7601u_set_default_edca() used to do in init.c.
 	 */
@@ -296,16 +294,10 @@ int mt7601u_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	if (params->cw_max)
 		cw_max = fls(params->cw_max);
 
-#define check_param(_p, max) ({						\
-			if (_p > max)					\
-				printk("%s: too big " #_p ": %d > %d\n", \
-				       __func__, _p, max);		\
-		})
-	check_param(params->txop, 0xff);
-	check_param(params->aifs, 0xf);
-	check_param(cw_min, 0xf);
-	check_param(cw_max, 0xf);
-#undef check_param
+	WARN_ON(params->txop > 0xff);
+	WARN_ON(params->aifs > 0xf);
+	WARN_ON(cw_min > 0xf);
+	WARN_ON(cw_max > 0xf);
 
 	val = MT76_SET(MT_EDCA_CFG_AIFSN, params->aifs) |
 	      MT76_SET(MT_EDCA_CFG_CWMIN, cw_min) |
