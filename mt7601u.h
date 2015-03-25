@@ -106,6 +106,9 @@ struct mt7601u_tx_queue {
 
 struct mt7601u_eeprom_params;
 
+#define MT_EE_TEMPERATURE_SLOPE		39
+#define MT_FREQ_OFFSET_INVALID		-128
+
 enum mt_temp_mode {
 	MT_TEMP_MODE_NORMAL,
 	MT_TEMP_MODE_HIGH,
@@ -172,7 +175,6 @@ struct mt7601u_dev {
 		s8 freq_off;
 		u8 phy_mode;
 	} last_beacon;
-#define MT7601U_FREQ_OFFSET_INVALID -128
 
 	struct {
 		u8 freq;
@@ -212,7 +214,6 @@ struct mt7601u_dev {
 	u16 out_max_packet;
 	u16 in_max_packet;
 
-#define MT7601_E2_TEMPERATURE_SLOPE		39
 	s8 raw_temp;
 	int curr_temp;
 	int dpd_temp;

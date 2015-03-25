@@ -810,8 +810,7 @@ static int mt7601u_temp_comp(struct mt7601u_dev *dev, bool on)
 {
 	int ret, temp, hi_temp = 400, lo_temp = -200;
 
-	temp = (dev->raw_temp - dev->ee->ref_temp) *
-		MT7601_E2_TEMPERATURE_SLOPE;
+	temp = (dev->raw_temp - dev->ee->ref_temp) * MT_EE_TEMPERATURE_SLOPE;
 	dev->curr_temp = temp;
 
 	/* DPD Calibration */
@@ -1105,7 +1104,7 @@ __mt7601u_phy_freq_cal(struct mt7601u_dev *dev, s8 last_offset, u8 phy_mode)
 	trace_freq_cal_offset(phy_mode, last_offset);
 
 	/* No beacons received - reschedule soon */
-	if (last_offset == MT7601U_FREQ_OFFSET_INVALID)
+	if (last_offset == MT_FREQ_OFFSET_INVALID)
 		return MT_FREQ_CAL_ADJ_INTERVAL;
 
 	switch (phy_mode) {
@@ -1172,7 +1171,7 @@ static void mt7601u_phy_freq_cal(struct work_struct *work)
 	ieee80211_queue_delayed_work(dev->hw, &dev->freq_cal.work, delay);
 
 	spin_lock_bh(&dev->last_beacon.lock);
-	dev->last_beacon.freq_off = MT7601U_FREQ_OFFSET_INVALID;
+	dev->last_beacon.freq_off = MT_FREQ_OFFSET_INVALID;
 	spin_unlock_bh(&dev->last_beacon.lock);
 }
 
@@ -1187,7 +1186,7 @@ void mt7601u_phy_freq_cal_onoff(struct mt7601u_dev *dev,
 	ether_addr_copy(dev->bssid, info->bssid);
 
 	spin_lock_bh(&dev->last_beacon.lock);
-	dev->last_beacon.freq_off = MT7601U_FREQ_OFFSET_INVALID;
+	dev->last_beacon.freq_off = MT_FREQ_OFFSET_INVALID;
 	spin_unlock_bh(&dev->last_beacon.lock);
 
 	dev->freq_cal.freq = dev->ee->rf_freq_off;
@@ -1206,7 +1205,7 @@ static int mt7601u_init_cal(struct mt7601u_dev *dev)
 
 	dev->raw_temp = mt7601u_read_bootup_temp(dev);
 	dev->curr_temp = (dev->raw_temp - dev->ee->ref_temp) *
-		MT7601_E2_TEMPERATURE_SLOPE;
+		MT_EE_TEMPERATURE_SLOPE;
 	dev->dpd_temp = dev->curr_temp;
 
 	mac_ctrl = mt7601u_rr(dev, MT_MAC_SYS_CTRL);
