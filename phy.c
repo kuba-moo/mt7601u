@@ -589,8 +589,8 @@ static s8 mt7601u_read_bootup_temp(struct mt7601u_dev *dev)
 	rf_bp = mt7601u_rr(dev, MT_RF_BYPASS_0);
 
 	mt7601u_wr(dev, MT_RF_BYPASS_0, 0);
-	mt7601u_wr(dev, MT_RF_SETTING_0, 0x10);
-	mt7601u_wr(dev, MT_RF_BYPASS_0, 0x10);
+	mt7601u_wr(dev, MT_RF_SETTING_0, 0x00000010);
+	mt7601u_wr(dev, MT_RF_BYPASS_0, 0x00000010);
 
 	bbp_val = mt7601u_bbp_rmw(dev, 47, 0, 0x10);
 
@@ -652,7 +652,7 @@ static void mt7601u_rxdc_cal(struct mt7601u_dev *dev)
 	ret = mt7601u_write_reg_pairs(dev, MT_MCU_MEMMAP_BBP,
 				      intro, ARRAY_SIZE(intro));
 	if (ret)
-		printk("%s intro failed\n", __func__);
+		dev_err(dev->dev, "%s intro failed:%d\n", __func__, ret);
 
 	for (i = 20; i; i--) {
 		usleep_range(300, 500);
@@ -662,14 +662,14 @@ static void mt7601u_rxdc_cal(struct mt7601u_dev *dev)
 			break;
 	}
 	if (!i)
-		printk("%s timed out\n", __func__);
+		dev_err(dev->dev, "%s timed out\n", __func__);
 
 	mt7601u_wr(dev, MT_MAC_SYS_CTRL, 0);
 
 	ret = mt7601u_write_reg_pairs(dev, MT_MCU_MEMMAP_BBP,
 				      outro, ARRAY_SIZE(outro));
 	if (ret)
-		printk("%s outro failed\n", __func__);
+		dev_err(dev->dev, "%s outro failed:%d\n", __func__, ret);
 
 	mt7601u_wr(dev, MT_MAC_SYS_CTRL, mac_ctrl);
 }
@@ -681,7 +681,7 @@ void mt7601u_phy_recalibrate_after_assoc(struct mt7601u_dev *dev)
 	mt7601u_rxdc_cal(dev);
 }
 
-/* TODO: rewrite this - it's copied */
+/* Note: function copied from vendor driver */
 static s16 lin2dBd(u16 linear)
 {
 	short exp = 0;
@@ -699,7 +699,6 @@ static s16 lin2dBd(u16 linear)
 	else
 		mantisa <<= abs(exp);
 
-	//S(15,0)
 	if (mantisa <= 0xb800)
 		app = (mantisa + (mantisa >> 3) + (mantisa >> 4) - 0x9600);
 	else
@@ -707,9 +706,9 @@ static s16 lin2dBd(u16 linear)
 	if (app < 0)
 		app = 0;
 
-	dBd = ((15 + exp) << 15) + app; //since 2^15=1 here
+	dBd = ((15 + exp) << 15) + app;
 	dBd = (dBd << 2) + (dBd << 1) + (dBd >> 6) + (dBd >> 7);
-	dBd = (dBd >> 10); //S10.5
+	dBd = (dBd >> 10);
 
 	return dBd;
 }
@@ -772,7 +771,7 @@ static void mt7601u_tssi_dc_gain_cal(struct mt7601u_dev *dev)
 			if (!(mt7601u_bbp_rr(dev, 47) & 0x10))
 				break;
 		if (!j)
-			printk("%s timed out\n", __func__);
+			dev_err(dev->dev, "%s timed out\n", __func__);
 
 		/* TSSI read */
 		mt7601u_bbp_wr(dev, 47, 0x40);
@@ -785,9 +784,10 @@ static void mt7601u_tssi_dc_gain_cal(struct mt7601u_dev *dev)
 	dev->tssi_init_hvga = res[2];
 	dev->tssi_init_hvga_offset_db = tssi_init_hvga_db - tssi_init_db;
 
-	trace_printk("TSSI_init:%hhx db:%hx hvga:%hhx hvga_db:%hx off_db:%hx\n",
-		     dev->tssi_init, tssi_init_db, dev->tssi_init_hvga,
-		     tssi_init_hvga_db, dev->tssi_init_hvga_offset_db);
+	dev_dbg(dev->dev,
+		"TSSI_init:%hhx db:%hx hvga:%hhx hvga_db:%hx off_db:%hx\n",
+		dev->tssi_init, tssi_init_db, dev->tssi_init_hvga,
+		tssi_init_hvga_db, dev->tssi_init_hvga_offset_db);
 
 	mt7601u_bbp_wr(dev, 22, 0);
 	mt7601u_bbp_wr(dev, 244, 0);
@@ -823,7 +823,7 @@ static int mt7601u_temp_comp(struct mt7601u_dev *dev, bool on)
 
 		mt7601u_vco_cal(dev);
 
-		trace_printk("Recalibrate DPD\n");
+		dev_dbg(dev->dev, "Recalibrate DPD\n");
 	}
 
 	/* PLL Lock Protect */
@@ -833,24 +833,19 @@ static int mt7601u_temp_comp(struct mt7601u_dev *dev, bool on)
 		mt7601u_rf_wr(dev, 4, 4, 6);
 		mt7601u_rf_clear(dev, 4, 10, 0x30);
 
-		trace_printk("PLL lock protect on - too cold\n");
+		dev_dbg(dev->dev, "PLL lock protect on - too cold\n");
 	} else if (temp > 50 && dev->pll_lock_protect) { /* > 30C */
 		dev->pll_lock_protect = false;
 
 		mt7601u_rf_wr(dev, 4, 4, 0);
 		mt7601u_rf_rmw(dev, 4, 10, 0x30, 0x10);
 
-		trace_printk("PLL lock protect off\n");
+		dev_dbg(dev->dev, "PLL lock protect off\n");
 	}
 
 	if (on) {
 		hi_temp -= 50;
 		lo_temp -= 50;
-	}
-
-	if (dev->bw != MT_BW_20 && dev->bw != MT_BW_40) {
-		printk("Error: unknown bw:%d\n", dev->bw);
-		return -EINVAL;
 	}
 
 	/* BBP CR for H, L, N temperature */
@@ -862,11 +857,9 @@ static int mt7601u_temp_comp(struct mt7601u_dev *dev, bool on)
 		return mt7601u_bbp_temp(dev, MT_TEMP_MODE_LOW, "low");
 }
 
-/* TODO: If this is used only with HVGA we can just use trgt_pwr directly. */
+/* Note: this is used only with TSSI, we can just use trgt_pwr from eeprom. */
 static int mt7601u_current_tx_power(struct mt7601u_dev *dev)
 {
-	if (!dev->ee->tssi_enabled)
-		printk("Warning: %s used for non-TSSI mode!\n", __func__);
 	return dev->ee->chan_pwr[dev->chandef.chan->hw_value - 1];
 }
 
@@ -937,7 +930,7 @@ mt7601u_tssi_params_get(struct mt7601u_dev *dev)
 
 	p.trgt_power <<= 12;
 
-	trace_printk("tx_rate:%02hhx pwr:%08x\n", tx_rate, p.trgt_power);
+	dev_dbg(dev->dev, "tx_rate:%02hhx pwr:%08x\n", tx_rate, p.trgt_power);
 
 	p.trgt_power += mt7601u_phy_rf_pa_mode_val(dev, pkt_type & 0x03,
 						   tx_rate);
@@ -954,8 +947,9 @@ mt7601u_tssi_params_get(struct mt7601u_dev *dev)
 
 	p.trgt_power += dev->ee->tssi_data.tx0_delta_offset;
 
-	trace_printk("tssi:%02hhx t_power:%08x temp:%02hhx pkt_type:%02hhx\n",
-		     p.tssi0, p.trgt_power, dev->raw_temp, pkt_type);
+	dev_dbg(dev->dev,
+		"tssi:%02hhx t_power:%08x temp:%02hhx pkt_type:%02hhx\n",
+		p.tssi0, p.trgt_power, dev->raw_temp, pkt_type);
 
 	return p;
 }
@@ -990,8 +984,8 @@ static int mt7601u_tssi_cal(struct mt7601u_dev *dev)
 	tssi_init = (hvga ? dev->tssi_init_hvga : dev->tssi_init);
 	tssi_m_dc = params.tssi0 - tssi_init;
 	tssi_db = lin2dBd(tssi_m_dc);
-	trace_printk("tssi dc:%04hx db:%04hx hvga:%d\n",
-		     tssi_m_dc, tssi_db, hvga);
+	dev_dbg(dev->dev, "tssi dc:%04hx db:%04hx hvga:%d\n",
+		tssi_m_dc, tssi_db, hvga);
 
 	if (dev->chandef.chan->hw_value < 5)
 		tssi_offset = dev->ee->tssi_data.offset[0];
@@ -1005,14 +999,14 @@ static int mt7601u_tssi_cal(struct mt7601u_dev *dev)
 
 	curr_pwr = tssi_db * dev->ee->tssi_data.slope + (tssi_offset << 9);
 	diff_pwr = params.trgt_power - curr_pwr;
-	trace_printk("Power curr:%08x diff:%08x\n", curr_pwr, diff_pwr);
+	dev_dbg(dev->dev, "Power curr:%08x diff:%08x\n", curr_pwr, diff_pwr);
 
 	if (params.tssi0 > 126 && diff_pwr > 0) {
-		printk("Error: TSSI upper saturation\n");
+		dev_err(dev->dev, "Error: TSSI upper saturation\n");
 		diff_pwr = 0;
 	}
 	if (params.tssi0 - tssi_init < 1 && diff_pwr < 0) {
-		printk("Error: TSSI lower saturation\n");
+		dev_err(dev->dev, "Error: TSSI lower saturation\n");
 		diff_pwr = 0;
 	}
 
@@ -1026,7 +1020,7 @@ static int mt7601u_tssi_cal(struct mt7601u_dev *dev)
 	diff_pwr += (diff_pwr > 0) ? 2048 : -2048;
 	diff_pwr /= 4096;
 
-	trace_printk("final diff: %08x\n", diff_pwr);
+	dev_dbg(dev->dev, "final diff: %08x\n", diff_pwr);
 
 	val = mt7601u_rr(dev, MT_TX_ALC_CFG_1);
 	curr_pwr = s6_to_int(MT76_GET(MT_TX_ALC_CFG_1_TEMP_COMP, val));
@@ -1063,9 +1057,9 @@ static void mt7601u_agc_tune(struct mt7601u_dev *dev)
 {
 	u8 val = mt7601u_agc_default(dev);
 
-	/* TODO: only in STA mode and not dozing; perhaps do this only if
-	 *       there is enough rssi updates since last run?
-	 *       Rssi updates are only on beacons and U2M so should work...
+	/* Note: only in STA mode and not dozing; perhaps do this only if
+	 *	 there is enough rssi updates since last run?
+	 *	 Rssi updates are only on beacons and U2M so should work...
 	 */
 	if (dev->avg_rssi <= -70)
 		val -= 0x20;
@@ -1178,7 +1172,6 @@ static void mt7601u_phy_freq_cal(struct work_struct *work)
 void mt7601u_phy_freq_cal_onoff(struct mt7601u_dev *dev,
 				struct ieee80211_bss_conf *info)
 {
-	/* TODO: support multi-bssid? */
 	if (!info->assoc)
 		cancel_delayed_work_sync(&dev->freq_cal.work);
 
@@ -1324,8 +1317,8 @@ int mt7601u_phy_init(struct mt7601u_dev *dev)
 		RF_REG_PAIR(0,	10, 0x00),
 		RF_REG_PAIR(0,	11, 0x21),
 		/* XO */
-		RF_REG_PAIR(0,	13, 0x00),		// 40mhz xtal
-		//RF_REG_PAIR(0,	13, 0x13),	// 20mhz xtal
+		RF_REG_PAIR(0,	13, 0x00),		/* 40mhz xtal */
+		/* RF_REG_PAIR(0,	13, 0x13), */	/* 20mhz xtal */
 		RF_REG_PAIR(0,	14, 0x7c),
 		RF_REG_PAIR(0,	15, 0x22),
 		RF_REG_PAIR(0,	16, 0x80),
