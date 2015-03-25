@@ -409,18 +409,29 @@ static int mt7601u_bbp_temp(struct mt7601u_dev *dev, int mode, const char *name)
 				       t[dev->bw].regs, t[dev->bw].n);
 }
 
+static void mt7601u_apply_ch14_fixup(struct mt7601u_dev *dev, int hw_chan)
+{
+	struct mt7601u_rate_power *t = &dev->ee->power_rate_table;
+
+	if (hw_chan != 14 || dev->bw != MT_BW_20) {
+		mt7601u_bbp_rmw(dev, 4, 0x20, 0);
+		mt7601u_bbp_wr(dev, 178, 0xff);
+
+		t->cck[0].bw20 = dev->ee->real_cck_bw20[0];
+		t->cck[1].bw20 = dev->ee->real_cck_bw20[1];
+	} else { /* Apply CH14 OBW fixup */
+		mt7601u_bbp_wr(dev, 4, 0x60);
+		mt7601u_bbp_wr(dev, 178, 0);
+
+		/* Note: vendor code is buggy here for negative values */
+		t->cck[0].bw20 = dev->ee->real_cck_bw20[0] - 2;
+		t->cck[1].bw20 = dev->ee->real_cck_bw20[1] - 2;
+	}
+}
+
 static int __mt7601u_phy_set_channel(struct mt7601u_dev *dev,
 				     struct cfg80211_chan_def *chandef)
 {
-	struct ieee80211_channel *chan = chandef->chan;
-	enum nl80211_channel_type chan_type =
-		cfg80211_get_chandef_type(chandef);
-	struct mt7601u_rate_power *t = &dev->ee->power_rate_table;
-	int chan_idx;
-	bool chan_ext_below;
-	u8 bw;
-	int i, ret;
-
 #define FREQ_PLAN_REGS	4
 	static const u8 freq_plan[14][FREQ_PLAN_REGS] = {
 		{ 0x99,	0x99,	0x09,	0x50 },
@@ -447,9 +458,19 @@ static int __mt7601u_phy_set_channel(struct mt7601u_dev *dev,
 		{ 64, 0x37 - dev->ee->lna_gain },
 	};
 
+	struct ieee80211_channel *chan = chandef->chan;
+	enum nl80211_channel_type chan_type =
+		cfg80211_get_chandef_type(chandef);
+	struct mt7601u_rate_power *t = &dev->ee->power_rate_table;
+	int chan_idx;
+	bool chan_ext_below;
+	u8 bw;
+	int i, ret;
+
 	bw = MT_BW_20;
-	chan_ext_below = chan_type == NL80211_CHAN_HT40MINUS;
+	chan_ext_below = (chan_type == NL80211_CHAN_HT40MINUS);
 	chan_idx = chan->hw_value - 1;
+
 	if (chandef->width == NL80211_CHAN_WIDTH_40) {
 		bw = MT_BW_40;
 
@@ -458,16 +479,17 @@ static int __mt7601u_phy_set_channel(struct mt7601u_dev *dev,
 		else if (chan_idx < 12 && chan_type == NL80211_CHAN_HT40PLUS)
 			chan_idx += 2;
 		else
-			printk("Error: invalid 40MHz channel!!\n");
+			dev_err(dev->dev, "Error: invalid 40MHz channel!!\n");
 	}
 
 	if (bw != dev->bw || chan_ext_below != dev->chan_ext_below) {
-		printk("Info: switching HT mode bw:%d below:%d\n",
-		       bw, chan_ext_below);
+		dev_dbg(dev->dev, "Info: switching HT mode bw:%d below:%d\n",
+			bw, chan_ext_below);
+
 		mt7601u_bbp_set_bw(dev, bw);
+
 		mt7601u_bbp_set_ctrlch(dev, chan_ext_below);
 		mt7601u_mac_set_ctrlch(dev, chan_ext_below);
-
 		dev->chan_ext_below = chan_ext_below;
 	}
 
@@ -488,36 +510,16 @@ static int __mt7601u_phy_set_channel(struct mt7601u_dev *dev,
 		return ret;
 
 	mt7601u_vco_cal(dev);
-
-	/* TODO: already did this above */
 	mt7601u_bbp_set_bw(dev, bw);
-
 	ret = mt7601u_set_bw_filter(dev, false);
 	if (ret)
 		return ret;
 
-	/* TODO: perhaps move this mess out of here? */
-	if (chan->hw_value != 14 || bw != MT_BW_20) {
-		mt7601u_bbp_rmw(dev, 4, 0x20, 0);
-		mt7601u_bbp_wr(dev, 178, 0xff);
-
-		t->cck[0].bw20 = dev->ee->real_cck_bw20[0];
-		t->cck[1].bw20 = dev->ee->real_cck_bw20[1];
-	} else { /* Apply CH14 OBW fixup */
-		mt7601u_bbp_wr(dev, 4, 0x60);
-		mt7601u_bbp_wr(dev, 178, 0);
-
-		/* Note: vendor code is buggy here for negative values */
-		t->cck[0].bw20 = dev->ee->real_cck_bw20[0] - 2;
-		t->cck[1].bw20 = dev->ee->real_cck_bw20[1] - 2;
-	}
-
+	mt7601u_apply_ch14_fixup(dev, chan->hw_value);
 	mt7601u_wr(dev, MT_TX_PWR_CFG_0, int_to_s6(t->ofdm[1].bw20) << 24 |
 					 int_to_s6(t->ofdm[0].bw20) << 16 |
 					 int_to_s6(t->cck[1].bw20) << 8 |
 					 int_to_s6(t->cck[0].bw20));
-
-	/* TODO: perhaps set ctrl channel (below/above)? */
 
 	if (test_bit(MT7601U_STATE_SCANNING, &dev->state))
 		mt7601u_agc_reset(dev);
@@ -549,9 +551,7 @@ int mt7601u_phy_set_channel(struct mt7601u_dev *dev,
 	if (dev->freq_cal.enabled)
 		ieee80211_queue_delayed_work(dev->hw, &dev->freq_cal.work,
 					     MT_FREQ_CAL_INIT_DELAY);
-
 	return 0;
-
 }
 
 #define BBP_R47_FLAG		GENMASK(2, 0)
