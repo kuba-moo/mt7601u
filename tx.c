@@ -139,26 +139,19 @@ static int mt7601u_skb_rooms(struct mt7601u_dev *dev, struct sk_buff *skb)
 {
 	int hdr_len = ieee80211_get_hdrlen_from_skb(skb);
 	u32 need_head, need_tail;
-	int ret;
 
+	need_tail = 4 + 4 + 3; /* assume worst case 3 byte padding */
 	need_head = sizeof(struct mt76_txwi) + 4;
-	need_tail = 3 + 4 + 4; /* TODO: replace 3 with round-up. */
-
 	if (hdr_len % 4)
 		need_head += 2;
 
 	if (skb_tailroom(skb) < need_tail) {
-		printk("Error: TX skb needs more tail - fail!!\n");
+		dev_err_ratelimited(dev->dev,
+				    "Error: TX skb - not enough tailroom\n");
 		return -ENOMEM;
 	}
 
-	ret = skb_cow(skb, need_head);
-	if (ret) {
-		printk("Failed to get the headroom\n");
-		return ret;
-	}
-
-	return 0;
+	return skb_cow(skb, need_head);
 }
 
 void mt7601u_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
