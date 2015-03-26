@@ -269,12 +269,12 @@ mt7601u_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	msta->wcid.hw_key_idx = -1;
 	mt7601u_mac_wcid_setup(dev, idx, mvif->idx, sta->addr);
 	//mt76_clear(dev, MT_WCID_DROP(idx), MT_WCID_DROP_MASK(idx)); \/
-	mt7601u_mac_set_ampdu_factor(dev, &sta->ht_cap);
 	/* TODO: for TKIP set MT_RX_PARSER_RX_SET_NAV_ALL
 	 *	 (see connect.c:2093).
 	 */
 
 	rcu_assign_pointer(dev->wcid[idx], &msta->wcid);
+	mt7601u_mac_set_ampdu_factor(dev);
 
 out:
 	mutex_unlock(&dev->mutex);
@@ -297,6 +297,7 @@ mt7601u_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	//mt76_set(dev, MT_WCID_DROP(idx), MT_WCID_DROP_MASK(idx)); ^
 	dev->wcid_mask[idx / BITS_PER_LONG] &= ~BIT(idx % BITS_PER_LONG);
 	mt7601u_mac_wcid_setup(dev, idx, 0, NULL);
+	mt7601u_mac_set_ampdu_factor(dev);
 	mutex_unlock(&dev->mutex);
 
 	return 0;

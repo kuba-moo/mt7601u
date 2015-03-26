@@ -336,8 +336,7 @@ void mt7601u_mac_set_short_preamble(struct mt7601u_dev *dev, bool short_preamb);
 void mt7601u_mac_config_tsf(struct mt7601u_dev *dev, bool enable, int interval);
 void
 mt7601u_mac_wcid_setup(struct mt7601u_dev *dev, u8 idx, u8 vif_idx, u8 *mac);
-void mt7601u_mac_set_ampdu_factor(struct mt7601u_dev *dev,
-				  struct ieee80211_sta_ht_cap *cap);
+void mt7601u_mac_set_ampdu_factor(struct mt7601u_dev *dev);
 
 /* TX */
 void mt7601u_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
