@@ -15,15 +15,6 @@
 #ifndef __MT76_MAC_H
 #define __MT76_MAC_H
 
-struct mt76_dev;
-struct mt76_sta;
-struct mt76_vif;
-struct mt76_wcid;
-
-struct mt76_txwi;
-struct mt76_queue;
-struct mt76_txwi_cache;
-
 struct mt76_tx_status {
 	u8 valid:1;
 	u8 success:1;
@@ -35,15 +26,6 @@ struct mt76_tx_status {
 	u8 retry;
 	u16 rate;
 } __packed __aligned(2);
-
-struct mt76_tx_info {
-	unsigned long jiffies;
-	u8 tries;
-
-	u8 wcid;
-	u8 pktid;
-	u8 retry;
-};
 
 /* Note: values in original "RSSI" and "SNR" fields are not actually what they
  *	 are called for MT7601U, names used by this driver are educated guesses
@@ -132,6 +114,23 @@ enum mt76_phy_bandwith {
 	MT_PHY_BW_40,
 };
 
+struct mt76_txwi {
+	__le16 flags;
+	__le16 rate_ctl;
+
+	u8 ack_ctl;
+	u8 wcid;
+	__le16 len_ctl;
+
+	__le32 iv;
+
+	__le32 eiv;
+
+	u8 aid;
+	u8 txstream;
+	__le16 ctl;
+} __packed __aligned(4);
+
 #define MT_TXWI_FLAGS_FRAG		BIT(0)
 #define MT_TXWI_FLAGS_MMPS		BIT(1)
 #define MT_TXWI_FLAGS_CFACK		BIT(2)
@@ -157,49 +156,12 @@ enum mt76_phy_bandwith {
 #define MT_TXWI_LEN_BYTE_CNT		GENMASK(11, 0)
 #define MT_TXWI_LEN_PKTID		GENMASK(15, 12)
 
-#define MT_TXWI_PKTID_PROBE		BIT(2)
-
 #define MT_TXWI_CTL_TX_POWER_ADJ	GENMASK(3, 0)
 #define MT_TXWI_CTL_CHAN_CHECK_PKT	BIT(4)
 #define MT_TXWI_CTL_PIFS_REV		BIT(6)
 
-struct mt76_txwi {
-	__le16 flags;
-	__le16 rate_ctl;
-
-	u8 ack_ctl;
-	u8 wcid;
-	__le16 len_ctl;
-
-	__le32 iv;
-
-	__le32 eiv;
-
-	u8 aid;
-	u8 txstream;
-	__le16 ctl;
-} __packed __aligned(4);
-
-
-static inline struct mt76_tx_info *
-mt76_skb_tx_info(struct sk_buff *skb)
-{
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	return (void *) info->status.status_driver_data;
-}
-
-int mt76_mac_reset(struct mt7601u_dev *dev, bool hard);
-int mt76_mac_start(struct mt7601u_dev *dev);
-void mt76_mac_stop(struct mt7601u_dev *dev, bool force);
-void mt76_mac_resume(struct mt7601u_dev *dev);
-void mt76_mac_set_bssid(struct mt7601u_dev *dev, u8 idx, const u8 *addr);
-
 int
 mt76_mac_process_rx(struct mt7601u_dev *dev, struct sk_buff *skb, void *rxwi);
-void mt76_mac_write_txwi(struct mt7601u_dev *dev, struct mt76_txwi *txwi,
-			 struct sk_buff *skb, struct mt76_wcid *wcid,
-			 struct ieee80211_sta *sta);
-void mt76_mac_wcid_setup(struct mt7601u_dev *dev, u8 idx, u8 vif_idx, u8 *mac);
 int mt76_mac_wcid_set_key(struct mt7601u_dev *dev, u8 idx,
 			  struct ieee80211_key_conf *key);
 void mt76_mac_wcid_set_rate(struct mt7601u_dev *dev, struct mt76_wcid *wcid,
@@ -207,23 +169,6 @@ void mt76_mac_wcid_set_rate(struct mt7601u_dev *dev, struct mt76_wcid *wcid,
 
 int mt76_mac_shared_key_setup(struct mt7601u_dev *dev, u8 vif_idx, u8 key_idx,
 			      struct ieee80211_key_conf *key);
-
-int mt76_insert_hdr_pad(struct sk_buff *skb);
-void mt76_remove_hdr_pad(struct sk_buff *skb);
-int mt76_mac_skb_tx_overhead(struct mt7601u_dev *dev, struct sk_buff *skb);
-
-int
-mt76_mac_set_beacon(struct mt7601u_dev *dev, u8 vif_idx, struct sk_buff *skb);
-void mt76_mac_set_beacon_enable(struct mt7601u_dev *dev, u8 vif_idx, bool val);
-
-void mt76_mac_queue_txdone(struct mt7601u_dev *dev, struct sk_buff *skb,
-			   struct mt76_txwi *txwi);
-
-void mt76_mac_poll_tx_status(struct mt7601u_dev *dev, bool irq);
-void mt76_mac_process_tx_status_fifo(struct mt7601u_dev *dev);
-
-void mt76_mac_work(struct work_struct *work);
-
 u16 mt76_mac_tx_rate_val(struct mt7601u_dev *dev,
 			 const struct ieee80211_tx_rate *rate, u8 *nss_val);
 struct mt76_tx_status
