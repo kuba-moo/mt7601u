@@ -175,10 +175,8 @@ mt7601u_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	mutex_lock(&dev->mutex);
 
-	if (changed & BSS_CHANGED_ASSOC) {
-		mt7601u_phy_freq_cal_onoff(dev, info);
-		dev->avg_rssi = 0;
-	}
+	if (changed & BSS_CHANGED_ASSOC)
+		mt7601u_phy_con_cal_onoff(dev, info);
 
 	if (changed & BSS_CHANGED_BSSID) {
 		mt7601u_addr_wr(dev, MT_MAC_BSSID_DW0, info->bssid);

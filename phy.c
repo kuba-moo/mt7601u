@@ -977,10 +977,12 @@ static void mt7601u_agc_tune(struct mt7601u_dev *dev)
 	 *	 there is enough rssi updates since last run?
 	 *	 Rssi updates are only on beacons and U2M so should work...
 	 */
+	spin_lock_bh(&dev->con_mon_lock);
 	if (dev->avg_rssi <= -70)
 		val -= 0x20;
 	else if (dev->avg_rssi <= -60)
 		val -= 0x10;
+	spin_unlock_bh(&dev->con_mon_lock);
 
 	if (val != mt7601u_bbp_rr(dev, 66))
 		mt7601u_bbp_wr(dev, 66, val);
@@ -1085,8 +1087,8 @@ static void mt7601u_phy_freq_cal(struct work_struct *work)
 	spin_unlock_bh(&dev->con_mon_lock);
 }
 
-void mt7601u_phy_freq_cal_onoff(struct mt7601u_dev *dev,
-				struct ieee80211_bss_conf *info)
+void mt7601u_phy_con_cal_onoff(struct mt7601u_dev *dev,
+			       struct ieee80211_bss_conf *info)
 {
 	if (!info->assoc)
 		cancel_delayed_work_sync(&dev->freq_cal.work);
@@ -1095,6 +1097,7 @@ void mt7601u_phy_freq_cal_onoff(struct mt7601u_dev *dev,
 	ether_addr_copy(dev->ap_bssid, info->bssid);
 
 	spin_lock_bh(&dev->con_mon_lock);
+	dev->avg_rssi = 0;
 	dev->bcn_freq_off = MT_FREQ_OFFSET_INVALID;
 	spin_unlock_bh(&dev->con_mon_lock);
 

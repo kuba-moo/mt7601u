@@ -437,11 +437,20 @@ mt76_mac_process_rate(struct ieee80211_rx_status *status, u16 rate)
 
 static void
 mt7601u_rx_monitor_beacon(struct mt7601u_dev *dev, struct mt7601u_rxwi *rxwi,
-			  u16 rate)
+			  u16 rate, int rssi)
 {
 	spin_lock_bh(&dev->con_mon_lock);
 	dev->bcn_freq_off = rxwi->freq_off;
 	dev->bcn_phy_mode = MT76_GET(MT_RXWI_RATE_PHY, rate);
+	dev->avg_rssi = (dev->avg_rssi * 15) / 16 + (rssi << 8);
+	spin_unlock_bh(&dev->con_mon_lock);
+}
+
+static void
+mt7601u_rx_monitor_unicast(struct mt7601u_dev *dev, int rssi)
+{
+	spin_lock_bh(&dev->con_mon_lock);
+	dev->avg_rssi = (dev->avg_rssi * 15) / 16 + (rssi << 8);
 	spin_unlock_bh(&dev->con_mon_lock);
 }
 
@@ -477,14 +486,10 @@ int mt76_mac_process_rx(struct mt7601u_dev *dev, struct sk_buff *skb, void *rxi)
 
 	mt76_mac_process_rate(status, rate);
 
-	/* TODO: avg rssi has no locking */
-	/* TODO: avg rssi approaches real value from above (starts as 0) */
-	if (mt7601u_rx_is_our_beacon(dev, skb)) {
-		mt7601u_rx_monitor_beacon(dev, rxwi, rate);
-		dev->avg_rssi = (dev->avg_rssi * 15) / 16 + (rssi << 8);
-	} else if (rxwi->rxinfo & cpu_to_le32(MT_RXINFO_U2M)) {
-		dev->avg_rssi = (dev->avg_rssi * 15) / 16 + (rssi << 8);
-	}
+	if (mt7601u_rx_is_our_beacon(dev, skb))
+		mt7601u_rx_monitor_beacon(dev, rxwi, rate, rssi);
+	else if (rxwi->rxinfo & cpu_to_le32(MT_RXINFO_U2M))
+		mt7601u_rx_monitor_unicast(dev, rssi);
 
 	return 0;
 }

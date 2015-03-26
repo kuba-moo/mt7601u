@@ -196,7 +196,8 @@ struct mt7601u_dev {
 	s8 bcn_freq_off;
 	u8 bcn_phy_mode;
 
-	s8 avg_rssi;
+	int avg_rssi; /* starts at 0 and converges */
+
 	u8 agc_save;
 
 	struct {
@@ -321,8 +322,8 @@ int mt7601u_phy_set_channel(struct mt7601u_dev *dev,
 void mt7601u_phy_recalibrate_after_assoc(struct mt7601u_dev *dev);
 int mt7601u_phy_get_rssi(struct mt7601u_dev *dev,
 			 struct mt7601u_rxwi *rxwi, u16 rate);
-void mt7601u_phy_freq_cal_onoff(struct mt7601u_dev *dev,
-				struct ieee80211_bss_conf *info);
+void mt7601u_phy_con_cal_onoff(struct mt7601u_dev *dev,
+			       struct ieee80211_bss_conf *info);
 
 /* MAC */
 void mt7601u_mac_work(struct work_struct *work);
