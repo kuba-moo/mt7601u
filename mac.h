@@ -105,7 +105,6 @@ struct mt7601u_rxwi {
 #define MT_RXWI_FRAG			GENMASK(3, 0)
 #define MT_RXWI_SN			GENMASK(15, 4)
 
-/* TODO: *XWI_RATE_* defs are the same for RX/TX/stat */
 #define MT_RXWI_RATE_MCS		GENMASK(6, 0)
 #define MT_RXWI_RATE_BW			BIT(7)
 #define MT_RXWI_RATE_SGI		BIT(8)
@@ -131,18 +130,8 @@ enum mt76_phy_type {
 enum mt76_phy_bandwith {
 	MT_PHY_BW_20,
 	MT_PHY_BW_40,
-	MT_PHY_BW_80,
 };
 
-
-/*  */
-/* 00000000 5049ff1e */
-/* phy:1 txop:3 */
-/* 40000300 ff49001c */
-/* 00 00 00 00 1e ff 49 50 */
-/*              nseq ba:7 wicd:ff len:49 pkt_id:5 */
-/* 00 03 00 40 1c ff 49 00 */
-/* txop:3 phy:1      ba:7 wicd:ff len:49 pkt_id:0 */
 #define MT_TXWI_FLAGS_FRAG		BIT(0)
 #define MT_TXWI_FLAGS_MMPS		BIT(1)
 #define MT_TXWI_FLAGS_CFACK		BIT(2)
