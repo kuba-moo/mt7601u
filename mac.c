@@ -51,19 +51,8 @@ mt76_mac_process_tx_rate(struct ieee80211_tx_rate *txrate, u16 rate,
 		return;
 	}
 
-	switch (MT76_GET(MT_TXWI_RATE_BW, rate)) {
-	case MT_PHY_BW_20:
-		break;
-	case MT_PHY_BW_40:
+	if (MT76_GET(MT_TXWI_RATE_BW, rate) == MT_PHY_BW_40)
 		txrate->flags |= IEEE80211_TX_RC_40_MHZ_WIDTH;
-		break;
-	case MT_PHY_BW_80:
-		txrate->flags |= IEEE80211_TX_RC_80_MHZ_WIDTH;
-		break;
-	default:
-		WARN_ON(1);
-		break;
-	}
 
 	if (rate & MT_TXWI_RATE_SGI)
 		txrate->flags |= IEEE80211_TX_RC_SHORT_GI;
