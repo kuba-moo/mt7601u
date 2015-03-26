@@ -17,8 +17,7 @@
 #include <linux/etherdevice.h>
 
 static void
-mt76_mac_process_tx_rate(struct ieee80211_tx_rate *txrate, u16 rate,
-			 enum ieee80211_band band)
+mt76_mac_process_tx_rate(struct ieee80211_tx_rate *txrate, u16 rate)
 {
 	u8 idx = MT76_GET(MT_TXWI_RATE_MCS, rate);
 
@@ -28,10 +27,7 @@ mt76_mac_process_tx_rate(struct ieee80211_tx_rate *txrate, u16 rate,
 
 	switch (MT76_GET(MT_TXWI_RATE_PHY_MODE, rate)) {
 	case MT_PHY_TYPE_OFDM:
-		if (band == IEEE80211_BAND_2GHZ)
-			idx += 4;
-
-		txrate->idx = idx;
+		txrate->idx = idx + 4;
 		return;
 	case MT_PHY_TYPE_CCK:
 		if (idx >= 8)
@@ -67,8 +63,7 @@ mt76_mac_fill_tx_status(struct mt7601u_dev *dev, struct ieee80211_tx_info *info,
 	int i;
 
 	last_rate = min_t(int, st->retry, IEEE80211_TX_MAX_RATES - 1);
-	mt76_mac_process_tx_rate(&rate[last_rate], st->rate,
-				 dev->chandef.chan->band);
+	mt76_mac_process_tx_rate(&rate[last_rate], st->rate);
 	if (last_rate < IEEE80211_TX_MAX_RATES - 1)
 		rate[last_rate + 1].idx = -1;
 
@@ -393,7 +388,6 @@ mt76_mac_process_rate(struct ieee80211_rx_status *status, u16 rate)
 {
 	u8 idx = MT76_GET(MT_RXWI_RATE_MCS, rate);
 
-	/* TODO: not sure about math in this switch */
 	switch (MT76_GET(MT_RXWI_RATE_PHY, rate)) {
 	case MT_PHY_TYPE_OFDM:
 		if (WARN_ON(idx >= 8))
@@ -408,7 +402,7 @@ mt76_mac_process_rate(struct ieee80211_rx_status *status, u16 rate)
 			status->flag |= RX_FLAG_SHORTPRE;
 		}
 
-		if (idx >= 4)
+		if (WARN_ON(idx >= 4))
 			idx = 0;
 
 		status->rate_idx = idx;
