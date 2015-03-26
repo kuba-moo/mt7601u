@@ -157,7 +157,7 @@ void mt7601u_init_debugfs(struct mt7601u_dev *dev)
 {
 	struct dentry *dir;
 
-	dir = debugfs_create_dir("mt76", dev->hw->wiphy->debugfsdir);
+	dir = debugfs_create_dir("mt7601u", dev->hw->wiphy->debugfsdir);
 	if (!dir)
 		return;
 
