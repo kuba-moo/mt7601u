@@ -1094,9 +1094,8 @@ void mt7601u_phy_con_cal_onoff(struct mt7601u_dev *dev,
 		cancel_delayed_work_sync(&dev->freq_cal.work);
 
 	/* Start/stop collecting beacon data */
-	ether_addr_copy(dev->ap_bssid, info->bssid);
-
 	spin_lock_bh(&dev->con_mon_lock);
+	ether_addr_copy(dev->ap_bssid, info->bssid);
 	dev->avg_rssi = 0;
 	dev->bcn_freq_off = MT_FREQ_OFFSET_INVALID;
 	spin_unlock_bh(&dev->con_mon_lock);
