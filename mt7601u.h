@@ -54,6 +54,13 @@ struct mt7601u_mcu {
 	struct completion resp_cmpl;
 };
 
+struct mt7601u_freq_cal {
+	struct delayed_work work;
+	u8 freq;
+	bool enabled;
+	bool adjusting;
+};
+
 struct mac_stats {
 	u64 rx_stat[6];
 	u64 tx_stat[6];
@@ -200,12 +207,7 @@ struct mt7601u_dev {
 
 	u8 agc_save;
 
-	struct {
-		u8 freq;
-		bool enabled;
-		bool adjusting;
-		struct delayed_work work;
-	} freq_cal;
+	struct mt7601u_freq_cal freq_cal;
 
 	bool tssi_read_trig;
 
