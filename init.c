@@ -339,7 +339,6 @@ int mt7601u_init_hardware(struct mt7601u_dev *dev)
 	ret = mt7601u_wait_asic_ready(dev);
 	if (ret)
 		goto err;
-
 	ret = mt7601u_mcu_init(dev);
 	if (ret)
 		goto err;
@@ -362,11 +361,9 @@ int mt7601u_init_hardware(struct mt7601u_dev *dev)
 	ret = mt7601u_mcu_cmd_init(dev);
 	if (ret)
 		goto err;
-
 	ret = mt7601u_dma_init(dev);
 	if (ret)
 		goto err_mcu;
-
 	ret = mt7601u_write_mac_initvals(dev);
 	if (ret)
 		goto err_rx;
@@ -380,15 +377,12 @@ int mt7601u_init_hardware(struct mt7601u_dev *dev)
 	ret = mt7601u_init_bbp(dev);
 	if (ret)
 		goto err_rx;
-
 	ret = mt7601u_init_wcid_mem(dev);
 	if (ret)
 		goto err_rx;
-
 	ret = mt7601u_init_key_mem(dev);
 	if (ret)
 		goto err_rx;
-
 	ret = mt7601u_init_wcid_attr_mem(dev);
 	if (ret)
 		goto err_rx;
