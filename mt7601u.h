@@ -144,7 +144,8 @@ enum {
 struct mt7601u_dev {
 	struct ieee80211_hw *hw;
 	struct device *dev;
-	u8 macaddr[ETH_ALEN];
+
+	unsigned long state;
 
 	struct mutex mutex;
 
@@ -154,7 +155,6 @@ struct mt7601u_dev {
 	struct ieee80211_supported_band *sband_2g;
 
 	struct mt7601u_mcu mcu;
-	struct mt7601u_eeprom_params *ee;
 
 	struct delayed_work cal_work;
 	struct delayed_work mac_work;
@@ -165,15 +165,16 @@ struct mt7601u_dev {
 	struct mt76_wcid *mon_wcid;
 	struct mt76_wcid __rcu *wcid[N_WCIDS];
 
+	spinlock_t lock;
+
 	const u16 *beacon_offsets;
 
-	spinlock_t lock;
+	u8 macaddr[ETH_ALEN];
+	struct mt7601u_eeprom_params *ee;
 
 	struct mutex vendor_req_mutex;
 	struct mutex reg_atomic_mutex;
 	struct mutex hw_atomic_mutex;
-
-	unsigned long state;
 
 	u32 rxfilter;
 	u32 debugfs_reg;
@@ -193,8 +194,6 @@ struct mt7601u_dev {
 	spinlock_t rx_lock;
 	struct tasklet_struct rx_tasklet;
 	struct mt7601u_rx_queue rx_q;
-
-	struct mac_stats stats;
 
 	/* Connection monitoring things */
 	spinlock_t con_mon_lock;
@@ -228,6 +227,8 @@ struct mt7601u_dev {
 
 	/* PA mode */
 	u32 rf_pa_mode[2];
+
+	struct mac_stats stats;
 };
 
 struct mt7601u_tssi_params {
