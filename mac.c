@@ -155,8 +155,7 @@ void mt76_mac_wcid_set_rate(struct mt7601u_dev *dev, struct mt76_wcid *wcid,
 	spin_unlock_irqrestore(&dev->lock, flags);
 }
 
-struct mt76_tx_status
-mt7601u_mac_fetch_tx_status(struct mt7601u_dev *dev)
+struct mt76_tx_status mt7601u_mac_fetch_tx_status(struct mt7601u_dev *dev)
 {
 	struct mt76_tx_status stat = {};
 	u32 val;
@@ -302,7 +301,7 @@ static void mt7601u_check_mac_err(struct mt7601u_dev *dev)
 	if (!(val & BIT(29)) || !(val & (BIT(7) | BIT(5))))
 		return;
 
-	printk("Warning: MAC specific condition occured\n");
+	dev_err(dev->dev, "Error: MAC specific condition occured\n");
 
 	mt76_set(dev, MT_MAC_SYS_CTRL, MT_MAC_SYS_CTRL_RESET_CSR);
 	udelay(10);
@@ -330,7 +329,7 @@ void mt7601u_mac_work(struct work_struct *work)
 
 	/* Note: using MCU_RANDOM_READ is actually slower then reading all the
 	 *	 registers by hand.  MCU takes ca. 20ms to complete read of 24
-	 *	 registers while reading them one by one will take roughly
+	 *	 registers while reading them one by one will takes roughly
 	 *	 24*200us =~ 5ms.
 	 */
 
@@ -483,8 +482,9 @@ int mt76_mac_process_rx(struct mt7601u_dev *dev, struct sk_buff *skb, void *rxi)
 	if (mt7601u_rx_is_our_beacon(dev, skb)) {
 		mt7601u_rx_monitor_beacon(dev, rxwi, rate);
 		dev->avg_rssi = (dev->avg_rssi * 15) / 16 + (rssi << 8);
-	} else if (rxwi->rxinfo & cpu_to_le32(MT_RXINFO_U2M))
+	} else if (rxwi->rxinfo & cpu_to_le32(MT_RXINFO_U2M)) {
 		dev->avg_rssi = (dev->avg_rssi * 15) / 16 + (rssi << 8);
+	}
 
 	return 0;
 }
@@ -527,7 +527,7 @@ int mt76_mac_wcid_set_key(struct mt7601u_dev *dev, u8 idx,
 	if (cipher == MT_CIPHER_NONE && key)
 		return -EINVAL;
 
-	printk("setting key for idx:%02hhx\n", idx);
+	trace_set_key(dev, idx);
 
 	mt7601u_wr_copy(dev, MT_WCID_KEY(idx), key_data, sizeof(key_data));
 
@@ -535,8 +535,8 @@ int mt76_mac_wcid_set_key(struct mt7601u_dev *dev, u8 idx,
 	if (key) {
 		iv_data[3] = key->keyidx << 6;
 		if (cipher >= MT_CIPHER_TKIP) {
-			/* CHANGED: start with 1 to comply with spec,
-			 *	    (see comment on common/cmm_wpa.c:4291).
+			/* Note: start with 1 to comply with spec,
+			 *	 (see comment on common/cmm_wpa.c:4291).
 			 */
 			iv_data[0] |= 1;
 			iv_data[3] |= 0x20;
@@ -544,8 +544,6 @@ int mt76_mac_wcid_set_key(struct mt7601u_dev *dev, u8 idx,
 	}
 	mt7601u_wr_copy(dev, MT_WCID_IV(idx), iv_data, sizeof(iv_data));
 
-	/* CHANGED: move attr updates after all key info is set */
-	/* CHANGED: don't use rmw for value changes to save urbs */
 	val = mt7601u_rr(dev, MT_WCID_ATTR(idx));
 	val &= ~MT_WCID_ATTR_PKEY_MODE & ~MT_WCID_ATTR_PKEY_MODE_EXT;
 	val |= MT76_SET(MT_WCID_ATTR_PKEY_MODE, cipher & 7) |
@@ -569,8 +567,7 @@ int mt76_mac_shared_key_setup(struct mt7601u_dev *dev, u8 vif_idx, u8 key_idx,
 	if (cipher == MT_CIPHER_NONE && key)
 		return -EINVAL;
 
-	printk("setting key for vif_idx:%02hhx key_idx:%02hhx\n",
-	       vif_idx, key_idx);
+	trace_set_shared_key(dev, vif_idx, key_idx);
 
 	mt7601u_wr_copy(dev, MT_SKEY(vif_idx, key_idx),
 			key_data, sizeof(key_data));

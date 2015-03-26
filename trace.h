@@ -364,6 +364,28 @@ TRACE_EVENT(mt_rx_dma_aggr,
 	TP_printk(DEV_PR_FMT "%d", DEV_PR_ARG, __entry->cnt)
 );
 
+DEFINE_EVENT(dev_simple_evt, set_key,
+	TP_PROTO(struct mt7601u_dev *dev, u8 val),
+	TP_ARGS(dev, val)
+);
+
+TRACE_EVENT(set_shared_key,
+	TP_PROTO(struct mt7601u_dev *dev, u8 vid, u8 key),
+	TP_ARGS(dev, vid, key),
+	TP_STRUCT__entry(
+		DEV_ENTRY
+		__field(u8, vid)
+		__field(u8, key)
+	),
+	TP_fast_assign(
+		DEV_ASSIGN;
+		__entry->vid = vid;
+		__entry->key = key;
+	),
+	TP_printk(DEV_PR_FMT "phy:%02hhx off:%02hhx",
+		  DEV_PR_ARG, __entry->vid, __entry->key)
+);
+
 #endif
 
 #undef TRACE_INCLUDE_PATH
