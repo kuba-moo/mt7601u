@@ -457,7 +457,7 @@ struct mt7601u_dev *mt7601u_alloc_device(struct device *pdev)
 	spin_lock_init(&dev->tx_lock);
 	spin_lock_init(&dev->rx_lock);
 	spin_lock_init(&dev->lock);
-	spin_lock_init(&dev->last_beacon.lock);
+	spin_lock_init(&dev->con_mon_lock);
 	atomic_set(&dev->avg_ampdu_len, 1);
 
 	dev->stat_wq = alloc_workqueue("mt7601u", WQ_UNBOUND, 0);

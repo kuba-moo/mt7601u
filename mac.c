@@ -439,10 +439,10 @@ static void
 mt7601u_rx_monitor_beacon(struct mt7601u_dev *dev, struct mt7601u_rxwi *rxwi,
 			  u16 rate)
 {
-	spin_lock_bh(&dev->last_beacon.lock);
-	dev->last_beacon.freq_off = rxwi->freq_off;
-	dev->last_beacon.phy_mode = MT76_GET(MT_RXWI_RATE_PHY, rate);
-	spin_unlock_bh(&dev->last_beacon.lock);
+	spin_lock_bh(&dev->con_mon_lock);
+	dev->bcn_freq_off = rxwi->freq_off;
+	dev->bcn_phy_mode = MT76_GET(MT_RXWI_RATE_PHY, rate);
+	spin_unlock_bh(&dev->con_mon_lock);
 }
 
 static int
@@ -450,7 +450,7 @@ mt7601u_rx_is_our_beacon(struct mt7601u_dev *dev, struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	return ieee80211_is_beacon(hdr->frame_control) &&
-		ether_addr_equal(hdr->addr2, dev->bssid);
+		ether_addr_equal(hdr->addr2, dev->ap_bssid);
 }
 
 int mt76_mac_process_rx(struct mt7601u_dev *dev, struct sk_buff *skb, void *rxi)

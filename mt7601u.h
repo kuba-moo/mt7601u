@@ -126,6 +126,7 @@ enum {
  * @tx_lock:		protects @tx_q and changes of MT7601U_STATE_*_STATS
 			flags in @state.
  * @rx_lock:		protects @rx_q.
+ * @con_mon_lock:	protects @ap_bssid, @bcn_*, @avg_rssi.
  * @mutex:		ensures exclusive access from mac80211 callbacks.
  * @vendor_req_mutex:	ensures atomicity of vendor requests.
  * @reg_atomic_mutex:	ensures atomicity of indirect register accesses
@@ -188,13 +189,15 @@ struct mt7601u_dev {
 
 	struct mac_stats stats;
 
-	/* Beacon monitoring stuff */
-	u8 bssid[ETH_ALEN];
-	struct {
-		spinlock_t lock;
-		s8 freq_off;
-		u8 phy_mode;
-	} last_beacon;
+	/* Connection monitoring things */
+	spinlock_t con_mon_lock;
+	u8 ap_bssid[ETH_ALEN];
+
+	s8 bcn_freq_off;
+	u8 bcn_phy_mode;
+
+	s8 avg_rssi;
+	u8 agc_save;
 
 	struct {
 		u8 freq;
@@ -203,23 +206,19 @@ struct mt7601u_dev {
 		struct delayed_work work;
 	} freq_cal;
 
+	bool tssi_read_trig;
+
 	s8 tssi_init;
 	s8 tssi_init_hvga;
 	s16 tssi_init_hvga_offset_db;
 
 	int prev_pwr_diff;
 
-	bool tssi_read_trig;
-
-	s8 avg_rssi;
-
 	enum mt_temp_mode temp_mode;
 	int curr_temp;
 	int dpd_temp;
-	bool pll_lock_protect;
 	s8 raw_temp;
-
-	u8 agc_save;
+	bool pll_lock_protect;
 
 	u8 bw;
 	bool chan_ext_below;

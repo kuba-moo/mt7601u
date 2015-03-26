@@ -1072,17 +1072,17 @@ static void mt7601u_phy_freq_cal(struct work_struct *work)
 	u8 phy_mode;
 	unsigned long delay;
 
-	spin_lock_bh(&dev->last_beacon.lock);
-	last_offset = dev->last_beacon.freq_off;
-	phy_mode = dev->last_beacon.phy_mode;
-	spin_unlock_bh(&dev->last_beacon.lock);
+	spin_lock_bh(&dev->con_mon_lock);
+	last_offset = dev->bcn_freq_off;
+	phy_mode = dev->bcn_phy_mode;
+	spin_unlock_bh(&dev->con_mon_lock);
 
 	delay = __mt7601u_phy_freq_cal(dev, last_offset, phy_mode);
 	ieee80211_queue_delayed_work(dev->hw, &dev->freq_cal.work, delay);
 
-	spin_lock_bh(&dev->last_beacon.lock);
-	dev->last_beacon.freq_off = MT_FREQ_OFFSET_INVALID;
-	spin_unlock_bh(&dev->last_beacon.lock);
+	spin_lock_bh(&dev->con_mon_lock);
+	dev->bcn_freq_off = MT_FREQ_OFFSET_INVALID;
+	spin_unlock_bh(&dev->con_mon_lock);
 }
 
 void mt7601u_phy_freq_cal_onoff(struct mt7601u_dev *dev,
@@ -1092,11 +1092,11 @@ void mt7601u_phy_freq_cal_onoff(struct mt7601u_dev *dev,
 		cancel_delayed_work_sync(&dev->freq_cal.work);
 
 	/* Start/stop collecting beacon data */
-	ether_addr_copy(dev->bssid, info->bssid);
+	ether_addr_copy(dev->ap_bssid, info->bssid);
 
-	spin_lock_bh(&dev->last_beacon.lock);
-	dev->last_beacon.freq_off = MT_FREQ_OFFSET_INVALID;
-	spin_unlock_bh(&dev->last_beacon.lock);
+	spin_lock_bh(&dev->con_mon_lock);
+	dev->bcn_freq_off = MT_FREQ_OFFSET_INVALID;
+	spin_unlock_bh(&dev->con_mon_lock);
 
 	dev->freq_cal.freq = dev->ee->rf_freq_off;
 	dev->freq_cal.enabled = info->assoc;
