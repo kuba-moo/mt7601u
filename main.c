@@ -85,24 +85,10 @@ static int mt7601u_config(struct ieee80211_hw *hw, u32 changed)
 	struct mt7601u_dev *dev = hw->priv;
 	int ret = 0;
 
-	printk("%s %08x ch:%d\n", __func__, changed,
-	       hw->conf.chandef.chan->hw_value);
 	mutex_lock(&dev->mutex);
-
-/*	if (changed & IEEE80211_CONF_CHANGE_POWER) {
-		dev->txpower_conf = hw->conf.power_level;
-
-		if (test_bit(MT76_STATE_RUNNING, &dev->state))
-			mt76_phy_set_txpower(dev);
-	}*/
 
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
 		ieee80211_stop_queues(hw);
-		/* TODO: mt76 stops mac while new channel is being set - we
-		 *       stop it only during BW change.
-		 * Note: there is no need to stop cal though 'cause we protect
-		 *       cal with dev->mutex.
-		 */
 		ret = mt7601u_phy_set_channel(dev, &hw->conf.chandef);
 		ieee80211_wake_queues(hw);
 	}
@@ -124,9 +110,6 @@ mt76_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
 		dev->rxfilter &= ~(_hw);				\
 		dev->rxfilter |= !(flags & FIF_##_flag) * (_hw);	\
 	} while (0)
-
-	printk("%s changed:%x total:%08x\n", __func__,
-	       changed_flags, *total_flags);
 
 	mutex_lock(&dev->mutex);
 
@@ -155,24 +138,6 @@ mt7601u_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 {
 	struct mt7601u_dev *dev = hw->priv;
 
-	/* 00004000 - BSS_CHANGED_IDLE
-	 * 000000e0 - BSS_CHANGED_BASIC_RATES
-		      BSS_CHANGED_BEACON_INT
-		      BSS_CHANGED_BSSID
-	 * 0010200d - BSS_CHANGED_ASSOC
-		      BSS_CHANGED_ERP_PREAMBLE
-		      BSS_CHANGED_ERP_SLOT
-		      BSS_CHANGED_CQM
-		      BSS_CHANGED_BEACON_INFO
-	   ====================================
-	 * 0000209f - 1e
-		      BSS_CHANGED_ASSOC
-		      BSS_CHANGED_BSSID
-		      BSS_CHANGED_BEACON_INFO
-	 * 00004000 - BSS_CHANGED_IDLE
-	 */
-	printk("%s %08x\n", __func__, changed);
-
 	mutex_lock(&dev->mutex);
 
 	if (changed & BSS_CHANGED_ASSOC)
@@ -181,19 +146,16 @@ mt7601u_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	if (changed & BSS_CHANGED_BSSID) {
 		mt7601u_addr_wr(dev, MT_MAC_BSSID_DW0, info->bssid);
 
-		/* TODO: this is a hack but beacon_int is not changed on leave,
-		 *	 nor is any more appropriate event generated.
-		 *	 rt2x00 doesn't seem to bother though.
+		/* Note: this is a hack because beacon_int is not changed
+		 *	 on leave nor is any more appropriate event generated.
+		 *	 rt2x00 doesn't seem to be bothered though.
 		 */
 		if (is_zero_ether_addr(info->bssid))
 			mt7601u_mac_config_tsf(dev, false, 0);
 	}
 
 	if (changed & BSS_CHANGED_BASIC_RATES) {
-		printk("basic rates: %08x\n", info->basic_rates);
-		/* TODO: make sure those are ok - vendor does 0x15f. */
 		mt7601u_wr(dev, MT_LEGACY_BASIC_RATE, info->basic_rates);
-		/* TODO: properly configure fallback - values are ok */
 		mt7601u_wr(dev, MT_HT_FBK_CFG0, 0x65432100);
 		mt7601u_wr(dev, MT_HT_FBK_CFG1, 0xedcba980);
 		mt7601u_wr(dev, MT_LG_FBK_CFG0, 0xedcba988);
@@ -255,8 +217,6 @@ mt7601u_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	int ret = 0;
 	int idx = 0;
 
-	printk("%s\n", __func__);
-
 	mutex_lock(&dev->mutex);
 
 	idx = mt76_wcid_alloc(dev);
@@ -290,8 +250,6 @@ mt7601u_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct mt76_sta *msta = (struct mt76_sta *) sta->drv_priv;
 	int idx = msta->wcid.idx;
 
-	printk("%s\n", __func__);
-
 	mutex_lock(&dev->mutex);
 	rcu_assign_pointer(dev->wcid[idx], NULL);
 	//mt76_set(dev, MT_WCID_DROP(idx), MT_WCID_DROP_MASK(idx)); ^
@@ -307,7 +265,6 @@ static void
 mt7601u_sta_notify(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		   enum sta_notify_cmd cmd, struct ieee80211_sta *sta)
 {
-	printk("%s\n", __func__);
 }
 
 static void
@@ -342,9 +299,6 @@ mt7601u_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	struct mt76_wcid *wcid = msta ? &msta->wcid : &mvif->group_wcid;
 	int idx = key->keyidx;
 	int ret;
-
-	printk("%s cmd:%x flg:%x kid:%x wid:%x\n",
-	       __func__, cmd, key->flags, idx, wcid->idx);
 
 	if (cmd == SET_KEY) {
 		key->hw_key_idx = wcid->idx;
@@ -454,8 +408,6 @@ const struct ieee80211_ops mt7601u_ops = {
 	.sw_scan_complete = mt7601u_sw_scan_complete,
 /*	.flush = mt7601u_flush,*/
 	.ampdu_action = mt76_ampdu_action,
-/*	.get_txpower = mt7601u_get_txpower,
-	.wake_tx_queue = mt7601u_wake_tx_queue,*/
 	.sta_rate_tbl_update = mt76_sta_rate_tbl_update,
 	.set_rts_threshold = mt7601u_set_rts_threshold,
 };
