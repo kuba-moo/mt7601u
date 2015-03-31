@@ -194,21 +194,13 @@ void mt7601u_mac_set_protection(struct mt7601u_dev *dev, bool legacy_prot,
 {
 	int mode = ht_mode & IEEE80211_HT_OP_MODE_PROTECTION;
 	bool non_gf = !!(ht_mode & IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT);
-	bool non_ht = !!(ht_mode & IEEE80211_HT_OP_MODE_NON_HT_STA_PRSNT);
 	u32 prot[6];
 	bool ht_rts[4] = {};
 	int i;
 
-	printk("[prot transition] mode:%04hx bgprot:%d non-gf:%d non-ht:%d\n",
-	       mode, legacy_prot, non_gf, non_ht);
-
-	/* TODO: vendor sets the legacy protection on during connect and
-	 *	 leaves it on - later updates touch only n-modes.
-	 */
 	prot[0] = MT_PROT_NAV_SHORT |
 		  MT_PROT_TXOP_ALLOW_ALL |
 		  MT_PROT_RTS_THR_EN;
-	/* TODO: for legacy mode if min_rate is OFDM, set prot_rate to OFDM_6 */
 	prot[1] = prot[0];
 	if (legacy_prot)
 		prot[1] |= MT_PROT_CTRL_CTS2SELF;
@@ -247,11 +239,6 @@ void mt7601u_mac_set_protection(struct mt7601u_dev *dev, bool legacy_prot,
 
 	if (non_gf)
 		ht_rts[2] = ht_rts[3] = true;
-
-	/* TODO: vendor also turns ht_rts on for:
-	 *	 AP - when there are "bad Atheros" clients
-	 *	 STA - when there are BA sessions active.
-	 */
 
 	for (i = 0; i < 4; i++)
 		if (ht_rts[i])
