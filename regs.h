@@ -445,10 +445,7 @@
 #define MT_TX_ALC_CFG_2			0x13a8
 #define MT_TX_ALC_CFG_2_TEMP_COMP	GENMASK(5, 0)
 
-#define MT_TX_ALC_CFG_3			0x13ac
-#define MT_TX_ALC_CFG_4			0x13c0
-#define MT_TX0_BB_GAIN_ATTEN		0x13c0 /* TODO: same reg? */
-#define MT_TX_ALC_CFG_4_LOWGAIN_CH_EN	BIT(31)
+#define MT_TX0_BB_GAIN_ATTEN		0x13c0
 
 #define MT_TX_ALC_VGA3			0x13c8
 
