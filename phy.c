@@ -973,6 +973,9 @@ static void mt7601u_agc_tune(struct mt7601u_dev *dev)
 {
 	u8 val = mt7601u_agc_default(dev);
 
+	if (test_bit(MT7601U_STATE_SCANNING, &dev->state))
+		return;
+
 	/* Note: only in STA mode and not dozing; perhaps do this only if
 	 *	 there is enough rssi updates since last run?
 	 *	 Rssi updates are only on beacons and U2M so should work...

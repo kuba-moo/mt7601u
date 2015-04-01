@@ -282,7 +282,7 @@ mt7601u_sw_scan(struct ieee80211_hw *hw,
 {
 	struct mt7601u_dev *dev = hw->priv;
 
-	mt7601u_agc_save(dev); /* TODO: this will race with agc tune */
+	mt7601u_agc_save(dev);
 	set_bit(MT7601U_STATE_SCANNING, &dev->state);
 }
 
