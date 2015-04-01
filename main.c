@@ -57,19 +57,23 @@ static void mt7601u_stop(struct ieee80211_hw *hw)
 static int mt7601u_add_interface(struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif)
 {
+	struct mt7601u_dev *dev = hw->priv;
 	struct mt76_vif *mvif = (struct mt76_vif *) vif->drv_priv;
 	unsigned int idx = 0;
+	unsigned int wcid = GROUP_WCID(idx);
 
-	/* TODO: do the AP-STA things mt76 does:
+	/* Note: for AP do the AP-STA things mt76 does:
 	 *	- beacon offsets
 	 *	- do mac address tricks
 	 *	- shift vif idx
 	 */
-	mvif->idx = idx; /* TODO: wcid idx should be reserved in the map */
-	mvif->group_wcid.idx = GROUP_WCID(idx);
-	mvif->group_wcid.hw_key_idx = -1;
+	mvif->idx = idx;
 
-	printk("%s idx:%d\n", __func__, idx);
+	if (dev->wcid_mask[wcid / BITS_PER_LONG] & BIT(wcid % BITS_PER_LONG))
+		return -ENOSPC;
+	dev->wcid_mask[wcid / BITS_PER_LONG] |= BIT(wcid % BITS_PER_LONG);
+	mvif->group_wcid.idx = wcid;
+	mvif->group_wcid.hw_key_idx = -1;
 
 	return 0;
 }
@@ -77,7 +81,11 @@ static int mt7601u_add_interface(struct ieee80211_hw *hw,
 static void mt7601u_remove_interface(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif)
 {
-	printk("%s\n", __func__);
+	struct mt7601u_dev *dev = hw->priv;
+	struct mt76_vif *mvif = (struct mt76_vif *) vif->drv_priv;
+	unsigned int wcid = mvif->group_wcid.idx;
+
+	dev->wcid_mask[wcid / BITS_PER_LONG] &= ~BIT(wcid % BITS_PER_LONG);
 }
 
 static int mt7601u_config(struct ieee80211_hw *hw, u32 changed)

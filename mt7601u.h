@@ -98,6 +98,13 @@ struct mt7601u_tx_queue {
 	unsigned int fifo_seq;
 };
 
+/* WCID allocation:
+ *     0: mcast wcid
+ *     1: bssid wcid
+ *  1...: STAs
+ * ...7e: group wcids
+ *    7f: reserved
+ */
 #define N_WCIDS		128
 #define GROUP_WCID(idx)	(N_WCIDS - 2 - idx)
 
