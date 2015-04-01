@@ -261,10 +261,6 @@ struct mt76_reg_pair {
 	u32 value;
 };
 
-#define mt76_rr		mt7601u_rr
-#define mt76_wr		mt7601u_wr
-#define mt76_rmw	mt7601u_rmw
-
 struct mt7601u_rxwi;
 
 extern const struct ieee80211_ops mt7601u_ops;
@@ -284,8 +280,25 @@ bool mt76_poll(struct mt7601u_dev *dev, u32 offset, u32 mask, u32 val,
 bool mt76_poll_msec(struct mt7601u_dev *dev, u32 offset, u32 mask, u32 val,
 		    int timeout);
 
+/* Compatibility with mt76 */
 #define mt76_rmw_field(_dev, _reg, _field, _val)	\
 	mt76_rmw(_dev, _reg, _field, MT76_SET(_field, _val))
+
+static inline u32 mt76_rr(struct mt7601u_dev *dev, u32 offset)
+{
+	return mt7601u_rr(dev, offset);
+}
+
+static inline void mt76_wr(struct mt7601u_dev *dev, u32 offset, u32 val)
+{
+	return mt7601u_wr(dev, offset, val);
+}
+
+static inline u32
+mt76_rmw(struct mt7601u_dev *dev, u32 offset, u32 mask, u32 val)
+{
+	return mt7601u_rmw(dev, offset, mask, val);
+}
 
 static inline u32 mt76_set(struct mt7601u_dev *dev, u32 offset, u32 val)
 {
