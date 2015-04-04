@@ -9,7 +9,7 @@ To use this driver you need to upgrade your kernel to at least **Linux 3.19**. Y
 ```
 Note that name of the file in */lib/firmware* is in lowercase.
 
-After that make sure you have installed all packages required by your distro to build kernel modules, build the driver and load it:
+After that **make sure you have installed all packages required by your distro to build kernel modules** (```apt-get install linux-headers-$(uname -r)``` or ```yum install kernel-devel``` etc). Build the driver and load it:
 
 ```sh
 $ git clone git@github.com:kuba-moo/mt7601u.git
