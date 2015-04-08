@@ -106,7 +106,7 @@ __mt7601u_vendor_request(struct mt7601u_dev *dev, const u8 req,
 		msleep(5);
 	}
 
-	dev_err(dev->dev, "Vendor request req:%02x off:x%04x failed:%d\n",
+	dev_err(dev->dev, "Vendor request req:%02x off:%04x failed:%d\n",
 		req, offset, ret);
 
 	return ret;
