@@ -171,7 +171,6 @@ mt7601u_push_txwi(struct mt7601u_dev *dev, struct sk_buff *skb,
 		txwi->ack_ctl |= MT_TXWI_ACK_CTL_REQ;
 	if (info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ)
 		txwi->ack_ctl |= MT_TXWI_ACK_CTL_NSEQ;
-	txwi->ack_ctl |= MT76_SET(MT_TXWI_ACK_CTL_BA_WINDOW, 7);
 
 	if ((info->flags & IEEE80211_TX_CTL_AMPDU) && sta) {
 		u8 ba_size = IEEE80211_MIN_AMPDU_BUF;
