@@ -348,10 +348,11 @@ mt76_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	switch (action) {
 	case IEEE80211_AMPDU_RX_START:
-		mt76_set(dev, MT_WCID_ADDR(msta->wcid.idx)+4, BIT(16 + tid));
+		mt76_set(dev, MT_WCID_ADDR(msta->wcid.idx) + 4, BIT(16 + tid));
 		break;
 	case IEEE80211_AMPDU_RX_STOP:
-		mt76_clear(dev, MT_WCID_ADDR(msta->wcid.idx)+4, BIT(16 + tid));
+		mt76_clear(dev, MT_WCID_ADDR(msta->wcid.idx) + 4,
+			   BIT(16 + tid));
 		break;
 	case IEEE80211_AMPDU_TX_OPERATIONAL:
 		ieee80211_send_bar(vif, sta->addr, tid, msta->agg_ssn[tid]);

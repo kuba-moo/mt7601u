@@ -54,7 +54,8 @@ static const struct mt76_reg_pair bbp_chip_vals[] = {
 	{ 160, 0xeb },	{ 161, 0xc4 },	{ 162, 0x77 },	{ 163, 0xf9 },
 	{ 164, 0x88 },	{ 165, 0x80 },	{ 166, 0xff },	{ 167, 0xe4 },
 	/* Added AGC controls - these AGC/GLRT registers are accessed
-	 * through R195 and R196.  */
+	 * through R195 and R196.
+	 */
 	{ 195, 0x00 },	{ 196, 0x00 },
 	{ 195, 0x01 },	{ 196, 0x04 },
 	{ 195, 0x02 },	{ 196, 0x20 },

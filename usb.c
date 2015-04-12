@@ -189,6 +189,7 @@ u32 mt7601u_rmw(struct mt7601u_dev *dev, u32 offset, u32 mask, u32 val)
 u32 mt7601u_rmc(struct mt7601u_dev *dev, u32 offset, u32 mask, u32 val)
 {
 	u32 reg = mt7601u_rr(dev, offset);
+
 	val |= reg & ~mask;
 	if (reg != val)
 		mt7601u_wr(dev, offset, val);

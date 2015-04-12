@@ -16,6 +16,7 @@
 void mt76_remove_hdr_pad(struct sk_buff *skb)
 {
 	int len = ieee80211_get_hdrlen_from_skb(skb);
+
 	memmove(skb->data + 2, skb->data, len);
 	skb_pull(skb, 2);
 }

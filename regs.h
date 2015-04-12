@@ -598,15 +598,21 @@
 
 #define MT_SKEY_BASE_0			0xac00
 #define MT_SKEY_BASE_1			0xb400
-#define MT_SKEY_0(_bss, _idx)		(MT_SKEY_BASE_0 + (4 * (_bss) + _idx) * 32)
-#define MT_SKEY_1(_bss, _idx)		(MT_SKEY_BASE_1 + (4 * ((_bss) & 7) + _idx) * 32)
-#define MT_SKEY(_bss, _idx)		((_bss & 8) ? MT_SKEY_1(_bss, _idx) : MT_SKEY_0(_bss, _idx))
+#define MT_SKEY_0(_bss, _idx)		\
+	(MT_SKEY_BASE_0 + (4 * (_bss) + _idx) * 32)
+#define MT_SKEY_1(_bss, _idx)		\
+	(MT_SKEY_BASE_1 + (4 * ((_bss) & 7) + _idx) * 32)
+#define MT_SKEY(_bss, _idx)		\
+	((_bss & 8) ? MT_SKEY_1(_bss, _idx) : MT_SKEY_0(_bss, _idx))
 
 #define MT_SKEY_MODE_BASE_0		0xb000
 #define MT_SKEY_MODE_BASE_1		0xb3f0
-#define MT_SKEY_MODE_0(_bss)		(MT_SKEY_MODE_BASE_0 + ((_bss / 2) << 2))
-#define MT_SKEY_MODE_1(_bss)		(MT_SKEY_MODE_BASE_1 + ((((_bss) & 7) / 2) << 2))
-#define MT_SKEY_MODE(_bss)		((_bss & 8) ? MT_SKEY_MODE_1(_bss) : MT_SKEY_MODE_0(_bss))
+#define MT_SKEY_MODE_0(_bss)		\
+	(MT_SKEY_MODE_BASE_0 + ((_bss / 2) << 2))
+#define MT_SKEY_MODE_1(_bss)		\
+	(MT_SKEY_MODE_BASE_1 + ((((_bss) & 7) / 2) << 2))
+#define MT_SKEY_MODE(_bss)		\
+	((_bss & 8) ? MT_SKEY_MODE_1(_bss) : MT_SKEY_MODE_0(_bss))
 #define MT_SKEY_MODE_MASK		GENMASK(3, 0)
 #define MT_SKEY_MODE_SHIFT(_bss, _idx)	(4 * ((_idx) + 4 * (_bss & 1)))
 

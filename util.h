@@ -54,7 +54,6 @@
 			      (compile_ffs16((__x))), \
 			      (compile_ffs16((__x) >> 16) + 16))
 
-
 /*
  * This macro will check the requirements for the FIELD{8,16,32} macros
  * The mask should be a constant non-zero contiguous set of bits which
@@ -63,13 +62,16 @@
 #define FIELD_CHECK(__mask) \
 	BUILD_BUG_ON(!(__mask) || !is_valid_mask(__mask))
 
-#define MT76_SET(_mask, _val) \
-	({ FIELD_CHECK(_mask); (((u32) (_val)) << compile_ffs32(_mask)) & _mask; })
+#define MT76_SET(_mask, _val)						\
+	({								\
+		FIELD_CHECK(_mask);					\
+		(((u32) (_val)) << compile_ffs32(_mask)) & _mask;	\
+	})
 
-#define MT76_GET(_mask, _val) \
-	({ FIELD_CHECK(_mask); (u32) (((_val) & _mask) >> compile_ffs32(_mask)); })
-
-#define MT76_INCR(_var, _size) \
-	_var = (((_var) + 1) % _size)
+#define MT76_GET(_mask, _val)						\
+	({								\
+		FIELD_CHECK(_mask);					\
+		(u32) (((_val) & _mask) >> compile_ffs32(_mask));	\
+	})
 
 #endif

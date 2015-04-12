@@ -224,6 +224,7 @@ void mt7601u_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 		wcid = &msta->wcid;
 	} else if (vif) {
 		struct mt76_vif *mvif = (struct mt76_vif *)vif->drv_priv;
+
 		wcid = &mvif->group_wcid;
 	}
 

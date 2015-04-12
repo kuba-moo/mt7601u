@@ -139,7 +139,7 @@ mt7601u_set_macaddr(struct mt7601u_dev *dev, const u8 *eeprom)
 {
 	const void *src = eeprom + MT_EE_MAC_ADDR;
 
-	memcpy(dev->macaddr, src, ETH_ALEN);
+	ether_addr_copy(dev->macaddr, src);
 
 	if (!is_valid_ether_addr(dev->macaddr)) {
 		eth_random_addr(dev->macaddr);

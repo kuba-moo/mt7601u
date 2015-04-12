@@ -283,7 +283,7 @@ static void mt7601u_check_mac_err(struct mt7601u_dev *dev)
 	if (!(val & BIT(29)) || !(val & (BIT(7) | BIT(5))))
 		return;
 
-	dev_err(dev->dev, "Error: MAC specific condition occured\n");
+	dev_err(dev->dev, "Error: MAC specific condition occurred\n");
 
 	mt76_set(dev, MT_MAC_SYS_CTRL, MT_MAC_SYS_CTRL_RESET_CSR);
 	udelay(10);
@@ -444,6 +444,7 @@ static int
 mt7601u_rx_is_our_beacon(struct mt7601u_dev *dev, struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+
 	return ieee80211_is_beacon(hdr->frame_control) &&
 		ether_addr_equal(hdr->addr2, dev->ap_bssid);
 }
@@ -494,7 +495,7 @@ mt76_mac_get_key_info(struct ieee80211_key_conf *key, u8 *key_data)
 
 	memcpy(key_data, key->key, key->keylen);
 
-	switch(key->cipher) {
+	switch (key->cipher) {
 	case WLAN_CIPHER_SUITE_WEP40:
 		return MT_CIPHER_WEP40;
 	case WLAN_CIPHER_SUITE_WEP104:

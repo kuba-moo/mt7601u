@@ -109,7 +109,7 @@ enum mt76_phy_type {
 	MT_PHY_TYPE_HT_GF,
 };
 
-enum mt76_phy_bandwith {
+enum mt76_phy_bandwidth {
 	MT_PHY_BW_20,
 	MT_PHY_BW_40,
 };

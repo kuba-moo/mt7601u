@@ -211,7 +211,7 @@ mt7601u_mcu_calibrate(struct mt7601u_dev *dev, enum mcu_calibrate cal, u32 val)
 int mt7601u_write_reg_pairs(struct mt7601u_dev *dev, u32 base,
 			    const struct mt76_reg_pair *data, int n)
 {
-	const int max_vals_per_cmd = INBAND_PACKET_MAX_LEN/8;
+	const int max_vals_per_cmd = INBAND_PACKET_MAX_LEN / 8;
 	struct sk_buff *skb;
 	int cnt, i, ret;
 
@@ -240,7 +240,7 @@ int mt7601u_write_reg_pairs(struct mt7601u_dev *dev, u32 base,
 int mt7601u_burst_write_regs(struct mt7601u_dev *dev, u32 offset,
 			     const u32 *data, int n)
 {
-	const int max_regs_per_cmd = INBAND_PACKET_MAX_LEN/4 - 1;
+	const int max_regs_per_cmd = INBAND_PACKET_MAX_LEN / 4 - 1;
 	struct sk_buff *skb;
 	int cnt, i, ret;
 

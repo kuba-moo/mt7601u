@@ -37,7 +37,6 @@ mt76_reg_get(void *data, u64 *val)
 
 DEFINE_SIMPLE_ATTRIBUTE(fops_regval, mt76_reg_get, mt76_reg_set, "0x%08llx\n");
 
-
 static int
 mt7601u_ampdu_stat_read(struct seq_file *file, void *data)
 {
@@ -111,7 +110,7 @@ mt7601u_eeprom_param_read(struct seq_file *file, void *data)
 	seq_printf(file, "Reg channels: %hhu-%hhu\n", dev->ee->reg.start,
 		   dev->ee->reg.start + dev->ee->reg.num - 1);
 
-	seq_printf(file, "Per rate power:\n");
+	seq_puts(file, "Per rate power:\n");
 	for (i = 0; i < 2; i++)
 		seq_printf(file, "\t raw:%02hhx bw20:%02hhx bw40:%02hhx\n",
 			   rp->cck[i].raw, rp->cck[i].bw20, rp->cck[i].bw40);
@@ -122,7 +121,7 @@ mt7601u_eeprom_param_read(struct seq_file *file, void *data)
 		seq_printf(file, "\t raw:%02hhx bw20:%02hhx bw40:%02hhx\n",
 			   rp->ht[i].raw, rp->ht[i].bw20, rp->ht[i].bw40);
 
-	seq_printf(file, "Per channel power:\n");
+	seq_puts(file, "Per channel power:\n");
 	for (i = 0; i < 7; i++)
 		seq_printf(file, "\t tx_power  ch%u:%02hhx ch%u:%02hhx\n",
 			   i * 2 + 1, dev->ee->chan_pwr[i * 2],
@@ -131,7 +130,7 @@ mt7601u_eeprom_param_read(struct seq_file *file, void *data)
 	if (!dev->ee->tssi_enabled)
 		return 0;
 
-	seq_printf(file, "TSSI:\n");
+	seq_puts(file, "TSSI:\n");
 	seq_printf(file, "\t slope:%02hhx\n", td->slope);
 	seq_printf(file, "\t offset=%02hhx %02hhx %02hhx\n",
 		   td->offset[0], td->offset[1], td->offset[2]);
