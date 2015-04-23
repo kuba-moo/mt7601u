@@ -290,13 +290,23 @@ int mt7601u_dma_enqueue_tx(struct mt7601u_dev *dev, struct sk_buff *skb,
 {
 	u8 ep = q2ep(hw_q);
 	u32 dma_flags;
+	int ret;
 
 	dma_flags = MT_TXD_PKT_INFO_80211;
 	if (wcid->hw_key_idx == 0xff)
 		dma_flags |= MT_TXD_PKT_INFO_WIV;
-	mt7601u_dma_skb_wrap_pkt(skb, ep2dmaq(ep), dma_flags);
 
-	return mt7601u_dma_submit_tx(dev, skb, ep);
+	ret = mt7601u_dma_skb_wrap_pkt(skb, ep2dmaq(ep), dma_flags);
+	if (ret)
+		return ret;
+
+	ret = mt7601u_dma_submit_tx(dev, skb, ep);
+	if (ret) {
+		ieee80211_free_txskb(dev->hw, skb);
+		return ret;
+	}
+
+	return 0;
 }
 
 static void mt7601u_kill_rx(struct mt7601u_dev *dev)

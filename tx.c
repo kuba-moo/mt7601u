@@ -122,18 +122,11 @@ void mt7601u_tx_status(struct mt7601u_dev *dev, struct sk_buff *skb)
 static int mt7601u_skb_rooms(struct mt7601u_dev *dev, struct sk_buff *skb)
 {
 	int hdr_len = ieee80211_get_hdrlen_from_skb(skb);
-	u32 need_head, need_tail;
+	u32 need_head;
 
-	need_tail = 4 + 4 + 3; /* assume worst case 3 byte padding */
 	need_head = sizeof(struct mt76_txwi) + 4;
 	if (hdr_len % 4)
 		need_head += 2;
-
-	if (skb_tailroom(skb) < need_tail) {
-		dev_err_ratelimited(dev->dev,
-				    "Error: TX skb - not enough tailroom\n");
-		return -ENOMEM;
-	}
 
 	return skb_cow(skb, need_head);
 }
@@ -230,10 +223,8 @@ void mt7601u_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 
 	txwi = mt7601u_push_txwi(dev, skb, sta, wcid, pkt_len);
 
-	if (mt7601u_dma_enqueue_tx(dev, skb, wcid, hw_q)) {
-		ieee80211_free_txskb(dev->hw, skb);
+	if (mt7601u_dma_enqueue_tx(dev, skb, wcid, hw_q))
 		return;
-	}
 
 	trace_mt_tx(dev, skb, msta, txwi);
 }

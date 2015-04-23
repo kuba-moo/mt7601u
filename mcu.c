@@ -42,9 +42,9 @@ static inline void skb_put_le32(struct sk_buff *skb, u32 val)
 static inline void mt7601u_dma_skb_wrap_cmd(struct sk_buff *skb,
 					    u8 seq, enum mcu_cmd cmd)
 {
-	mt7601u_dma_skb_wrap(skb, CPU_TX_PORT, DMA_COMMAND,
-			     MT76_SET(MT_TXD_CMD_INFO_SEQ, seq) |
-			     MT76_SET(MT_TXD_CMD_INFO_TYPE, cmd));
+	WARN_ON(mt7601u_dma_skb_wrap(skb, CPU_TX_PORT, DMA_COMMAND,
+				     MT76_SET(MT_TXD_CMD_INFO_SEQ, seq) |
+				     MT76_SET(MT_TXD_CMD_INFO_TYPE, cmd)));
 }
 
 static inline void trace_mt_mcu_msg_send_cs(struct mt7601u_dev *dev,

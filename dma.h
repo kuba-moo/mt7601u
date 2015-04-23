@@ -65,16 +65,15 @@ enum mt76_qsel {
 #define MT_TXD_CMD_INFO_SEQ		GENMASK(19, 16)
 #define MT_TXD_CMD_INFO_TYPE		GENMASK(26, 20)
 
-static inline void mt7601u_dma_skb_wrap(struct sk_buff *skb,
-					enum mt76_msg_port d_port,
-					enum mt76_info_type type, u32 flags)
+static inline int mt7601u_dma_skb_wrap(struct sk_buff *skb,
+				       enum mt76_msg_port d_port,
+				       enum mt76_info_type type, u32 flags)
 {
 	u32 info;
-	int pad_len;
 
 	/* Buffer layout:
-	 *	|   4B   | xfer len |  4B  |      pad       |
-	 *	| TXINFO | pkt/cmd  | zero | zero pad to 4B |
+	 *	|   4B   | xfer len |      pad       |  4B  |
+	 *	| TXINFO | pkt/cmd  | zero pad to 4B | zero |
 	 *
 	 * length field of TXINFO should be set to 'xfer len'.
 	 */
@@ -85,15 +84,14 @@ static inline void mt7601u_dma_skb_wrap(struct sk_buff *skb,
 		MT76_SET(MT_TXD_INFO_TYPE, type);
 
 	put_unaligned_le32(info, skb_push(skb, sizeof(info)));
-	pad_len = round_up(skb->len, 4) - skb->len + 4;
-	memset(skb_put(skb, pad_len), 0, pad_len);
+	return skb_put_padto(skb, round_up(skb->len, 4) + 4);
 }
 
-static inline void mt7601u_dma_skb_wrap_pkt(struct sk_buff *skb,
-					    enum mt76_qsel qsel, u32 flags)
+static inline int
+mt7601u_dma_skb_wrap_pkt(struct sk_buff *skb, enum mt76_qsel qsel, u32 flags)
 {
-	mt7601u_dma_skb_wrap(skb, WLAN_PORT, DMA_PACKET,
-			     MT76_SET(MT_TXD_PKT_INFO_QSEL, qsel) | flags);
+	flags |= MT76_SET(MT_TXD_PKT_INFO_QSEL, qsel);
+	return mt7601u_dma_skb_wrap(skb, WLAN_PORT, DMA_PACKET, flags);
 }
 
 /* Common Rx DMA descriptor fields */
