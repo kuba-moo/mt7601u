@@ -576,7 +576,7 @@ int mt7601u_register_device(struct mt7601u_dev *dev)
 	int ret;
 
 	/* Reserve WCID 0 for mcast - thanks to this APs WCID will go to
-	 * entry no. 1 like in the vendor driver.
+	 * entry no. 1 like it does in the vendor driver.
 	 */
 	dev->wcid_mask[0] |= 1;
 
