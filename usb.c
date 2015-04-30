@@ -318,12 +318,18 @@ static void mt7601u_disconnect(struct usb_interface *usb_intf)
 
 static int mt7601u_suspend(struct usb_interface *usb_intf, pm_message_t state)
 {
-	return -1;
+	struct mt7601u_dev *dev = usb_get_intfdata(usb_intf);
+
+	mt7601u_cleanup(dev);
+
+	return 0;
 }
 
 static int mt7601u_resume(struct usb_interface *usb_intf)
 {
-	return -1;
+	struct mt7601u_dev *dev = usb_get_intfdata(usb_intf);
+
+	return mt7601u_init_hardware(dev);
 }
 
 MODULE_DEVICE_TABLE(usb, mt7601u_device_table);
