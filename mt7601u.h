@@ -69,7 +69,7 @@ struct mac_stats {
 	u64 zero_len_del[2];
 };
 
-#define N_RX_ENTRIES	64
+#define N_RX_ENTRIES	16
 struct mt7601u_rx_queue {
 	struct mt7601u_dev *dev;
 
