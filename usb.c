@@ -20,12 +20,22 @@
 #include "trace.h"
 
 static struct usb_device_id mt7601u_device_table[] = {
+	{ USB_DEVICE(0x0b05, 0x17d3) },
+	{ USB_DEVICE(0x0e8d, 0x760a) },
+	{ USB_DEVICE(0x0e8d, 0x760b) },
+	{ USB_DEVICE(0x13d3, 0x3431) },
+	{ USB_DEVICE(0x13d3, 0x3434) },
 	{ USB_DEVICE(0x148f, 0x7601) },
+	{ USB_DEVICE(0x148f, 0x760a) },
 	{ USB_DEVICE(0x148f, 0x760b) },
+	{ USB_DEVICE(0x148f, 0x760c) },
+	{ USB_DEVICE(0x148f, 0x760d) },
+	{ USB_DEVICE(0x2001, 0x3d04) },
 	{ USB_DEVICE(0x2717, 0x4106) },
 	{ USB_DEVICE(0x2955, 0x0001) },
 	{ USB_DEVICE(0x2955, 0x1001) },
 	{ USB_DEVICE(0x2a5f, 0x1000) },
+	{ USB_DEVICE(0x7392, 0x7710) },
 	{ 0, }
 };
 
