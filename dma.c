@@ -42,8 +42,6 @@ mt7601u_rx_skb_from_seg(struct mt7601u_dev *dev, struct mt7601u_rxwi *rxwi,
 	if (!skb)
 		return NULL;
 
-	memset(skb->cb, 0, sizeof(skb->cb));
-
 	if (rxwi->rxinfo & cpu_to_le32(MT_RXINFO_L2PAD)) {
 		int hdr_len = ieee80211_get_hdrlen_from_buf(data, seg_len);
 
