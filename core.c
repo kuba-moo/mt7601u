@@ -20,9 +20,14 @@ int mt7601u_wait_asic_ready(struct mt7601u_dev *dev)
 	u32 val;
 
 	do {
+		if (test_bit(MT7601U_STATE_REMOVED, &dev->state))
+			return -EIO;
+
 		val = mt7601u_rr(dev, MT_MAC_CSR0);
 		if (val && ~val)
 			return 0;
+
+		udelay(10);
 	} while (i--);
 
 	return -EIO;
