@@ -160,8 +160,8 @@ struct mt76_txwi {
 #define MT_TXWI_CTL_CHAN_CHECK_PKT	BIT(4)
 #define MT_TXWI_CTL_PIFS_REV		BIT(6)
 
-int
-mt76_mac_process_rx(struct mt7601u_dev *dev, struct sk_buff *skb, void *rxwi);
+u32 mt76_mac_process_rx(struct mt7601u_dev *dev, struct sk_buff *skb,
+			u8 *data, void *rxi);
 int mt76_mac_wcid_set_key(struct mt7601u_dev *dev, u8 idx,
 			  struct ieee80211_key_conf *key);
 void mt76_mac_wcid_set_rate(struct mt7601u_dev *dev, struct mt76_wcid *wcid,

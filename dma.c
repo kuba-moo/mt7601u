@@ -16,6 +16,9 @@
 #include "usb.h"
 #include "trace.h"
 
+static int mt7601u_submit_rx_buf(struct mt7601u_dev *dev,
+				 struct mt7601u_dma_buf_rx *e, gfp_t gfp);
+
 static unsigned int ieee80211_get_hdrlen_from_buf(const u8 *data, unsigned len)
 {
 	const struct ieee80211_hdr *hdr = (const struct ieee80211_hdr *)data;
@@ -34,6 +37,7 @@ mt7601u_rx_skb_from_seg(struct mt7601u_dev *dev, struct mt7601u_rxwi *rxwi,
 			u8 *data, u32 seg_len)
 {
 	struct sk_buff *skb;
+	u32 true_len;
 
 	if (rxwi->rxinfo & cpu_to_le32(MT_RXINFO_L2PAD))
 		seg_len -= 2;
@@ -52,15 +56,55 @@ mt7601u_rx_skb_from_seg(struct mt7601u_dev *dev, struct mt7601u_rxwi *rxwi,
 
 	memcpy(skb_put(skb, seg_len), data, seg_len);
 
+	true_len = mt76_mac_process_rx(dev, skb, skb->data, rxwi);
+	skb_trim(skb, true_len);
+
 	return skb;
 }
 
-static void
-mt7601u_rx_process_seg(struct mt7601u_dev *dev, u8 *data, u32 seg_len)
+static struct sk_buff *
+mt7601u_rx_skb_from_seg_paged(struct mt7601u_dev *dev,
+			      struct mt7601u_rxwi *rxwi, void *data,
+			      u32 seg_len, u32 truesize, struct page *p)
+{
+	unsigned int hdr_len = ieee80211_get_hdrlen_from_buf(data, seg_len);
+	unsigned int true_len, copy, frag;
+	struct sk_buff *skb;
+
+	skb = alloc_skb(128, GFP_ATOMIC);
+	if (!skb)
+		return NULL;
+
+	true_len = mt76_mac_process_rx(dev, skb, data, rxwi);
+
+	if (rxwi->rxinfo & cpu_to_le32(MT_RXINFO_L2PAD)) {
+		memcpy(skb_put(skb, hdr_len), data, hdr_len);
+		data += hdr_len + 2;
+		true_len -= hdr_len;
+		hdr_len = 0;
+	}
+
+	copy = (true_len <= skb_tailroom(skb)) ? true_len : hdr_len + 8;
+	frag = true_len - copy;
+
+	memcpy(skb_put(skb, copy), data, copy);
+	data += copy;
+
+	if (frag) {
+		skb_add_rx_frag(skb, 0, p, data - page_address(p),
+				frag, truesize);
+		get_page(p);
+	}
+
+	return skb;
+}
+
+static void mt7601u_rx_process_seg(struct mt7601u_dev *dev, u8 *data,
+				   u32 seg_len, struct page *p, bool paged)
 {
 	struct sk_buff *skb;
 	struct mt7601u_rxwi *rxwi;
-	u32 fce_info;
+	u32 fce_info, truesize = seg_len;
 
 	/* DMA_INFO field at the beginning of the segment contains only some of
 	 * the information, we need to read the FCE descriptor from the end.
@@ -82,14 +126,13 @@ mt7601u_rx_process_seg(struct mt7601u_dev *dev, u8 *data, u32 seg_len)
 
 	trace_mt_rx(dev, rxwi, fce_info);
 
-	skb = mt7601u_rx_skb_from_seg(dev, rxwi, data, seg_len);
+	if (paged)
+		skb = mt7601u_rx_skb_from_seg_paged(dev, rxwi, data, seg_len,
+						    truesize, p);
+	else
+		skb = mt7601u_rx_skb_from_seg(dev, rxwi, data, seg_len);
 	if (!skb)
 		return;
-
-	if (mt76_mac_process_rx(dev, skb, rxwi)) {
-		dev_kfree_skb(skb);
-		return;
-	}
 
 	ieee80211_rx_ni(dev->hw, skb);
 }
@@ -110,17 +153,28 @@ static u16 mt7601u_rx_next_seg_len(u8 *data, u32 data_len)
 }
 
 static void
-mt7601u_rx_process_entry(struct mt7601u_dev *dev, struct mt7601u_dma_buf *e)
+mt7601u_rx_process_entry(struct mt7601u_dev *dev, struct mt7601u_dma_buf_rx *e)
 {
 	u32 seg_len, data_len = e->urb->actual_length;
-	u8 *data = e->buf;
+	u8 *data = page_address(e->p);
+	struct page *new_p = NULL;
+	bool paged = true;
 	int cnt = 0;
 
 	if (!test_bit(MT7601U_STATE_INITIALIZED, &dev->state))
 		return;
 
+	/* Copy if there is very little data in the buffer. */
+	if (data_len < 512) {
+		paged = false;
+	} else {
+		new_p = dev_alloc_pages(MT_RX_ORDER);
+		if (!new_p)
+			paged = false;
+	}
+
 	while ((seg_len = mt7601u_rx_next_seg_len(data, data_len))) {
-		mt7601u_rx_process_seg(dev, data, seg_len);
+		mt7601u_rx_process_seg(dev, data, seg_len, e->p, paged);
 
 		data_len -= seg_len;
 		data += seg_len;
@@ -128,14 +182,21 @@ mt7601u_rx_process_entry(struct mt7601u_dev *dev, struct mt7601u_dma_buf *e)
 	}
 
 	if (cnt > 1)
-		trace_mt_rx_dma_aggr(dev, cnt);
+		trace_mt_rx_dma_aggr(dev, cnt, paged);
+
+	if (paged) {
+		/* we have one extra ref from the allocator */
+		__free_pages(e->p, MT_RX_ORDER);
+
+		e->p = new_p;
+	}
 }
 
-static struct mt7601u_dma_buf *
+static struct mt7601u_dma_buf_rx *
 mt7601u_rx_get_pending_entry(struct mt7601u_dev *dev)
 {
 	struct mt7601u_rx_queue *q = &dev->rx_q;
-	struct mt7601u_dma_buf *buf = NULL;
+	struct mt7601u_dma_buf_rx *buf = NULL;
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->rx_lock, flags);
@@ -175,15 +236,14 @@ out:
 static void mt7601u_rx_tasklet(unsigned long data)
 {
 	struct mt7601u_dev *dev = (struct mt7601u_dev *) data;
-	struct mt7601u_dma_buf *e;
+	struct mt7601u_dma_buf_rx *e;
 
 	while ((e = mt7601u_rx_get_pending_entry(dev))) {
 		if (e->urb->status)
 			continue;
 
 		mt7601u_rx_process_entry(dev, e);
-		mt7601u_usb_submit_buf(dev, USB_DIR_IN, MT_EP_IN_PKT_RX, e,
-				       GFP_ATOMIC, mt7601u_complete_rx, dev);
+		mt7601u_submit_rx_buf(dev, e, GFP_ATOMIC);
 	}
 }
 
@@ -325,14 +385,33 @@ static void mt7601u_kill_rx(struct mt7601u_dev *dev)
 	spin_unlock_irqrestore(&dev->rx_lock, flags);
 }
 
+static int mt7601u_submit_rx_buf(struct mt7601u_dev *dev,
+				 struct mt7601u_dma_buf_rx *e, gfp_t gfp)
+{
+	struct usb_device *usb_dev = mt7601u_to_usb_dev(dev);
+	u8 *buf = page_address(e->p);
+	unsigned pipe;
+	int ret;
+
+	pipe = usb_rcvbulkpipe(usb_dev, dev->in_eps[MT_EP_IN_PKT_RX]);
+
+	usb_fill_bulk_urb(e->urb, usb_dev, pipe, buf, MT_RX_URB_SIZE,
+			  mt7601u_complete_rx, dev);
+
+	trace_mt_submit_urb(dev, e->urb);
+	ret = usb_submit_urb(e->urb, gfp);
+	if (ret)
+		dev_err(dev->dev, "Error: submit RX URB failed:%d\n", ret);
+
+	return ret;
+}
+
 static int mt7601u_submit_rx(struct mt7601u_dev *dev)
 {
 	int i, ret;
 
 	for (i = 0; i < dev->rx_q.entries; i++) {
-		ret = mt7601u_usb_submit_buf(dev, USB_DIR_IN, MT_EP_IN_PKT_RX,
-					     &dev->rx_q.e[i], GFP_KERNEL,
-					     mt7601u_complete_rx, dev);
+		ret = mt7601u_submit_rx_buf(dev, &dev->rx_q.e[i], GFP_KERNEL);
 		if (ret)
 			return ret;
 	}
@@ -344,8 +423,10 @@ static void mt7601u_free_rx(struct mt7601u_dev *dev)
 {
 	int i;
 
-	for (i = 0; i < dev->rx_q.entries; i++)
-		mt7601u_usb_free_buf(dev, &dev->rx_q.e[i]);
+	for (i = 0; i < dev->rx_q.entries; i++) {
+		__free_pages(dev->rx_q.e[i].p, MT_RX_ORDER);
+		usb_free_urb(dev->rx_q.e[i].urb);
+	}
 }
 
 static int mt7601u_alloc_rx(struct mt7601u_dev *dev)
@@ -356,9 +437,13 @@ static int mt7601u_alloc_rx(struct mt7601u_dev *dev)
 	dev->rx_q.dev = dev;
 	dev->rx_q.entries = N_RX_ENTRIES;
 
-	for (i = 0; i < N_RX_ENTRIES; i++)
-		if (mt7601u_usb_alloc_buf(dev, MT_RX_URB_SIZE, &dev->rx_q.e[i]))
+	for (i = 0; i < N_RX_ENTRIES; i++) {
+		dev->rx_q.e[i].urb = usb_alloc_urb(0, GFP_KERNEL);
+		dev->rx_q.e[i].p = dev_alloc_pages(MT_RX_ORDER);
+
+		if (!dev->rx_q.e[i].urb || !dev->rx_q.e[i].p)
 			return -ENOMEM;
+	}
 
 	return 0;
 }

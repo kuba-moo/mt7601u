@@ -441,29 +441,27 @@ mt7601u_rx_monitor_beacon(struct mt7601u_dev *dev, struct mt7601u_rxwi *rxwi,
 }
 
 static int
-mt7601u_rx_is_our_beacon(struct mt7601u_dev *dev, struct sk_buff *skb)
+mt7601u_rx_is_our_beacon(struct mt7601u_dev *dev, u8 *data)
 {
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)data;
 
 	return ieee80211_is_beacon(hdr->frame_control) &&
 		ether_addr_equal(hdr->addr2, dev->ap_bssid);
 }
 
-int mt76_mac_process_rx(struct mt7601u_dev *dev, struct sk_buff *skb, void *rxi)
+u32 mt76_mac_process_rx(struct mt7601u_dev *dev, struct sk_buff *skb,
+			u8 *data, void *rxi)
 {
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
 	struct mt7601u_rxwi *rxwi = rxi;
 	u32 ctl = le32_to_cpu(rxwi->ctl);
 	u16 rate = le16_to_cpu(rxwi->rate);
-	int len, rssi;
+	int rssi;
 
 	if (rxwi->rxinfo & cpu_to_le32(MT_RXINFO_DECRYPT)) {
 		status->flag |= RX_FLAG_DECRYPTED;
 		status->flag |= RX_FLAG_IV_STRIPPED | RX_FLAG_MMIC_STRIPPED;
 	}
-
-	len = MT76_GET(MT_RXWI_CTL_MPDU_LEN, ctl);
-	skb_trim(skb, len);
 
 	status->chains = BIT(0);
 	rssi = mt7601u_phy_get_rssi(dev, rxwi, rate);
@@ -474,13 +472,13 @@ int mt76_mac_process_rx(struct mt7601u_dev *dev, struct sk_buff *skb, void *rxi)
 	mt76_mac_process_rate(status, rate);
 
 	spin_lock_bh(&dev->con_mon_lock);
-	if (mt7601u_rx_is_our_beacon(dev, skb))
+	if (mt7601u_rx_is_our_beacon(dev, data))
 		mt7601u_rx_monitor_beacon(dev, rxwi, rate, rssi);
 	else if (rxwi->rxinfo & cpu_to_le32(MT_RXINFO_U2M))
 		dev->avg_rssi = (dev->avg_rssi * 15) / 16 + (rssi << 8);
 	spin_unlock_bh(&dev->con_mon_lock);
 
-	return 0;
+	return MT76_GET(MT_RXWI_CTL_MPDU_LEN, ctl);
 }
 
 static enum mt76_cipher_type

@@ -37,6 +37,7 @@
 #define MT_USB_AGGR_SIZE_LIMIT		21 /* * 1024B */
 #define MT_USB_AGGR_TIMEOUT		0x80 /* * 33ns */
 #define MT_RX_URB_SIZE			(24 * 1024)
+#define MT_RX_ORDER			3
 
 struct mt7601u_dma_buf {
 	struct urb *urb;
@@ -73,7 +74,10 @@ struct mac_stats {
 struct mt7601u_rx_queue {
 	struct mt7601u_dev *dev;
 
-	struct mt7601u_dma_buf e[N_RX_ENTRIES];
+	struct mt7601u_dma_buf_rx {
+		struct urb *urb;
+		struct page *p;
+	} e[N_RX_ENTRIES];
 
 	unsigned int start;
 	unsigned int end;
