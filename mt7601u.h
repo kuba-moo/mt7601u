@@ -34,10 +34,10 @@
 
 #define MT_BBP_REG_VERSION		0x00
 
-#define MT_USB_AGGR_SIZE_LIMIT		21 /* * 1024B */
+#define MT_USB_AGGR_SIZE_LIMIT		28 /* * 1024B */
 #define MT_USB_AGGR_TIMEOUT		0x80 /* * 33ns */
-#define MT_RX_URB_SIZE			(24 * 1024)
 #define MT_RX_ORDER			3
+#define MT_RX_URB_SIZE			(PAGE_SIZE << MT_RX_ORDER)
 
 struct mt7601u_dma_buf {
 	struct urb *urb;
