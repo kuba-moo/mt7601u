@@ -120,6 +120,8 @@ struct mt7601u_eeprom_params {
 };
 
 int mt7601u_eeprom_init(struct mt7601u_dev *dev);
+int mt7601u_efuse_read(struct mt7601u_dev *dev, u16 addr, u8 *data,
+		       enum mt7601u_eeprom_access_modes mode);
 
 static inline u32 s6_validate(u32 reg)
 {

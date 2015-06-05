@@ -35,9 +35,8 @@ field_validate(u8 val)
 	return val;
 }
 
-static int
-mt7601u_efuse_read(struct mt7601u_dev *dev, u16 addr, u8 *data,
-		   enum mt7601u_eeprom_access_modes mode)
+int mt7601u_efuse_read(struct mt7601u_dev *dev, u16 addr, u8 *data,
+		       enum mt7601u_eeprom_access_modes mode)
 {
 	u32 val;
 	int i;

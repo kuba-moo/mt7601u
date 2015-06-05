@@ -94,6 +94,37 @@ static const struct file_operations fops_ampdu_stat = {
 	.release = single_release,
 };
 
+static ssize_t
+mt7601u_eeprom_read(struct file *file, char __user *buf,
+		    size_t count, loff_t *f_pos)
+{
+	struct mt7601u_dev *dev = file->f_inode->i_private;
+	u8 ee[16];
+	int ret;
+
+	if (count < 16)
+		return -EINVAL;
+	if (*f_pos % 16)
+		return -EINVAL;
+
+	if (*f_pos + 16 > MT7601U_EEPROM_SIZE)
+		return 0;
+
+	ret = mt7601u_efuse_read(dev, *f_pos, ee, MT_EE_READ);
+	if (ret)
+		return -EIO;
+
+	if (copy_to_user(buf, ee, 16))
+		return -EFAULT;
+
+	*f_pos += 16;
+	return 16;
+}
+
+static const struct file_operations fops_eeprom = {
+	.read = mt7601u_eeprom_read,
+};
+
 static int
 mt7601u_eeprom_param_read(struct seq_file *file, void *data)
 {
@@ -167,6 +198,7 @@ void mt7601u_init_debugfs(struct mt7601u_dev *dev)
 	debugfs_create_file("regval", S_IRUSR | S_IWUSR, dir, dev,
 			    &fops_regval);
 	debugfs_create_file("ampdu_stat", S_IRUSR, dir, dev, &fops_ampdu_stat);
+	debugfs_create_file("eeprom", S_IRUSR, dir, dev, &fops_eeprom);
 	debugfs_create_file("eeprom_param", S_IRUSR, dir, dev,
 			    &fops_eeprom_param);
 }
