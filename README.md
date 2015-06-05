@@ -33,6 +33,14 @@ Now when you connect your device a new network interface should be created. Some
 
 The warning about EEPROM version is harmless but keep an eye on the logs and if you spot any errors please report them here.
 
+If you want the driver to load automatically you can do the following:
+```
+$ make
+# cp mt7601u.ko /lib/modules/`uname -r`/kernel/drivers/net/wireless/
+# depmod
+```
+However, please remember that this installs the driver *only for your current kernel* and you will have to redo those 3 commands every time your kernel is upgraded!
+
 ### Supported hardware
 The driver was tested for devices with USB ID of 148f:7601. Specifically I tested it with:
  * TP-LINK TL-WN727N v4;
