@@ -1,4 +1,4 @@
-This is a Linux driver for MediaTek MT7601U USB dongle. It was written from scratch based on the vendor GPL-driver. Unlike the vendor driver this driver uses modern Linux WiFi infrastructure and should work flawlessly with NetworkManager, wicd, wpa_supplicant and such. This driver is also intended to be merged into the official Linux kernel once it's tested and well-polished.
+This is a Linux driver for MediaTek MT7601U USB dongle. It was written from scratch based on the vendor GPL-driver. Unlike the vendor driver this driver uses modern Linux WiFi infrastructure and should work flawlessly with NetworkManager, wicd, wpa_supplicant and such. This driver was merged into mainline and is part of official Linux kernel since version v4.2. If you are using Linux 4.2 or later there is no need to install this driver.
 
 ### Building and using
 To use this driver you need to upgrade your kernel to at least **Linux 3.19**. You also have to grab a copy of the firmware from the vendor driver. Download the vendor driver (see section below) and copy file *MT7601U.bin* to */lib/firmware*:
