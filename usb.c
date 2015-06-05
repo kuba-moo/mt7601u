@@ -271,8 +271,6 @@ static int mt7601u_probe(struct usb_interface *usb_intf,
 		return -ENOMEM;
 
 	usb_dev = usb_get_dev(usb_dev);
-	usb_reset_device(usb_dev);
-
 	usb_set_intfdata(usb_intf, dev);
 
 	ret = mt7601u_assign_pipes(usb_intf, dev);
