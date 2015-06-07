@@ -35,11 +35,9 @@ The warning about EEPROM version is harmless but keep an eye on the logs and if 
 
 If you want the driver to load automatically you can do the following:
 ```
-$ make
-# cp mt7601u.ko /lib/modules/`uname -r`/kernel/drivers/net/wireless/
-# depmod
+$ make && sudo make install
 ```
-However, please remember that this installs the driver *only for your current kernel* and you will have to redo those 3 commands every time your kernel is upgraded!
+However, please remember that this installs the driver *only for your current kernel* and you will have to redo this every time your kernel is updated!
 
 ### Supported hardware
 The driver was tested for devices with USB ID of 148f:7601. Specifically I tested it with:

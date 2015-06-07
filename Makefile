@@ -4,6 +4,8 @@ default:
 	$(MAKE) -C $(KDIR) M=$$PWD
 clean:
 	$(MAKE) -C $(KDIR) M=$$PWD clean
+install:
+	$(MAKE) -C $(KDIR) M=$$PWD modules_install
 else
 EXTRA_CFLAGS += -Werror -Wenum-compare
 ccflags-y += -D__CHECK_ENDIAN__
