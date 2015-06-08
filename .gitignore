@@ -1,0 +1,7 @@
+*.o
+*.cmd
+.tmp_versions/
+Module.symvers
+modules.order
+mt7601u.ko
+mt7601u.mod.c
