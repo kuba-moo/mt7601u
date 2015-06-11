@@ -35,7 +35,7 @@ The warning about EEPROM version is harmless but keep an eye on the logs and if 
 
 If you want the driver to load automatically you can do the following:
 ```
-$ make && sudo make install
+$ make && sudo make install && depmod
 ```
 However, please remember that this installs the driver *only for your current kernel* and you will have to redo this every time your kernel is updated!
 
