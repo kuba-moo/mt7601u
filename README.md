@@ -50,4 +50,4 @@ Also tested with USB ID of 148f:760b wich has MT7601UM chip and works fine with 
 But in principle it *should* work with any device supported by the vendor driver.
 
 ### Vendor driver
-The original vendor driver can be downloaded from MediaTek's website (http://www.mediatek.com/en/downloads1/downloads/mt7601u-usb/). However, version 3.0.0.4 is broken on recent kernels so you may want to grab one of the improved versions which people put up on GH (like this one: https://github.com/porjo/mt7601).
+The original vendor driver can be downloaded from MediaTek's website (http://www.mediatek.com/en/downloads1/downloads/mt7601u-usb/). However, version 3.0.0.4 is broken on recent kernels so you may want to grab one of the improved versions which people put up on GH (like this one: https://github.com/porjo/mt7601u).
