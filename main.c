@@ -338,9 +338,23 @@ static int mt7601u_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 
 static int
 mt76_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 6, 0)
+		  struct ieee80211_ampdu_params *params
+#else
 		  enum ieee80211_ampdu_mlme_action action,
-		  struct ieee80211_sta *sta, u16 tid, u16 *ssn, u8 buf_size)
+		  struct ieee80211_sta *sta, u16 tid, u16 *ssn, u8 buf_size
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0)
+		  , bool amsdu
+#endif
+#endif
+		  )
 {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 6, 0)
+	enum ieee80211_ampdu_mlme_action action = params->action;
+	struct ieee80211_sta *sta = params->sta;
+	u16 *ssn = &params->ssn;
+	u16 tid = params->tid;
+#endif
 	struct mt7601u_dev *dev = hw->priv;
 	struct mt76_sta *msta = (struct mt76_sta *) sta->drv_priv;
 
